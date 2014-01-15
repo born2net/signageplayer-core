@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:BlockHtmlPlayer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" 
+					xmlns:ms="*">
+	<fx:Script>
+		<![CDATA[
+			private var m_webView:StageWebView = new StageWebView();
+			
+			public override function reload():void
+			{
+				//html.reload();
+			}
+			
+		
+			public override function get propertyPages():Array
+			{
+				return [BlockHtmlPageMobile];
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				
+				m_webView.stage = this.stage;
+				
+				m_webView.viewPort = new Rectangle( 0, 0, width, height );
+			}
+		
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerUrl==null || m_playerUrl=="")
+					return;
+				m_webView.loadURL( m_playerUrl );
+			} 
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (m_webView!=null && unscaledWidth>0)
+				{
+					var point:Point = localToGlobal(new Point(0,0) );
+					m_webView.viewPort = new Rectangle(point.x, point.y, unscaledWidth, unscaledHeight);
+				}
+			}
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				if (m_webView!=null)
+				{
+					m_webView.stop();
+					m_webView.stage = null;
+					m_webView.dispose(); 
+					m_webView = null;
+				}
+				//html.htmlLoader.loadString("");  // unload HTML (stop music)
+			}
+		]]>
+	</fx:Script>
+
+</ms:BlockHtmlPlayer>

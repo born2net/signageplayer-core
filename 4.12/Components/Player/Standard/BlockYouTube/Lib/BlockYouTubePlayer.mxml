@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*">
+	
+	<fx:Script>
+		<![CDATA[
+			private var m_youTubeLoader:Loader = new Loader();
+			private var m_youTubePlayer:Object = null;
+			protected var m_videoList:Array;
+			protected var m_quality:String = "default";
+			protected var m_listType:String = "most_viewed";
+			protected var m_listRegion:String = "US";
+			protected var m_videoIdList:String = "";
+			protected var m_volume:Number = 100;
+			protected var m_playedCount:int = 0;
+			protected var m_playing:Boolean = false;
+		
+			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.YouTube.@quality).length()>0)
+				{
+					m_quality = XML(i_data.YouTube.@quality).toString();
+				}
+				if (XMLList(i_data.YouTube.@listType).length()>0)
+				{
+					m_listType = XML(i_data.YouTube.@listType).toString();
+				}
+				if (XMLList(i_data.YouTube.@listRegion).length()>0)
+				{
+					m_listRegion = XML(i_data.YouTube.@listRegion).toString();
+				}
+				if (XMLList(i_data.YouTube.VideoIdList).length()>0)
+				{
+					m_videoIdList = XML(i_data.YouTube.VideoIdList).toString();
+				}
+				if (XMLList(i_data.YouTube.@volume).length()>0)
+				{
+					m_volume = Number(i_data.YouTube.@volume);
+				}
+
+				invalidateProperties();
+			}
+			 
+			public override function save():XML
+			{
+				var xmlYouTube:XML = <YouTube/>;
+				xmlYouTube.@quality = m_quality;
+				xmlYouTube.@listType = m_listType;
+				
+				if (m_listType=="manually")
+				{
+					var xmlVideoIdList:XML = <VideoIdList>{m_videoIdList}</VideoIdList>;
+					xmlYouTube.appendChild(xmlVideoIdList);
+				}
+				else
+				{
+					xmlYouTube.@listRegion = m_listRegion;
+				}
+				
+				xmlYouTube.@volume = m_volume;
+				
+				return xmlYouTube;  
+			}	
+			
+			
+			public function set quality(i_quality:String):void
+			{
+				m_playerLoader.modified = true;
+				m_quality = i_quality;
+				if (m_youTubePlayer!=null)
+				{
+					m_youTubePlayer.stopVideo();
+					m_youTubePlayer.setPlaybackQuality(m_quality);
+					m_youTubePlayer.playVideo();
+				}
+			}
+			
+			public function get quality():String
+			{
+				return m_quality;
+			}
+			
+			
+			public function set listType(i_listType:String):void
+			{
+				m_playerLoader.modified = true;
+				m_listType = i_listType;
+				if (m_youTubePlayer!=null)
+					m_youTubePlayer.stopVideo();
+				requestVideos();
+			}
+			
+			public function get listType():String
+			{
+				return m_listType;
+			}
+			
+
+			public function set listRegion(i_listRegion:String):void
+			{
+				m_playerLoader.modified = true;
+				m_listRegion = i_listRegion;
+				if (m_youTubePlayer!=null)
+					m_youTubePlayer.stopVideo();
+				requestVideos();
+			}
+			
+			public function get listRegion():String
+			{
+				return m_listRegion;
+			}
+
+			
+			public function set videoIdList(i_videoIdList:String):void
+			{
+				m_playerLoader.modified = true;
+				m_videoIdList = i_videoIdList;
+				if (m_youTubePlayer!=null)
+					m_youTubePlayer.stopVideo();
+				requestVideos();
+			}
+			
+			public function get videoIdList():String
+			{
+				return m_videoIdList;
+			}
+			
+			public function set volume(i_volume:Number):void
+			{
+				m_playerLoader.modified = true;
+				m_volume = i_volume;
+				if (m_youTubePlayer!=null)
+				{
+					m_youTubePlayer.setVolume(m_volume);
+				}
+			}
+			
+			public function get volume():Number
+			{
+				return m_volume;
+			}
+
+
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockYouTubePage];
+			}
+			
+			public override function clear():void
+			{
+			}
+			
+			public override function start():void
+			{
+				if (m_youTubePlayer!=null)
+				{
+					m_youTubePlayer.setPlaybackQuality(m_quality);
+					m_youTubePlayer.playVideo()
+					m_youTubePlayer.setVolume(m_volume)
+				}
+				if (m_playing==false)
+				{
+					m_playing = true;
+					playNext();
+				}
+			}
+			
+			public override function stop():void
+			{
+				if (m_playing)
+				{
+					m_playing = false;
+					if (m_youTubePlayer!=null)
+					{
+						m_youTubePlayer.stopVideo();
+					}
+				}
+			}
+			
+			public override function get seek():Number
+			{
+				return 0;				
+			}
+			
+			public override function set seek(i_seek:Number):void
+			{
+				
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_youTubeLoader.contentLoaderInfo.addEventListener(Event.INIT, onLoaderInit);
+				var loaderContext:LoaderContext = new LoaderContext(false, null, null);
+				m_youTubeLoader.load(new URLRequest("http://www.youtube.com/apiplayer?version=3"), loaderContext);
+			}
+			
+			private function onLoaderInit(event:Event):void 
+			{
+				container.addChild(m_youTubeLoader);
+				
+				m_youTubeLoader.content.addEventListener("onReady", onPlayerReady);
+				m_youTubeLoader.content.addEventListener("onError", onPlayerError);
+				m_youTubeLoader.content.addEventListener("onStateChange", onPlayerStateChange);
+				m_youTubeLoader.content.addEventListener("onPlaybackQualityChange",  onVideoPlaybackQualityChange);
+			}
+			
+			private function onPlayerReady(event:Event):void 
+			{
+				m_youTubePlayer = m_youTubeLoader.content;
+				requestVideos();
+				invalidateDisplayList();
+			}
+			
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (m_youTubePlayer!=null)
+				{
+					m_youTubePlayer.setSize(this.width, this.height);
+				}
+			}
+
+			
+			private function onPlayerError(event:Event):void 
+			{
+				playNext();
+			}
+			
+			
+			//private var updateInterval:Number = 0;
+			private function onPlayerStateChange(event:Event):void 
+			{
+				var stateIndex:Number = event["data"];
+				
+				if (stateIndex==0) // video ended
+				{
+					playNext();
+				}
+				else if (stateIndex==1) // playing
+				{
+					m_playedCount++;
+				}
+			}
+
+			
+			private function onVideoPlaybackQualityChange(event:Event):void 
+			{
+				// Event.data contains the event parameter, which is the new video quality
+				//this.dispatchEvent(event);
+			} 
+
+			
+			protected function requestVideos():void
+			{
+				if (m_listType=="manually")
+				{
+					var videoId:String;
+					m_videoList = new Array();
+					var i0:int=0;
+					var inStr:Boolean = true;
+					for(var i1:int=0;i1<m_videoIdList.length;i1++)
+					{
+						var ch:String = m_videoIdList.charAt(i1);
+						if (ch==" " || ch=="," || ch==";" || ch=="\t" || ch=="\n")
+						{
+							if (inStr)
+							{
+								videoId = m_videoIdList.substring(i0, i1);
+								m_videoList.push(videoId);
+								inStr = false;
+							}
+							i0 = i1+1;
+						}
+						else
+						{
+							inStr = true;
+						}
+					}
+					if (inStr && i1>i0)
+					{
+						videoId = m_videoIdList.substring(i0, i1);
+						m_videoList.push(videoId);
+					}
+
+					m_playedCount = 0;
+					playNext();
+				}
+				else
+				{
+					var url:String = "http://gdata.youtube.com/feeds/api/standardfeeds/"+m_listRegion+"/"+m_listType+"?time=today&v=2";
+					var request:URLRequest = new URLRequest(url);
+					var ldr:URLLoader = new URLLoader();
+					ldr.addEventListener(Event.COMPLETE, onLoadRequest);
+					ldr.load(request);
+				}
+			}
+			
+			
+			
+			private function onLoadRequest(e:Event):void
+			{
+				var ldr:URLLoader = URLLoader(e.target);
+				ldr.removeEventListener(Event.COMPLETE, onLoadRequest);
+				
+				if (m_youTubeLoader==null)
+					return;
+				
+				m_playedCount = 0;
+				
+				var xmlFeed:XML = new XML(ldr.data);
+				m_videoList = new Array();
+				var qnameEntry:QName = new QName("http://www.w3.org/2005/Atom", "entry");
+				var entryList:XMLList = xmlFeed.descendants(qnameEntry);
+				for each(var xmlEntry:XML in entryList)
+				{
+					var qnameId:QName = new QName("http://www.w3.org/2005/Atom", "id");
+					var idArray:Array = xmlEntry.descendants(qnameId).toString().split(':');
+					var videoId:String = idArray[idArray.length-1];
+					m_videoList.push(videoId);
+				}
+				
+				playNext();
+			}
+			
+			
+			private function playNext():void
+			{
+				if (m_playing==false || m_videoList==null)
+					return;
+				
+				var videoId:String = m_videoList.shift();
+				if (videoId==null)
+				{
+					if (m_playedCount==0)
+						return;
+
+					requestVideos();
+				}
+				else
+				{
+					m_youTubePlayer.loadVideoById(videoId);
+					m_youTubePlayer.setPlaybackQuality(m_quality);
+					m_youTubePlayer.playVideo();
+				}
+			}
+
+			
+			
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				
+				if (m_youTubePlayer!=null)
+				{
+					m_youTubePlayer.stopVideo();
+					m_youTubePlayer = null;
+				}
+				
+				if (m_youTubeLoader!=null)
+				{
+					if (m_youTubeLoader.contentLoaderInfo!=null)
+					{
+						m_youTubeLoader.contentLoaderInfo.removeEventListener(Event.INIT, onLoaderInit);
+					}
+					if (m_youTubeLoader.content!=null)
+					{
+						m_youTubeLoader.content.removeEventListener("onReady", onPlayerReady);
+						m_youTubeLoader.content.removeEventListener("onError", onPlayerError);
+						m_youTubeLoader.content.removeEventListener("onStateChange", onPlayerStateChange);
+						m_youTubeLoader.content.removeEventListener("onPlaybackQualityChange",  onVideoPlaybackQualityChange);
+					}
+					m_youTubeLoader = null;
+				}
+			}
+
+		]]>
+	</fx:Script>
+	
+	<mx:UIComponent id="container" width="100%" height="100%"/>
+</ms:PlayerModule>	

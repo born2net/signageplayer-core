@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:GridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" 
+					clipAndEnableScrolling="true">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.CollectionEvent;
+			import mx.managers.CursorManager;
+			
+			import spark.components.DataGrid;
+			import spark.skins.spark.DefaultGridItemRenderer;
+			
+			
+			public var enableCondition:Boolean = true;
+			
+			public override function prepare(hasBeenRecycled:Boolean):void 
+			{
+				//lblData.text = data[column.dataField]
+			}
+			
+			public override function set data(value:Object):void
+			{
+				super.data = value;
+				if (data==null)
+					return;
+				
+				eventCondition.visible = enableCondition;
+				eventCondition.text = data.eventCondition;
+			}
+			
+			private function onEventCondition():void
+			{
+				data.eventCondition = eventCondition.text;
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:HorizontalLayout gap="0"/>
+	</s:layout>
+	<s:TextInput id="eventCondition" width="100%"
+				 focusOut="onEventCondition()" enter="onEventCondition()"/>	
+</s:GridItemRenderer>

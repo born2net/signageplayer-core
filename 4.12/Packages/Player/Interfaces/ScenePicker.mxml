@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TextInput xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+		   text=""
+		   editable="false" 
+		   dragOver="onDragOver(event)"
+		   dragEnter="onDragEnter(event)"
+		   dragDrop="onDragDrop(event)">
+
+	<fx:Script>
+		<![CDATA[
+			// toolTip="{resourceManager.getString('player', 'ScenePickerCtrl.scene.toolTip')}"
+			
+			import mx.core.UIComponent;
+			import mx.events.DragEvent;
+			import mx.managers.DragManager;
+			
+			private var m_framework:IFramework;
+			private var m_playerDataService:IPlayerDataService
+			private var m_hPlayerData:int = -1;
+			
+			public function get framework():IFramework
+			{
+				return m_framework;
+			}
+			
+			public function set framework(i_framework:IFramework):void
+			{
+				m_framework = i_framework;
+				m_playerDataService = m_framework.ServiceBroker.QueryService("PlayerDataService") as IPlayerDataService;
+				invalidateProperties();
+			}			
+			
+			public function get hPlayerData():int
+			{
+				return m_hPlayerData;
+			}
+			
+			public function set hPlayerData(i_hPlayerData:int):void
+			{
+				m_hPlayerData = i_hPlayerData;
+				invalidateProperties();
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerDataService==null || m_hPlayerData==-1)
+				{
+					text = "[Drop scene here]";
+					return;
+				}
+				
+				text = m_playerDataService.getNameFromHandle(m_hPlayerData);
+			}
+			
+			private function onDragEnter(event:DragEvent):void
+			{
+				DragManager.acceptDragDrop(UIComponent(event.currentTarget));
+			}
+			
+			private function onDragOver(event:DragEvent):void
+            {
+            	
+				if (event.dragSource.hasFormat("itemsByIndex"))
+				{
+					var items:Vector.<Object> = event.dragSource.dataForFormat('itemsByIndex') as Vector.<Object>;
+					var item:Object = items[0];
+					if (item.name=="PlayerData")
+					{
+						DragManager.showFeedback(DragManager.COPY);
+						return;
+					}     
+                }
+               	DragManager.showFeedback(DragManager.NONE);            	
+            }
+            
+            
+			private function onDragDrop(event:DragEvent):void
+			{
+				if (event.dragSource.hasFormat("itemsByIndex"))
+				{
+					var items:Vector.<Object> = event.dragSource.dataForFormat('itemsByIndex') as Vector.<Object>;
+					var item:Object = items[0];
+	                if (item.name=="PlayerData")
+	                {
+	                	text = item.label;
+	                	m_hPlayerData = item.handle;
+	                	dispatchEvent( new Event(Event.CHANGE) ); 
+	                }
+                }
+			}
+			
+			
+		]]>
+	</fx:Script>
+	
+</s:TextInput>

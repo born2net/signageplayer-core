@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"
+		   label="QR"
+		   width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_framework = Global.getFramework(this);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				
+				if (BlockQRCodePlayer(m_playerLoader.player).textSource=="static")
+				{
+					textSource.selectedIndex = 0;
+					textEditor.editable = true;
+					url.text = "";
+				}
+				else if (BlockQRCodePlayer(m_playerLoader.player).textSource=="dynamic")
+				{
+					textSource.selectedIndex = 1;
+					textEditor.editable = false;
+					url.text = BlockQRCodePlayer(m_playerLoader.player).url;
+				}
+				else if (BlockQRCodePlayer(m_playerLoader.player).textSource=="remote")
+				{
+					textSource.selectedIndex = 2;
+					textEditor.editable = false;
+					url.text = BlockQRCodePlayer(m_playerLoader.player).url;
+					user.text = BlockQRCodePlayer(m_playerLoader.player).limitedUser;
+					password.text = BlockQRCodePlayer(m_playerLoader.player).limitedPassword;
+				}
+				textEditor.text = BlockQRCodePlayer(m_playerLoader.player).text;
+				
+				updateButtons();
+			}
+			
+			private function onChange():void
+			{
+				BlockQRCodePlayer(m_playerLoader.player).text = textEditor.text;
+			}
+			
+			private function onTextSource():void
+			{
+				BlockQRCodePlayer(m_playerLoader.player).textSource = textSource.selectedItem.name;
+				if (BlockQRCodePlayer(m_playerLoader.player).textSource=="static")
+				{
+					textEditor.editable = true;
+				}
+				else if (BlockQRCodePlayer(m_playerLoader.player).textSource=="dynamic")
+				{
+					textEditor.editable = false;
+				}
+				else if (BlockQRCodePlayer(m_playerLoader.player).textSource=="remote")
+				{
+					textEditor.editable = false;
+					if (url.text=="")
+					{
+						url.text="http://signage.me/demo/remotetouch.html";
+					}
+				}
+				textEditor.text = BlockQRCodePlayer(m_playerLoader.player).text;
+				updateButtons();
+			}
+			
+			private function onUrl():void
+			{
+				BlockQRCodePlayer(m_playerLoader.player).url = url.text;
+			}
+			
+			private function onUserInfo():void
+			{
+				BlockQRCodePlayer(m_playerLoader.player).limitedUser = user.text;
+				BlockQRCodePlayer(m_playerLoader.player).limitedPassword = password.text;
+			}
+			
+			private function updateButtons():void
+			{
+				switch (BlockQRCodePlayer(m_playerLoader.player).textSource)
+				{
+					case "static":
+						userForm.height = 10; userForm.visible = false;
+						passwordForm.height = 10; passwordForm.visible = false;
+						urlForm.height = 10; urlForm.visible = false;
+						qrContent.visible = true;
+						break;
+					case "dynamic":
+						userForm.height = 10; userForm.visible = false;
+						passwordForm.height = 10; passwordForm.visible = false;
+						urlForm.height = NaN; urlForm.visible = true;
+						qrContent.visible = true;
+						break;
+					case "remote":
+						userForm.height = NaN; userForm.visible = true;
+						passwordForm.height = NaN; passwordForm.visible = true;
+						urlForm.height = NaN; urlForm.visible = true;
+						qrContent.visible = false;
+						break;
+				}
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<ms:layout>
+		<s:VerticalLayout paddingLeft="10" paddingRight="10" paddingTop="10" paddingBottom="10"/>
+	</ms:layout>
+	<s:Form>
+		<s:FormItem label="Text Source">
+			<s:DropDownList id="textSource" change="onTextSource()">
+				<s:dataProvider>
+					<s:ArrayList>
+						<fx:Object name="static" label="Plain text"/>
+						<fx:Object name="dynamic" label="From url"/>
+						<fx:Object name="remote" label="RemoteTouch"/>
+					</s:ArrayList>
+				</s:dataProvider>
+			</s:DropDownList>
+		</s:FormItem>
+		<s:FormItem id="urlForm" label="url">
+			<s:TextInput id="url" 
+						 focusOut="onUrl()" enter="onUrl()"/>
+		</s:FormItem>
+		<s:FormItem id="userForm" label="Limited user">
+			<s:TextInput id="user"
+						 focusOut="onUserInfo()" enter="onUserInfo()"/>	
+		</s:FormItem>
+		<s:FormItem id="passwordForm" label="Limited password">
+			<s:TextInput id="password"
+						 focusOut="onUserInfo()" enter="onUserInfo()"/>
+		</s:FormItem>
+	</s:Form>
+	<s:VGroup id="qrContent" width="100%" height="100%">
+		<s:Label text="QR Content:"/>
+		<s:TextArea id="textEditor" width="100%" height="100%" change="onChange()" borderVisible="true"/>		
+	</s:VGroup>
+</ms:PlayerPage>	
+

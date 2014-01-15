@@ -1,0 +1,576 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+	implements="IXmlItemProvider"
+	resize="onSize()"> 
+	
+	<fx:Script>
+		<![CDATA[
+			import com.hurlant.crypto.tls.TLSSocket;
+			import com.hurlant.util.Base64;
+			
+			import de.danielyan.twitterAppOnly.TwitterSocket;
+			import de.danielyan.twitterAppOnly.TwitterSocketEvent;
+			
+			import flash.events.Event;
+			import flash.events.EventDispatcher;
+			import flash.events.IOErrorEvent;
+			import flash.events.ProgressEvent;
+			import flash.events.SecurityErrorEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.IUIComponent;
+			import mx.core.IVisualElement;
+			import mx.core.UIComponent;
+
+			
+			private var m_cachingService:ICachingService;
+			private var m_playerLoaderService:IPlayerLoaderService;
+			
+			
+			private var m_consumerKey:String = "";
+			private var m_consumerSecret:String = "";
+			private var m_screenName:String = "";
+			
+			
+			private var m_slideShow:Boolean = true;
+			private var m_itemInterval:Number = 5;
+			private var m_hPlayerData:int = -1;
+			
+			
+			
+			private var m_timer:Timer;
+			private var m_time:Number = 0;
+			private var m_startTime:Number = 0;
+			
+			
+			private var m_ready:Boolean = false;
+			private var m_invalidatePlayerData:Boolean = false;
+			private var m_childPlayerLoader:IPlayerLoader;
+			private var m_itemIndex:int = -1;
+			
+			
+			
+			private var m_socket:TLSSocket;
+			private var m_isResponseValid:Boolean=false;
+			private var m_accessToken:String;
+			private var m_pendingRequest:String;
+			private var m_output:String;
+			private var m_length:int;
+
+			private var m_tweets:ArrayCollection;
+			
+			
+			public function getItemValue(i_fieldName:String):String
+			{
+				if (m_itemIndex==-1 || m_tweets==null || m_itemIndex>=m_tweets.length)
+					return null;
+				
+				var tweet:Object = m_tweets[ m_itemIndex ];
+				var fieldArray:Array = i_fieldName.split('.');
+				var value:Object = tweet;
+				for each(var field in fieldArray)
+				{
+					value = value[field];
+				}
+				
+				return value.toString();
+			}
+			
+			
+			public override function initModule():void
+			{
+				super.initModule();
+				m_cachingService = m_framework.ServiceBroker.QueryService("CachingService") as ICachingService;
+				m_playerLoaderService = m_framework.ServiceBroker.QueryService("PlayerLoaderService") as IPlayerLoaderService;
+				
+				
+				
+				m_isResponseValid = false;
+				
+				try
+				{
+					m_socket = new TLSSocket();
+					m_socket.addEventListener(Event.CONNECT,onConnect);
+					m_socket.addEventListener(ProgressEvent.SOCKET_DATA,onData);
+					m_socket.addEventListener(IOErrorEvent.IO_ERROR, onError);
+					m_socket.addEventListener(SecurityErrorEvent.SECURITY_ERROR, onError);
+					m_socket.addEventListener(Event.CLOSE, onClose);
+				}
+				catch(e:Error)
+				{
+					trace(e.toString());
+				}
+
+				
+				
+				m_timer = new Timer(m_itemInterval * 1000); 
+				m_timer.addEventListener(TimerEvent.TIMER, onTimer);	
+			}
+			
+			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Twitter.Player).length()>0)
+				{
+					m_consumerKey = i_data.Twitter.@consumerKey;
+					m_consumerSecret = i_data.Twitter.@consumerSecret;
+					m_screenName = i_data.Twitter.@screenName;
+					m_slideShow = (i_data.Twitter.@slideShow=="1");
+					m_itemInterval = int(i_data.Twitter.@itemInterval);
+					m_timer.delay = m_itemInterval * 1000;
+					if (XMLList(i_data.Twitter.Player).length()>0)
+					{
+						m_hPlayerData = i_data.Twitter.Player.@hDataSrc;
+					}
+				}
+				
+				authenticate();
+			}
+			
+			
+			public override function save():XML
+			{
+				var xmlTwitter:XML = <Twitter/>;
+				if (m_hPlayerData!=-1)
+				{
+					var xmlPlayer:XML = <Player hDataSrc={m_hPlayerData} />
+					xmlTwitter.appendChild(xmlPlayer);
+				}
+				
+				xmlTwitter.@consumerKey = m_consumerKey;
+				xmlTwitter.@consumerSecret = m_consumerSecret;
+				xmlTwitter.@screenName = m_screenName;
+				xmlTwitter.@slideShow = m_slideShow ? "1" : "0";
+				xmlTwitter.@itemInterval = m_itemInterval;
+				return xmlTwitter; 
+			}   
+			
+
+			
+			private function authenticate():void
+			{
+				m_accessToken = null;
+				if (m_consumerKey!="" && m_consumerSecret!="")
+				{
+					m_socket.connect("api.twitter.com",443);
+				}
+			}
+			
+			
+			private function onConnect(event:Event):void
+			{
+				if (m_accessToken == null)
+				{
+					m_isResponseValid=false;
+					var bearerToken:String = Base64.encode(m_consumerKey + ':' + m_consumerSecret);
+					bearerToken = bearerToken.replace('\n','');
+					
+					var requestAccessToken:String = "POST /oauth2/token HTTP/1.1\n" +
+						"Host: api.twitter.com\n" +
+						"User-Agent: AS3 Twitter Lib v1.0\n" +
+						"Authorization: Basic " + bearerToken + "\n"+ 
+						"Content-Type: application/x-www-form-urlencoded;charset=UTF-8\n"+
+						"Content-Length: 29\n" +
+						"Accept-Encoding:\n\n" +
+						"grant_type=client_credentials\n";
+					m_socket.writeUTFBytes(requestAccessToken);			
+				}
+				else if (m_pendingRequest != null)
+				{
+					sendRequest();
+				}
+				
+			}
+
+			
+			private function sendRequest():void
+			{
+				if (m_pendingRequest != null)
+				{				
+					var requestData:String = "GET "+m_pendingRequest+" HTTP/1.1\n"+
+						"Host: api.twitter.com\n"+
+						"User-Agent: AS3 Twitter Lib v1.0\n" +
+						"Authorization: Bearer " + m_accessToken + "\n";
+					"Accept-Encoding:\r\n";
+					m_socket.writeUTFBytes(requestData);			
+					m_socket.writeUTFBytes("\r\n");			
+					m_socket.flush();
+					
+					m_pendingRequest = null;
+				}
+			}
+
+			
+			private function onData(event:ProgressEvent):void
+			{
+				var output:String = m_socket.readUTFBytes(m_socket.bytesAvailable);
+				if (output.indexOf("HTTP/1.1 200 OK") != -1)
+				{
+					m_isResponseValid = true;
+					var results:Array = output.match(/content-length: (.*)/);
+					m_length = results[1];
+					m_output = "";
+					return;
+				}
+				if (output.indexOf("HTTP/1.1 404") != -1)
+				{
+					//??? throw(Error("TwitterSocket: 404 Page not found"));
+				}
+				
+				if (m_isResponseValid)
+				{
+					m_length -= output.length;
+					m_output += output;
+					if (m_length <= 0)
+					{
+						if (m_accessToken == null)
+						{
+							var json:Object = JSON.parse(m_output);
+							m_accessToken = json.access_token;
+							onReady();
+						}
+						else
+						{
+							var response:TwitterSocketEvent = new TwitterSocketEvent();					
+							response.response = JSON.parse(m_output);
+							m_tweets = new ArrayCollection(response.response as Array);
+							onTweets();
+						}
+						m_isResponseValid=false;
+						m_output = "";
+					}
+				}			
+			}
+
+			
+			private function onReady():void
+			{
+				m_ready = true;
+				request();
+			}
+
+			
+			
+			public function request():void
+			{
+				if (m_ready==false || m_screenName=="")
+					return;
+				
+				m_pendingRequest = "/1.1/statuses/user_timeline.json?count=100&screen_name="+m_screenName;
+				if (!m_socket.connected)
+				{
+					m_socket.connect("api.twitter.com",443);
+				}
+				else
+				{
+					sendRequest();
+				}
+			}
+
+			
+			private function onTweets():void
+			{
+				m_invalidatePlayerData = true;
+				invalidateProperties();
+			}
+				
+			
+			
+			
+			private function onClose(event:Event):void
+			{
+
+			}
+			
+			private function onError(event:Event):void
+			{
+
+			}		
+
+			
+			
+			
+			private function onTimer(event:TimerEvent):void
+			{
+				if (m_ready==false || m_tweets==null || m_tweets.length==0)
+					return;
+				m_itemIndex++;
+				if (m_itemIndex>=m_tweets.length)
+				{
+					request();
+					m_itemIndex = 0;
+				}
+				showPage();
+			}			
+
+			public override function start():void
+			{
+				super.start();
+				m_startTime = 0;
+				m_time = 0;
+				if (m_slideShow)
+				{
+					m_timer.start();
+					onTimer(null);
+				}
+			} 
+
+			public override function stop():void
+			{
+				super.stop();
+				if (m_slideShow && m_timer!=null)
+				{
+					m_timer.stop();
+				}
+			} 
+								
+
+			public override function onFrame(i_time:Number):void
+			{
+				super.onFrame(i_time);
+				m_time = i_time;
+				if (m_childPlayerLoader!=null)
+				{
+					m_childPlayerLoader.onFrame(i_time - m_startTime);
+				}
+			}					
+			
+								
+
+			public override function get propertyPages():Array
+			{
+				return [BlockTwitterPage];
+			}
+			
+			
+			
+			public override function onCommand(i_eventHandler:IEventHandler, i_eventParam:Object):void
+			{
+				switch(i_eventHandler.commandName)
+				{
+					case "firstPage":
+						m_itemIndex = 0;
+						m_timer.stop();
+						break;
+					
+					case "prevPage":
+						m_itemIndex--;
+						if (m_itemIndex<0)
+							m_itemIndex = m_tweets.length-1;	
+						m_timer.stop();
+						break;
+					
+					case "nextPage":
+						m_itemIndex++;
+						if (m_itemIndex>=m_tweets.length)
+							m_itemIndex = 0;	
+						m_timer.stop();
+						break;
+					
+					case "lastPage":
+						m_itemIndex = m_tweets.length-1;
+						m_timer.stop();
+						break;
+					
+					case "screenName":
+						m_itemIndex = -1;
+						m_screenName = i_eventHandler.commandParams.Twitter.@screenName;
+						request();
+						if (m_slideShow)
+						{
+							m_timer.start();
+						}
+						break;					
+					
+				}
+				showPage();
+			}
+			
+			
+			private function showPage():void
+			{
+				m_startTime = m_time;
+				if (m_childPlayerLoader!=null && m_childPlayerLoader.player!=null)
+				{
+					IProviderItem(m_childPlayerLoader.player).setDataProvider(this);
+				}
+			}			
+			
+			
+			public function get consumerKey():String
+			{
+				return m_consumerKey;	
+			}
+			
+			public function set consumerKey(i_consumerKey:String):void
+			{
+				m_consumerKey = i_consumerKey;
+				m_playerLoader.modified = true;
+				authenticate();
+			}
+			
+			public function get consumerSecret():String
+			{
+				return m_consumerSecret;	
+			}
+			
+			public function set consumerSecret(i_consumerSecret:String):void
+			{
+				m_consumerSecret = i_consumerSecret;
+				m_playerLoader.modified = true;
+				authenticate();
+			}
+			
+			public function get screenName():String
+			{
+				return m_screenName;	
+			}
+			
+			public function set screenName(i_screenName:String):void
+			{
+				m_screenName = i_screenName;
+				m_playerLoader.modified = true;
+				request();
+			}
+			
+			
+			public function get hPlayerData():int
+			{
+				return m_hPlayerData;	
+			}
+			
+			public function set hPlayerData(i_hPlayerData:int):void
+			{
+				m_hPlayerData = i_hPlayerData;
+				m_invalidatePlayerData = true;
+				m_playerLoader.modified = true;
+				invalidateProperties();
+			}
+			
+			
+			public function get slideShow():Boolean
+			{
+				return m_slideShow;
+			}
+			
+			public function set slideShow(i_slideShow:Boolean):void
+			{
+				m_playerLoader.modified = true;
+				m_slideShow = i_slideShow;
+				if (m_timer!=null)
+				{
+					if (m_slideShow)
+					{
+						m_timer.start();
+					}
+					else
+					{
+						m_timer.stop();
+					}
+				}
+			}			
+
+			public function get itemInterval():Number
+			{
+				return m_itemInterval;
+			}
+			
+			public function set itemInterval(i_itemInterval:Number):void
+			{
+				m_playerLoader.modified = true;
+				m_itemInterval = i_itemInterval;
+				m_timer.delay = m_itemInterval * 1000;
+			}
+
+
+			
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_childPlayerLoader = m_playerLoaderService.createPlayerLoader();
+				m_childPlayerLoader.addEventListener("event_player_ready", onPlayerLoaderReady);
+				IUIComponent(m_childPlayerLoader).width = width;
+				IUIComponent(m_childPlayerLoader).height = height; 
+				addElement(IVisualElement(m_childPlayerLoader));
+			}
+			
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoaderService==null)
+					return;
+				m_startTime = m_time;
+				m_childPlayerLoader.setDataProvider(this);
+				
+				if (m_ready==false || m_tweets==null || m_tweets.length==0)
+					return;
+				
+				if (m_invalidatePlayerData)
+				{
+					m_invalidatePlayerData = false;
+					var xmlPlayer:XML = <Player hDataSrc={m_hPlayerData} />
+					m_childPlayerLoader.load(xmlPlayer);
+				}
+			}
+
+			private function onPlayerLoaderReady(event:Event):void
+			{
+				onSize();
+			}
+
+			protected function onSize():void
+			{
+				if (m_childPlayerLoader!=null)
+				{
+					UIComponent(m_childPlayerLoader).width = width;
+					UIComponent(m_childPlayerLoader).height = height;
+					if (m_childPlayerLoader.player!=null)
+					{
+						IUIComponent(m_childPlayerLoader.player).width = width;
+						IUIComponent(m_childPlayerLoader.player).height = height;
+					}
+
+				}
+			}
+			
+			
+			
+			
+			
+			
+			
+			
+
+			
+		    protected override function onDispose():void
+		    {
+		    	super.onDispose();
+				if (m_socket!=null)
+				{
+					m_socket.removeEventListener(Event.CONNECT,onConnect);
+					m_socket.removeEventListener(ProgressEvent.SOCKET_DATA,onData);
+					m_socket.removeEventListener(IOErrorEvent.IO_ERROR, onError);
+					m_socket.removeEventListener(SecurityErrorEvent.SECURITY_ERROR, onError);
+					m_socket.removeEventListener(Event.CLOSE, onClose);
+					m_socket.dispose();
+					m_socket = null;
+				}
+				
+				if (m_timer!=null)
+				{
+					m_timer.removeEventListener(TimerEvent.TIMER, onTimer);
+					m_timer = null;
+				}
+		    }
+		]]>
+	</fx:Script>	
+
+</ms:PlayerModule>	

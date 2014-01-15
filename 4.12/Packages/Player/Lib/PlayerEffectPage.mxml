@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ms="*"
+	width="100%" height="100%"
+	skinClass="ScrollerSkin">
+	<fx:Script>
+		<![CDATA[
+			import mx.events.ItemClickEvent;
+			
+			import spark.components.HSlider;
+			import spark.components.NumericStepper;
+
+			protected var m_playerLoader:PlayerLoader;
+			protected var m_playerActiveCtrl:PlayerActiveCtrl;
+			
+			public function set playerLoader(i_playerLoader:PlayerLoader):void
+			{
+				m_playerLoader = i_playerLoader;
+				invalidateProperties();
+			}
+			
+			public function get playerLoader():PlayerLoader
+			{
+				return m_playerLoader;
+			}
+
+			public function get effectName():String
+			{
+				return null;
+			}
+		
+			override protected function createChildren():void
+			{
+				super.createChildren();
+				m_playerActiveCtrl = new PlayerActiveCtrl;
+				addElementAt(m_playerActiveCtrl, 0);
+				m_playerActiveCtrl.validateNow();
+				m_playerActiveCtrl.propType.addEventListener(ItemClickEvent.ITEM_CLICK, onPropType);
+				m_playerActiveCtrl.addEventListener(PlayerActiveCtrl.ACTIVE_POINT_CHANGED, onActivePointChanged);
+			}
+			
+			protected function onActivePointChanged(event:Event):void
+			{
+				invalidateProperties();
+			}
+
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				m_playerActiveCtrl.playerEffect = playerEffect;
+				updateButtons();
+			}
+			
+			protected function onPropType(event:ItemClickEvent):void
+			{
+				var playerMode:String = event.item.toString();
+				if (playerMode=="Off")
+				{
+					createPlayerEffect(false);
+				}
+				else if (playerMode=="Fixed")
+				{
+					createPlayerEffect(true);
+					createPoint1();
+					playerEffect.start(); //???
+				}
+				else if (playerMode=="Dynamic")
+				{
+					createPlayerEffect(true);
+					createPoint1();
+					createPoint2();
+					playerEffect.start(); //???
+				}
+				
+				m_playerActiveCtrl.playerEffect = playerEffect;
+				
+				invalidateProperties();
+				playerLoader.refresh();
+			}
+			
+			protected function updateButtons():void
+			{
+				m_playerActiveCtrl.updateButtons();
+				if (effectName!=null)
+				{
+					label = effectName;
+					if (playerEffect==null)
+					{
+						label += " - off"
+					}
+					else
+					{
+						label += (playerEffect.count>1) ? " - dynamic" : " - static"
+					}
+				}
+			}
+
+			protected function get playerEffect():PlayerEffect
+			{
+				return null;
+			}
+			
+			protected function createPlayerEffect(i_enabled:Boolean):void
+			{
+			}
+			
+			protected function createPoint1():void
+			{
+				
+			}		
+
+			protected function createPoint2():void
+			{
+				
+			}
+			
+			protected function onNumericStepperChanged(event:Event):void
+			{
+				m_playerLoader.modified = true;
+				var numericStepper:NumericStepper = NumericStepper(event.currentTarget); 
+				playerEffect.setProperty(numericStepper.name, numericStepper.value);
+			}
+			
+			protected function onSliderChanged(event:Event):void
+			{
+				m_playerLoader.modified = true;
+				var slider:HSlider = HSlider(event.currentTarget); 
+				playerEffect.setProperty(slider.name, slider.value);
+			}
+		]]>
+	</fx:Script>
+	
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+</s:NavigatorContent>

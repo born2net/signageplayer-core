@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:ms="*"
+	width="356" height="314"
+	label="Fire">
+	<ms:PlayerActiveCtrl id="propertyModeCtrl" width="100%" height="132"/>
+	<s:Group id="propCtrl" width="100%" height="100%">
+		<s:HSlider id="fxFireDistorion" x="85" y="10" width="100"  minimum="0" maximum="1"
+			snapInterval="0.1" stepSize="0.1" />
+		
+		
+		<s:Label x="10" y="31" text="Scale"/>
+		<s:HSlider id="fxFireDistortionScale" x="85" y="30" width="100"  minimum="0" maximum="1" snapInterval="0.1" stepSize="0.1" />
+		<s:Label x="10" y="12" text="Distortion"/>
+		
+		<s:HSlider id="fxFireFade" x="85" y="55" width="100"  minimum="0" maximum="1"  value="0.35" stepSize="0.1" />
+		<s:Label x="10" y="72" text="Height"/>
+		<s:HSlider id="fxFireHeight" x="85" y="75" width="100" minimum="0" maximum="1"  value="0.35" stepSize="0.1"/>
+		<s:Label x="10" y="52" text="Fade"/>
+		<s:HSlider id="fxFireSpread"  x="85" y="95" width="100"  minimum="0" maximum="1"  value="0.35" stepSize="0.1" />
+		<s:Label x="10" y="112" text="Smoke"/>
+		<s:HSlider id="fxFireSmoke"  x="85" y="115" width="100" minimum="0" maximum="1"  value="0.35" stepSize="0.1"/>
+		<s:Label x="10" y="92" text="Spread"/>
+	</s:Group>
+</ms:PlayerPage>

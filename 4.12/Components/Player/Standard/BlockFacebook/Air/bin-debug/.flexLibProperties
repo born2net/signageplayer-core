@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<flexLibProperties includeAllClasses="false" useMultiPlatformConfig="false" version="1">
+  <includeClasses>
+    <classEntry path="ComboBoxEx"/>
+    <classEntry path="CyclicScroller"/>
+    <classEntry path="GroupEx"/>
+    <classEntry path="IDialog"/>
+    <classEntry path="OkCancelDlg"/>
+    <classEntry path="ResourceViewer"/>
+    <classEntry path="ScrollerSkin"/>
+    <classEntry path="TextInputInt"/>
+    <classEntry path="TextInputNum"/>
+    <classEntry path="TimeCtrl"/>
+    <classEntry path="TimeDisplay"/>
+    <classEntry path="TimeEvent"/>
+    <classEntry path="UIComponentEx"/>
+    <classEntry path="com.sparkGrid.GridDragManager"/>
+  </includeClasses>
+  <includeResources/>
+  <namespaceManifests/>
+</flexLibProperties>

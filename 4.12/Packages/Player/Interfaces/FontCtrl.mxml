@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   	xmlns:s="library://ns.adobe.com/flex/spark" 
+		   	xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   	xmlns:ColorPicker="ColorPicker.*"
+		   	xmlns:ms="*" 
+			backgroundColor="0xC0C0C0"
+			width="600" height="80">
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+				
+			private var m_fontItem:IFontItem;
+
+			public static const FONT_CHANGED:String = "event_font_changed";
+			
+			public function get fontItem():IFontItem
+			{
+				return m_fontItem;
+			}
+			
+			public function set fontItem(i_fontItem:IFontItem):void
+			{
+				m_fontItem = i_fontItem;
+				invalidateProperties();
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				btnBold.setStyle("icon", getIconClass("textStyleBoldIcon"));
+				btnItalic.setStyle("icon", getIconClass("textStyleItalicIcon"));
+				btnUnderline.setStyle("icon", getIconClass("textStyleUnderlineIcon"));
+				btnLeft.setStyle("icon", getIconClass("textAlignLeftIcon"));
+				btnCenter.setStyle("icon", getIconClass("textAlignCenterIcon"));
+				btnRight.setStyle("icon", getIconClass("textAlignRightIcon"));
+				btnJustify.setStyle("icon", getIconClass("textAlignJustifyIcon"));
+				
+				/*
+				m_allFonts = [];
+				var fonts:Array = Font.enumerateFonts(false); 
+				var fontMap:Object = new Object();
+				var fontInfo:Object;
+				for each(var font:Object in fonts)
+				{
+					fontInfo = fontMap[font.fontName];
+					if (fontInfo==null)
+					{
+						fontInfo = fontMap[font.fontName] = new Object();
+						fontInfo.fontName = font.fontName;
+					}
+					fontInfo[font.fontStyle] = true;
+				}
+				
+				var allFonts:Array = [];
+				for each(fontInfo in fontMap)
+				{
+					allFonts.push(fontInfo);
+				}
+				m_allFonts = allFonts.sortOn("fontName", Array.CASEINSENSITIVE);
+				*/
+			}
+			
+			private function getIconClass(i_iconName:String):Class
+			{
+				if (i_iconName=="")
+					return null;
+				return FlexGlobals.topLevelApplication.styleManager.getStyleDeclaration(".icons").getStyle(i_iconName);
+			}
+			
+
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_fontItem==null)
+					return;
+					
+				descFontFamily.dataProvider = new ArrayCollection( m_fontItem.fontFamilyList );	
+					
+				fontSizeCombo.selectedItem = m_fontItem.fontSize;
+				descColor.selectedColor = m_fontItem.fontColor;
+				
+				
+				//???!!!for each(var font:Object in descFontFamily.dataProvider.source)
+				for each(var font:Object in descFontFamily.dataProvider)
+				{
+					if (font.fontName==m_fontItem.fontFamily)
+					{
+						descFontFamily.selectedItem = font;
+						break;
+					}
+				}
+				btnBold.selected = m_fontItem.fontWeight ==  "bold";
+				btnItalic.selected = m_fontItem.fontStyle == "italic";
+				btnUnderline.selected = m_fontItem.textDecoration == "underline";
+				
+				btnLeft.selected = (m_fontItem.textAlign=="left");
+				btnCenter.selected = (m_fontItem.textAlign=="center");
+				btnRight.selected = (m_fontItem.textAlign=="right");
+				btnJustify.selected = (m_fontItem.textAlign=="justify");
+				
+				updateButtons();
+			}
+			
+			private function onFontChanged(event:Event):void
+			{
+				if (descFontFamily==null || descFontFamily.selectedItem==null || descFontFamily.selectedItem.fontName==null)
+					return;
+					
+				m_fontItem.fontFamily = descFontFamily.selectedItem.fontName.toString();
+				var fontSize:int = Math.max(8, Math.min(int(fontSizeCombo.selectedItem), 720));
+				m_fontItem.fontSize = fontSizeCombo.selectedItem = fontSize;
+				m_fontItem.fontColor = uint(descColor.selectedItem);
+				
+				m_fontItem.fontWeight = btnBold.selected ? "bold" : "normal";
+				m_fontItem.fontStyle = btnItalic.selected ? "italic" : "normal";
+				m_fontItem.textDecoration = btnUnderline.selected ? "underline" : "none";
+				
+				updateButtons();	
+				dispatchEvent( new Event(FONT_CHANGED) );		
+			}
+			
+			private function onLeft():void
+			{
+				m_fontItem.textAlign = "left";
+				btnLeft.selected = true;
+				btnCenter.selected = false;
+				btnRight.selected = false;
+				btnJustify.selected = false;
+				
+				dispatchEvent( new Event(FONT_CHANGED) );
+			}				
+			
+			private function onCenter():void
+			{
+				m_fontItem.textAlign = "center";
+				btnLeft.selected = false;
+				btnCenter.selected = true;
+				btnRight.selected = false;
+				btnJustify.selected = false;
+				
+				dispatchEvent( new Event(FONT_CHANGED) );
+			}				
+			
+			private function onRight():void
+			{
+				m_fontItem.textAlign = "right";
+				btnLeft.selected = false;
+				btnCenter.selected = false;
+				btnRight.selected = true;
+				btnJustify.selected = false;
+				
+				dispatchEvent( new Event(FONT_CHANGED) );
+			}				
+			
+			
+			private function onJustify():void
+			{
+				m_fontItem.textAlign = "justify";
+				btnLeft.selected = false;
+				btnCenter.selected = false;
+				btnRight.selected = false;
+				btnJustify.selected = true;
+				
+				dispatchEvent( new Event(FONT_CHANGED) );
+			}				
+
+			
+			private function updateButtons():void
+			{
+				var item:Object = descFontFamily.selectedItem;
+				if (item==null)
+					return; 
+				/*M???
+				bold.enabled = (item.bold==true || item.boldItalic==true);
+				italic.enabled = (item.italic==true || item.boldItalic==true);
+				*/
+			}
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:VerticalLayout paddingTop="5" paddingLeft="5" paddingRight="5" gap="5"/>
+	</s:layout>
+	
+	<s:HGroup width="100%">
+		<s:DropDownList id="descFontFamily" labelField="fontName"
+					change="onFontChanged(event)"  width="100%"/>	
+		<s:ComboBox id="fontSizeCombo" change="onFontChanged(event)" selectedIndex="4" width="50"
+					skinClass="spark.skins.spark.ComboBoxSkin">
+			<s:dataProvider>
+				<mx:ArrayList>
+					<fx:String>8</fx:String>
+					<fx:String>9</fx:String>
+					<fx:String>10</fx:String>
+					<fx:String>11</fx:String>
+					<fx:String>12</fx:String>
+					<fx:String>14</fx:String>
+					<fx:String>16</fx:String>
+					<fx:String>18</fx:String>
+					<fx:String>20</fx:String>
+					<fx:String>22</fx:String>
+					<fx:String>24</fx:String>
+					<fx:String>26</fx:String>
+					<fx:String>28</fx:String>
+					<fx:String>36</fx:String>
+					<fx:String>48</fx:String>
+					<fx:String>72</fx:String>
+					<fx:String>127</fx:String>
+				</mx:ArrayList>
+			</s:dataProvider>
+		</s:ComboBox>
+		
+	</s:HGroup>
+	<s:HGroup width="100%">
+		<ColorPicker:SparkColorPicker  id="descColor" 
+			change="onFontChanged(event)"  
+			width="60"/>
+		
+		<s:Spacer width="5"/>
+		<s:ToggleButton id="btnBold" label="B" fontWeight="bold" 
+			width="20" height="20" 
+			change="onFontChanged(event)"/>
+		<s:ToggleButton id="btnItalic" label="I" fontStyle="italic"
+			width="20" height="20"
+			change="onFontChanged(event)"/>
+		<s:ToggleButton id="btnUnderline" label="U" textDecoration="underline"
+			width="20" height="20"
+			change="onFontChanged(event)"/>
+		
+		<s:Spacer width="5"/>
+		
+		<s:ToggleButton id="btnLeft"
+						click="onLeft()" width="20"/>
+		<s:ToggleButton id="btnCenter"
+						click="onCenter()" width="20"/>
+		<s:ToggleButton id="btnRight"
+						click="onRight()" width="20"/>
+		<s:ToggleButton id="btnJustify"
+						click="onJustify()" width="20"/>
+		
+	</s:HGroup>
+</s:BorderContainer>

@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+	implements="IPage"
+	label="Html" 
+	width="100%" height="100%" xmlns:Accordion="Accordion.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.DropdownEvent;
+			import mx.events.FlexEvent;
+			
+			
+[Bindable]	private var m_urlList:XMLListCollection; 
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				refreshUrl.setStyle("icon", getIconClass("refreshIcon"));
+				refreshConfig.setStyle("icon", getIconClass("refreshIcon"));
+				
+				// config="http://www.artstreams.tv"
+	
+				var items:XML =
+					<Items>
+						<Item url="http://m.digg.com/"/>
+						<Item url="http://m.cnn.com/"/>
+						<Item url="http://m.espn.go.com/"/>
+						<Item url="http://m.discovery.com/"/>
+						<Item url="http://live.artstreams.tv/ASL1.1.swf" />
+					</Items>
+				m_urlList = new XMLListCollection(items.*);
+				url.validateNow();
+				
+				url.addEventListener(FlexEvent.ENTER, onPlayerUrl);
+			}
+			
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				//??? htmlEventsCtrl.editor = m_playerLoader;
+				
+				url.textInput.text = BlockHtmlPlayer(m_playerLoader.player).playerUrl;  //???!!!
+				config.text = BlockHtmlPlayer(m_playerLoader.player).configUrl;
+			}
+			
+			private function reloadPlayer():void
+			{
+				BlockHtmlPlayer(m_playerLoader.player).reload();
+			}
+
+			private function onPlayerUrl(event:Event):void
+			{
+				if (url.textInput.text.substr(0, 7)!="http://" && url.textInput.text.substr(0, 8)!="https://")
+				{
+					url.textInput.text = "http://" + url.textInput.text; 
+				}  
+				
+				if (BlockHtmlPlayer(m_playerLoader.player).playerUrl != url.textInput.text)
+				{
+					BlockHtmlPlayer(m_playerLoader.player).playerUrl = url.textInput.text;
+				}
+			}
+			
+			protected function reloadConfig():void
+			{
+				
+			}
+
+			protected function onConfigUrl():void
+			{
+				if (config.text.length>0 && config.text.substr(0, 7)!="http://" && config.text.substr(0, 8)!="https://")
+				{
+					config.text = "http://" + config.text; 
+				}  
+				
+				if (BlockHtmlPlayer(m_playerLoader.player).configUrl != config.text)
+				{
+					BlockHtmlPlayer(m_playerLoader.player).configUrl = config.text;
+				}	
+			}
+			
+			private function getIconClass(i_iconName:String):Class
+			{
+				if (i_iconName=="")
+					return null;
+				return FlexGlobals.topLevelApplication.styleManager.getStyleDeclaration(".icons").getStyle(i_iconName);
+			}
+			
+		]]>
+	</fx:Script>
+	<Accordion:SparkAccordion id="accordion" width="100%" height="100%">
+		<s:NavigatorContent label="General" width="100%" height="100%">
+			<s:Form width="100%">
+				<s:FormItem width="100%"
+					label="{resourceManager.getString('player', 'html.url')}">
+					<s:Group width="100%" id="urlFrame">
+						<s:ComboBox id="url"
+								dataProvider="{m_urlList}" labelField="@url" 
+								width="{urlFrame.width-30}"
+								close="onPlayerUrl(event)" 
+								focusOut="onPlayerUrl(event)"
+								skinClass="spark.skins.spark.ComboBoxSkin"/>	
+						<s:Button id="refreshUrl"
+								width="20" height="20" right="5"
+								click="reloadPlayer()"/>	
+					</s:Group>
+				</s:FormItem>
+				<s:FormItem width="100%"
+						label="{resourceManager.getString('player', 'html.config')}">
+					<s:Group width="100%">
+						<s:TextInput id="config" 
+							left="0" right="30"
+							enter="onConfigUrl()" focusOut="onConfigUrl()" />	
+						
+						<s:Button id="refreshConfig"
+							right="5" width="20"
+							click="reloadConfig()"/>
+					</s:Group>
+				</s:FormItem>
+			</s:Form>
+		</s:NavigatorContent>
+		<!--
+		<s:NavigatorContent label="Events" width="100%" height="100%">
+			<ms:HtmlEventsCtrl id="htmlEventsCtrl" width="100%" height="100%"/>
+		</s:NavigatorContent>
+		-->
+	</Accordion:SparkAccordion>
+</ms:PlayerPage>	
+

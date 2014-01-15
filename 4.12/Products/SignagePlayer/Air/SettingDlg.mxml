@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+	width="350" height="300"
+	clipAndEnableScrolling="true"
+	implements="IDialog">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.events.CloseEvent;
+			private var m_okCancelDlg:OkCancelDlg; 
+			
+			private var m_framework:IFramework;
+			private var m_watchDogService:IWatchDogService;
+			private var m_modifyOrientation:Boolean = false;
+			
+			public function init(i_framework:IFramework):void
+			{
+				m_framework = i_framework;
+				m_watchDogService = m_framework.ServiceBroker.QueryService("WatchDogService") as IWatchDogService;
+				checkAutoStart.selected = autoStart;
+				m_watchDogService.addEventListener("enableBalloonTips_updated", onEnableBalloonTipsUpdated);
+				m_watchDogService.addEventListener("displayOrientation_updated", onDisplayOrientationUpdated);
+				
+				validateNow();
+				m_watchDogService.getEnableBalloonTips();
+				m_watchDogService.getDisplayOrientation();
+			}
+			
+			private function onEnableBalloonTipsUpdated(event:Event):void
+			{
+				checkBalloonTips.enabled = true;
+				checkBalloonTips.selected = m_watchDogService.enableBalloonTips;
+			}
+			
+			private function onDisplayOrientationUpdated(event:Event):void
+			{
+				display.enabled = true;
+				orientation.selectedValue = String(m_watchDogService.displayOrientation);	
+			}
+			
+			public function setOkCancelDlg(i_okCancelDlg:OkCancelDlg):void
+			{
+				m_okCancelDlg = i_okCancelDlg;	
+			}
+			
+			public function onOk():void
+			{
+				autoStart = checkAutoStart.selected;
+				m_watchDogService.setEnableBalloonTips(checkBalloonTips.selected);
+				if (m_modifyOrientation)
+				{
+					m_modifyOrientation = false;
+					m_watchDogService.setDisplayOrientation( int(orientation.selectedValue) );
+				}
+				m_okCancelDlg.close(); 
+			}
+			
+			public function onCancel():void
+			{
+				m_okCancelDlg.close();
+			}
+		
+			public function onButton(i_name:String):void
+			{
+				
+			}
+			
+			private function get autoStart():Boolean
+			{
+				var auto:Boolean = false;
+				try 
+				{ 
+					if (!Capabilities.isDebugger)
+					{
+						auto = NativeApplication.nativeApplication.startAtLogin;
+					}
+				}
+				catch(err:Error) 
+				{	
+					/* ignore */	
+				}
+				return auto;
+			}
+
+			private function set autoStart(i_autoStart:Boolean):void
+			{
+				try 
+				{ 
+					if (!Capabilities.isDebugger)
+					{
+						NativeApplication.nativeApplication.startAtLogin = i_autoStart;
+					}
+				}
+				catch(err:Error) 
+				{	
+					/* ignore */	
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:RadioButtonGroup id="orientation" selectedValue="0" change="{m_modifyOrientation=true}"/>
+	</fx:Declarations>
+
+	<s:Group>
+		<s:CheckBox id="checkAutoStart" label="Auto Start at login" width="164" y="10" x="10"/>	
+		<s:CheckBox id="checkBalloonTips" enabled="false" 
+			x="10" y="40" label="Enable Balloon Tips (apply after reboot)"/>
+	</s:Group>
+	<s:Group>
+		<s:VGroup id="display" enabled="false" left="10" right="10">
+			<s:RadioButton value="0" label="0" groupName="orientation" width="100%"/>
+			<s:RadioButton value="1" label="90" groupName="orientation" width="100%"/>
+			<s:RadioButton value="2" label="180" groupName="orientation" width="100%"/>
+			<s:RadioButton value="3" label="270" groupName="orientation" width="100%"/>
+		</s:VGroup>
+	</s:Group>
+</s:Group>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+		   width="200" height="100">
+	<fx:Script>
+		<![CDATA[
+			private var m_last:String;
+			private var m_change:String;
+			private var m_percentChange:String;
+			private var m_volume:String;
+			private var m_time:String;
+			private var m_invalidateStock:Boolean = false;
+			private var m_symbol:String;
+			
+			public function load(i_symbol:String):void
+			{
+				m_symbol = i_symbol;
+				var urlLoader:URLLoader = new URLLoader();
+				urlLoader.addEventListener(Event.COMPLETE, onXML);
+				//urlLoader.load(new URLRequest("http://www.quoterss.com/quote.php?symbol=xxia&frmt=0&Freq=0"));
+				urlLoader.load(new URLRequest("http://localhost:2601/BusinessResource/xxia.xml"));
+				
+				
+			}
+
+			private function onXML(event:Event):void
+			{
+				var xmlItem:XML = new XML(event.target.data);
+				var description:String = xmlItem.channel.item.description[0].toString();
+				m_last = getValue(description, "Last");
+				//m_change = getValue(description, "Change");
+				m_invalidateStock = true;
+				invalidateProperties();
+			}
+
+			private function getValue(i_description:String, i_key:String):String
+			{
+				var a1:int = i_description.indexOf(i_key);
+				var a2:int = i_description.indexOf("<TD ", a1);
+				var a3:int = i_description.indexOf(">", a2);
+				var a4:int = i_description.indexOf("</TD>", a3);
+				return i_description.substring(a3+1, a4);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateStock)
+				{
+					m_invalidateStock = false;
+					symbol.text = m_symbol;
+					last.text = m_last;
+					//change.text = m_change;
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Label id="symbol" text="Symbol" fontSize="16" x="0" y="0"/>
+	<s:Label text="Last:" fontSize="14" x="0" y="32"/>
+	<s:Label id="last" text="N\A" fontSize="14" x="49" y="32"/>
+	<!--
+	<s:Label text="Change:" fontSize="14" x="0" y="63"/>
+	<s:Label id="change" text="N\A" fontSize="14" x="72" y="63"/>
+	-->
+</s:BorderContainer>

@@ -1,0 +1,632 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:SignagePlayerAir xmlns:fx="http://ns.adobe.com/mxml/2009" 
+						xmlns:s="library://ns.adobe.com/flex/spark" 
+						xmlns:mx="library://ns.adobe.com/flex/mx"
+						xmlns:ms="*"
+						width="400" height="300">
+	<fx:Script>
+		<![CDATA[
+			import air.update.ApplicationUpdaterUI;
+			import air.update.events.DownloadErrorEvent;
+			import air.update.events.StatusFileUpdateErrorEvent;
+			import air.update.events.StatusFileUpdateEvent;
+			import air.update.events.StatusUpdateEvent;
+			import air.update.events.UpdateEvent;
+			
+			import mx.core.UIComponent;
+			
+			
+			private static const AIR_SUPPORT_DIRECTORY_WIN:String = "/../../Adobe/AIR";
+			private static const AIR_SUPPORT_DIRECTORY_MAC:String = "/../../../Application Support/Adobe/AIR";
+			private static const AIR_UPDATE_DISABLED_FILE:String = "updateDisabled";
+
+			private var m_airLoader:URLDownloader2;
+			private var m_appUpdater:ApplicationUpdaterUI = new ApplicationUpdaterUI();
+			
+			
+			private var keyBuffer:String = "";
+			
+			
+			private var m_splashWindowList:Array;
+			
+			private var m_cachingController:ICachingItem;
+			
+			
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			protected override function init():void
+			{
+				m_environment = "desktop";
+				m_shoudDebugAlert = Capabilities.isDebugger;
+				
+				super.init();		
+				
+				
+				m_framework.StateBroker.SetState(this, "environment", m_environment);
+				
+				disableAirRuntine();
+				
+				if (hasRootPermition()==false)
+					return;
+				
+				
+				NativeApplication.nativeApplication.addEventListener(KeyboardEvent.KEY_DOWN, onKeyDown);
+				
+				try 
+				{
+					m_localConnection = new LocalConnection();
+					m_localConnection.allowDomain("*");
+					m_localConnection.client = this;
+					m_localConnection.connect("_SignageConnection");
+				} 
+				catch (error:ArgumentError) 
+				{
+					trace("Can't connect...the connection name is already being used by another SWF");
+				}
+				
+			}
+			
+			protected override function createCampaignBoardPlayer():CampaignBoardPlayer
+			{
+				var campaignBoardPlayer:CampaignBoardPlayer = new CampaignBoardPlayerAir(m_framework);
+				return campaignBoardPlayer;
+			}
+
+			
+			
+			protected override function createMainPanel():void
+			{
+				super.createMainPanel();
+				m_mainPanel.addEventListener("event_hide", onHideMainPanel);
+			}
+			
+			
+			public override function showMainPanel(i_show:Boolean):void
+			{
+				super.showMainPanel(i_show);
+				showMouse(i_show);
+			}
+			
+			private function onHideMainPanel(event:Event):void
+			{
+				showMouse(false);
+			}
+			
+			public function showMouse(i_visble:Boolean):void
+			{
+				var kioskMode:Boolean = (m_framework.StateBroker.GetState("kioskMode") == true);
+				if (kioskMode==false)
+				{
+					if (i_visble)
+						Mouse.show();
+					else
+						Mouse.hide();	
+				}
+			}
+			
+			
+			private function onKeyDown(event:KeyboardEvent):void
+			{
+				var kioskMode:Boolean = (m_framework.StateBroker.GetState("kioskMode") == true);
+				var kioskKey:String = String(m_framework.StateBroker.GetState("kioskKey"));
+				
+				if (kioskMode)
+				{
+					if (event.charCode==27)
+					{
+						keyBuffer = "";
+					}
+					else
+					{
+						if (keyBuffer.length<kioskKey.length)
+						{
+							keyBuffer += String.fromCharCode(event.charCode);
+							if (keyBuffer==kioskKey)
+							{
+								keyBuffer = "";
+								showMainPanel(true);
+							}
+						}
+					}
+				}
+				else
+				{
+					if (event.charCode==27)
+						showMainPanel(true);
+				}
+			}
+			
+			
+			protected override function initMasterDomain():void
+			{
+				super.initMasterDomain();
+				
+				var masterDomain:String = ERI.domain;
+				m_appUpdater.updateURL = "http://" + masterDomain + "/Code/updater/4.12/latest/playerUpdate.xml";
+				m_appUpdater.delay = 1;
+				m_appUpdater.isCheckForUpdateVisible = false;
+				m_appUpdater.isDownloadUpdateVisible = false;
+				m_appUpdater.isDownloadProgressVisible = false;
+				m_appUpdater.isInstallUpdateVisible = false;
+				
+				m_appUpdater.isUnexpectedErrorVisible = true;
+				m_appUpdater.addEventListener(UpdateEvent.INITIALIZED, onUpdaterInitialized);
+				m_appUpdater.addEventListener(UpdateEvent.CHECK_FOR_UPDATE, onCheckForUpdate);
+				m_appUpdater.addEventListener(UpdateEvent.DOWNLOAD_START, onDownloadStart);
+				m_appUpdater.addEventListener(UpdateEvent.DOWNLOAD_COMPLETE, onDownloadComplete);
+				m_appUpdater.addEventListener(DownloadErrorEvent.DOWNLOAD_ERROR, onDownloadError);
+				m_appUpdater.addEventListener(UpdateEvent.BEFORE_INSTALL, onBeforeInstall);
+				m_appUpdater.addEventListener(StatusFileUpdateEvent.FILE_UPDATE_STATUS, onFileUpdateStatus);
+				m_appUpdater.addEventListener(StatusFileUpdateErrorEvent.FILE_UPDATE_ERROR, onFileUpdateError);
+				m_appUpdater.addEventListener(ErrorEvent.ERROR, onUpdateError);
+				m_appUpdater.addEventListener(StatusUpdateEvent.UPDATE_STATUS, onUpdateStatus);
+				m_appUpdater.initialize();
+				
+			}
+			
+			
+			protected override function createZWaveService():IZWaveService
+			{
+				return new ZWaveServiceDesktop(m_framework);
+			}
+			
+			
+			protected override function createNativeController():void
+			{
+				/*ZWave
+				var fileName:String = "libcontroller.dll";
+				m_cachingController = m_cachingService.getCachingItem("NativeExtentions", fileName);
+				m_cachingController.addEventListener(Event.COMPLETE, onNativeControllerComplete);
+				m_cachingController.addEventListener(IOErrorEvent.IO_ERROR, onNativeControllerFail);				
+				m_cachingController.url = "http://" + ERI.domain + "/Code/libcontroller.dll";
+				m_cachingController.cache(true);
+				*/
+			}
+			
+			/*ZWave
+			private function onNativeControllerComplete(i_event:Event):void
+			{
+				i_event.target.removeEventListener(Event.COMPLETE, onNativeControllerComplete);
+				i_event.target.removeEventListener(IOErrorEvent.IO_ERROR, onNativeControllerFail);
+				
+				if (m_cachingController.source!=null)
+				{
+					if (m_nativeExtension!=null)
+					{
+						var file:File = new File(m_cachingController.source);
+						if (file.exists)
+						{
+							m_nativeController = m_nativeExtension.createInstance(file.nativePath, "A1");
+						}
+					} 
+					
+				}
+				
+			}
+			
+			private function onNativeControllerFail(i_event:Event):void
+			{
+				i_event.target.removeEventListener(Event.COMPLETE, onNativeControllerComplete);
+				i_event.target.removeEventListener(IOErrorEvent.IO_ERROR, onNativeControllerFail);
+			}
+*/
+			
+			
+			
+
+			
+			private function onAdobeAirUpdate(event:Event):void
+			{
+				var xmlAdobe:XML = new XML(event.target.data);
+				
+				var minVer:String;
+				var fileName:String;
+				var os:String = Capabilities.os.toLocaleLowerCase(); 
+				if (os.search("window")!=-1)
+				{
+					fileName = xmlAdobe.Window.@fileName;
+					minVer = xmlAdobe.Window.@minVer;
+				}
+				else if (os.search("linux")!=-1)
+				{
+					fileName = xmlAdobe.Linux.@fileName;
+					minVer = xmlAdobe.Linux.@minVer;
+				}
+				else // for OS that we not support, we just checkNow()
+				{
+					m_appUpdater.checkNow();
+					return;
+				}
+				
+				
+				
+				
+				if (compareVersions(NativeApplication.nativeApplication.runtimeVersion,minVer)==-1)
+				{
+					setStatus("Get adobe AIR...");
+					var source:String = xmlAdobe.@url;
+					
+					m_airLoader = new URLDownloader2(source, File.applicationStorageDirectory.nativePath, fileName);
+					m_airLoader.addEventListener(URLDownloader2.DOWNLOADED, onDownload);
+					m_airLoader.addEventListener(URLDownloader2.FAULT, onFail);
+					m_airLoader.download();
+				}
+				else
+				{
+					m_appUpdater.checkNow();
+				}
+				
+			}
+			
+			
+			private function compareVersions(i_v1:String, i_v2:String):int
+			{
+				var v1:Array = i_v1.split('.');
+				var v2:Array = i_v2.split('.');
+				if (int(v1[0])>int(v2[0]))
+					return 1;
+				else if (int(v1[0])<int(v2[0]))
+					return -1;
+				
+				if (int(v1[1])>int(v2[1]))
+					return 1;
+				else if (int(v1[1])<int(v2[1]))
+					return -1;
+				
+				if (int(v1[2])>int(v2[2]))
+					return 1;
+				else if (int(v1[2])<int(v2[2]))
+					return -1;
+				
+				if (int(v1[3])>int(v2[3]))
+					return 1;
+				else if (int(v1[3])<int(v2[3]))
+					return -1;
+				
+				return 0; 
+			}
+			
+			private function onFail(i_event:Event):void
+			{
+				if (m_airLoader!=null)
+				{
+					m_airLoader.removeEventListener(URLDownloader2.DOWNLOADED, onDownload);
+					m_airLoader.removeEventListener(URLDownloader2.FAULT, onFail);
+					m_airLoader = null;
+				}
+				setStatus("Fail getting adobe AIR");
+			}
+			
+			private function onDownload(i_event:Event):void
+			{
+				var filePath:String = m_airLoader.filePath.nativePath;
+				
+				if (m_airLoader!=null)
+				{
+					m_airLoader.removeEventListener(URLDownloader2.DOWNLOADED, onDownload);
+					m_airLoader.removeEventListener(URLDownloader2.FAULT, onFail);
+					m_airLoader = null;
+				}
+				
+				setStatus("Installing adobe AIR...");
+				
+				var os:String = Capabilities.os.toLocaleLowerCase();
+				if (os.search("window")!=-1)
+				{
+					m_watchDogService.excecApp("InstallAir", filePath, "-silent");	
+				}
+				else if (os.search("linux")!=-1)
+				{
+					m_watchDogService.excecApp("InstallAir1", "chmod 777 \""+filePath+"\"", "");
+					m_watchDogService.excecApp("InstallAir2", "\""+filePath+"\" -silent", "");
+				}
+				else
+				{
+					return;
+				}
+				
+				
+				var installAirTimer:Timer = new Timer(120000, 1);
+				installAirTimer.addEventListener(TimerEvent.TIMER_COMPLETE, onInstallAirComplete);
+				installAirTimer.start(); 
+			}
+			
+			
+			private function onInstallAirComplete(event:TimerEvent):void
+			{
+				Timer(event.target).removeEventListener(TimerEvent.TIMER_COMPLETE, onInstallAirComplete);
+				setStatus("Installation Done");
+				m_watchDogService.rebootPlayer();
+			}
+
+			
+			private function disableAirRuntine():Boolean
+			{
+				var fileStream:FileStream;
+				var file:* = getApplicationSupportDirectory();
+				if (file == null)
+				{
+					return false;
+				}// end if
+				file = file.resolvePath(AIR_UPDATE_DISABLED_FILE);
+				if (file.exists)
+				{
+					return true;
+				}// end if
+				try
+				{
+					fileStream = new FileStream();
+					fileStream.open(file, FileMode.WRITE);
+					fileStream.close();
+				}// end try
+				catch (error:Error)
+				{
+					return false;
+				}// end catch
+				if (file.exists)
+					return true;
+				
+				return false;
+			}
+			
+			private function getApplicationSupportDirectory() : File
+			{
+				var _loc_1:File;
+				if (Capabilities.os.indexOf("Windows") > -1 || Capabilities.os.indexOf("Linux") > -1)
+				{
+					_loc_1 = new File(File.applicationStorageDirectory.nativePath + AIR_SUPPORT_DIRECTORY_WIN);
+				}
+				else if (Capabilities.os.indexOf("Mac") > -1)
+				{
+					_loc_1 = new File(File.applicationStorageDirectory.nativePath + AIR_SUPPORT_DIRECTORY_MAC);
+				}
+				else
+				{
+					return null;
+				}// end else if
+				return _loc_1;
+			}// end function	        
+			
+			private function hasRootPermition():Boolean
+			{
+				var file1:File;
+				var file2:File
+				var os:String = Capabilities.os.toLocaleLowerCase(); 
+				if (os.search("linux")!=-1)
+				{
+					try
+					{
+						file1 = File.applicationDirectory.resolvePath("linux");
+						file1 = file1.resolvePath("signageController.sh");
+						file2 = new File("/root/");
+						file2 = file2.resolvePath("tmp");
+						//Alert.show(file1.nativePath+"\n"+file2.nativePath);
+						file1.copyTo(file2, true);
+						if (file2.exists)
+						{
+							//Alert.show("File was copied");
+							file2.deleteFile();
+						}
+					}
+					catch(e:Error)
+					{
+						visible = true;
+						AlertEx.showOk (
+							UIComponent(m_framework.StateBroker.GetState("topWindow")),
+							"To complete the installation, you need to manually run the install script under: /Applications/SignagePlayer.app/Contents/Resources/linux/install.sh", "Prmition denid. Installtion not completed");
+						return false;
+					}
+				}
+				else if (os.search("mac")!=-1)
+				{
+					try
+					{
+						//Alert.show(File.applicationStorageDirectory.nativePath);
+						//Alert.show(File.applicationDirectory.nativePath);
+						
+						file1 = File.applicationDirectory.resolvePath("mac");
+						file1 = file1.resolvePath("signageController.sh");
+						file2 = new File("/private/var/root/");
+						file2 = file2.resolvePath("tmp");
+						file1.copyTo(file2, true);
+						if (file2.exists)
+						{
+							//Alert.show("File was copied");
+							file2.deleteFile();
+						}
+					}
+					catch(e:Error)
+					{
+						visible = true;
+						AlertEx.showOk (
+							UIComponent(m_framework.StateBroker.GetState("topWindow")),
+							"To complete the installation, you need to manually run the install script under: /Applications/SignagePlayer.app/Contents/Resources/mac/install.sh", "Prmition denid. Installtion not completed");
+						return false;
+					}
+				}
+				
+				return true;
+			}
+			
+			
+			private function onUpdaterInitialized(event:UpdateEvent):void
+			{
+				checkAirAndAppUpdates(false);  // false - Check for stable build; true - last build 
+			}
+			
+			private function onCheckForUpdate(event:UpdateEvent):void
+			{
+				//setStatus("Check updates...");
+			}
+			
+			private function onUpdateStatus(event:StatusUpdateEvent):void
+			{
+				if (event.available)
+				{
+					setStatus("Updating...");	
+				}
+				else
+				{
+					setStatus(m_campaignBoardPlayer.getPlayerStatus());	
+				}
+			}			
+			
+			private function onDownloadStart(event:UpdateEvent):void
+			{
+				setStatus("Downloading...");
+			}
+			
+			private function onDownloadComplete(event:UpdateEvent):void
+			{
+				setStatus("Download complete");
+			}
+			
+			private function onDownloadError(event:DownloadErrorEvent):void
+			{
+				setStatus("Download error: "+event.text);
+			}
+			
+			private function onBeforeInstall(event:UpdateEvent):void
+			{
+				setStatus("Installing...");
+				m_watchDogService.suspendWatchdog(); // suspend 10 min 
+			} 			
+			
+			private function onFileUpdateStatus(event:StatusFileUpdateEvent):void
+			{
+				setStatus("File update status: "+event.available.toString());
+			}			
+			
+			private function onFileUpdateError(event:StatusFileUpdateErrorEvent):void
+			{
+				setStatus("File update error: "+event.text);
+			} 
+			
+			private function onUpdateError(event:ErrorEvent):void
+			{
+				setStatus("Update error: "+event.text);
+			}
+			
+			
+			protected override function checkAirAndAppUpdates(i_latest:Boolean):void
+			{
+				// Temp comment out this:
+				//  checkAdobeAirUpdates();
+				
+				var masterDomain:String = ERI.domain;
+				m_appUpdater.updateURL = i_latest ?
+					"http://" + masterDomain + "/Code/updater/4.12/latest/playerUpdate.xml" :
+					"http://" + masterDomain + "/Code/updater/4.12/min/playerUpdate.xml";
+				
+				
+				// Temp Add this line:
+				if (Updater.isSupported)
+				{
+					m_appUpdater.checkNow();
+				}
+			}	
+			
+			
+			private function checkAdobeAirUpdates():void
+			{
+				var url:String = m_masterServerUrl + "updater/adobeAirUpdate.xml";
+				var urlLoader:URLLoader = new URLLoader();
+				urlLoader.addEventListener(Event.COMPLETE, onAdobeAirUpdate);
+				urlLoader.addEventListener(IOErrorEvent.IO_ERROR, onAdobeAirError);
+				
+				urlLoader.load( new URLRequest(url) );
+			}
+			
+			private function onAdobeAirError(event:Event):void
+			{
+				
+			}
+			
+			
+			public override function showSplashScreen(i_show:Boolean):void
+			{
+				var splashWindow:SplashWindow;
+				
+				if (m_splashWindowList!=null)
+				{
+					while((splashWindow=m_splashWindowList.pop())!=null)
+					{
+						try
+						{
+							splashWindow.close();
+						}
+						catch(error:Error)
+						{
+							trace(error.message);
+						}
+					}
+					m_splashWindowList = null;
+				}
+				
+				if (i_show)
+				{
+					m_splashWindowList = new Array();
+					var filename:String = File.applicationStorageDirectory.resolvePath("SplashScreen").resolvePath("Update.swf").nativePath;
+					Mouse.hide();	
+					for each(var screen:Screen in Screen.screens)
+					{
+						splashWindow = new SplashWindow(filename);
+						splashWindow.open(true);
+						splashWindow.nativeWindow.x = screen.bounds.x;
+						splashWindow.nativeWindow.y = screen.bounds.y;
+						splashWindow.width = screen.bounds.width;
+						splashWindow.height = screen.bounds.height;
+						m_splashWindowList.push(splashWindow);
+					}
+				}
+				
+			}
+			
+			
+			public override function dispose():void
+			{
+				super.dispose();
+				if (m_mainPanel!=null)
+				{
+					m_mainPanel.removeEventListener("event_hide", onHideMainPanel);
+				}
+				
+				
+				
+				
+				NativeApplication.nativeApplication.removeEventListener(KeyboardEvent.KEY_DOWN, onKeyDown);
+				
+				try
+				{
+					if (m_appUpdater!=null)
+					{
+						m_appUpdater.removeEventListener(UpdateEvent.INITIALIZED, onUpdaterInitialized);
+						m_appUpdater.removeEventListener(UpdateEvent.CHECK_FOR_UPDATE, onCheckForUpdate);
+						m_appUpdater.removeEventListener(UpdateEvent.BEFORE_INSTALL, onBeforeInstall);
+						m_appUpdater.removeEventListener(UpdateEvent.DOWNLOAD_START, onDownloadStart);
+						m_appUpdater.removeEventListener(UpdateEvent.DOWNLOAD_COMPLETE, onDownloadComplete);
+						m_appUpdater.removeEventListener(DownloadErrorEvent.DOWNLOAD_ERROR, onDownloadError);
+						m_appUpdater.removeEventListener(StatusFileUpdateEvent.FILE_UPDATE_STATUS, onFileUpdateStatus);
+						m_appUpdater.removeEventListener(StatusFileUpdateErrorEvent.FILE_UPDATE_ERROR, onFileUpdateError);
+						m_appUpdater.removeEventListener(ErrorEvent.ERROR, onUpdateError);
+						m_appUpdater.removeEventListener(StatusUpdateEvent.UPDATE_STATUS, onUpdateStatus);
+						m_appUpdater = null;
+					}
+				}
+				catch(error:Error)
+				{
+					
+				}
+			}
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+</ms:SignagePlayerAir>

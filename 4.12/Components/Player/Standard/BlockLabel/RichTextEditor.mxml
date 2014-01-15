@@ -1,0 +1,252 @@
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx"
+					   xmlns:ms="*"
+					   width="100%" height="100%"
+					   gap="0" xmlns:ColorPicker="ColorPicker.*">
+	<fx:Script>
+		<![CDATA[
+			import flash.text.engine.FontWeight;
+			
+			import flashx.textLayout.conversion.ConversionType;
+			import flashx.textLayout.conversion.TextConverter;
+			import flashx.textLayout.formats.TextAlign;
+			import flashx.textLayout.formats.TextDecoration;
+			import flashx.textLayout.formats.TextLayoutFormat;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			
+			
+			private var m_fontItem:IFontItem;
+			
+			
+			public function init(i_styleService:IStyleService):void
+			{
+				m_fontItem = i_styleService.createFontItem();
+				descFontFamily.dataProvider = new ArrayCollection( m_fontItem.fontFamilyList );
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				btnBold.setStyle("icon", getIconClass("textStyleBoldIcon"));
+				btnItalic.setStyle("icon", getIconClass("textStyleItalicIcon"));
+				btnUnderline.setStyle("icon", getIconClass("textStyleUnderlineIcon"));
+				btnLeft.setStyle("icon", getIconClass("textAlignLeftIcon"));
+				btnCenter.setStyle("icon", getIconClass("textAlignCenterIcon"));
+				btnRight.setStyle("icon", getIconClass("textAlignRightIcon"));
+				btnJustify.setStyle("icon", getIconClass("textAlignJustifyIcon"));
+			}
+			
+			private function getIconClass(i_iconName:String):Class
+			{
+				if (i_iconName=="")
+					return null;
+				return FlexGlobals.topLevelApplication.styleManager.getStyleDeclaration(".icons").getStyle(i_iconName);
+			}
+			
+			private function onFontChanged(event:Event):void
+			{
+				var textLayoutFormat:TextLayoutFormat = new TextLayoutFormat();
+				textLayoutFormat.fontFamily = descFontFamily.selectedItem.fontName.toString();
+				richEditableText.setFormatOfRange(textLayoutFormat, richEditableText.selectionAnchorPosition, richEditableText.selectionActivePosition);
+			}
+			
+			
+			private function onColorChanged():void
+			{
+				var textLayoutFormat:TextLayoutFormat = new TextLayoutFormat();
+				textLayoutFormat.color = colorPicker.selectedColor;
+				richEditableText.setFormatOfRange(textLayoutFormat, richEditableText.selectionAnchorPosition, richEditableText.selectionActivePosition);
+			}
+			
+			
+			private function onFontSize():void
+			{
+				var textLayoutFormat:TextLayoutFormat = new TextLayoutFormat();
+				var fontSize:int = Math.max(8, Math.min(int(fontSizeCombo.selectedItem), 720));
+				textLayoutFormat.fontSize = fontSizeCombo.selectedItem = fontSize;
+				richEditableText.setFormatOfRange(textLayoutFormat, richEditableText.selectionAnchorPosition, richEditableText.selectionActivePosition);
+			}
+			
+			
+			
+			private function onBold():void
+			{
+				try
+				{
+					var textLayoutFormat:TextLayoutFormat = new TextLayoutFormat();
+					textLayoutFormat.fontWeight = btnBold.selected ? FontWeight.BOLD : FontWeight.NORMAL;
+					richEditableText.setFormatOfRange(textLayoutFormat, richEditableText.selectionAnchorPosition, richEditableText.selectionActivePosition);
+				}
+				catch(e:Error)
+				{
+					trace(e.message);
+				}
+			}
+			
+			private function onItalic():void
+			{
+				try
+				{
+					var textLayoutFormat:TextLayoutFormat = new TextLayoutFormat();
+					textLayoutFormat.fontStyle = btnItalic.selected ? FontStyle.ITALIC : "normal";
+					richEditableText.setFormatOfRange(textLayoutFormat, richEditableText.selectionAnchorPosition, richEditableText.selectionActivePosition);
+				}
+				catch(e:Error)
+				{
+					trace(e.message);
+				}
+			}		
+			
+			private function onUnderline():void
+			{
+				try
+				{
+					var textLayoutFormat:TextLayoutFormat = new TextLayoutFormat();
+					textLayoutFormat.textDecoration = btnUnderline.selected ? TextDecoration.UNDERLINE : TextDecoration.NONE;
+					richEditableText.setFormatOfRange(textLayoutFormat, richEditableText.selectionAnchorPosition, richEditableText.selectionActivePosition);
+				}
+				catch(e:Error)
+				{
+					trace(e.message);
+				}
+			}					
+			
+			
+			private function onLeft():void
+			{
+				var textLayoutFormat:TextLayoutFormat = new TextLayoutFormat();
+				textLayoutFormat.textAlign = TextAlign.LEFT;
+				richEditableText.setFormatOfRange(textLayoutFormat, richEditableText.selectionAnchorPosition, richEditableText.selectionActivePosition);
+			}				
+
+			private function onCenter():void
+			{
+				var textLayoutFormat:TextLayoutFormat = new TextLayoutFormat();
+				textLayoutFormat.textAlign = TextAlign.CENTER;
+				richEditableText.setFormatOfRange(textLayoutFormat, richEditableText.selectionAnchorPosition, richEditableText.selectionActivePosition);
+			}				
+
+			private function onRight():void
+			{
+				var textLayoutFormat:TextLayoutFormat = new TextLayoutFormat();
+				textLayoutFormat.textAlign = TextAlign.RIGHT;
+				richEditableText.setFormatOfRange(textLayoutFormat, richEditableText.selectionAnchorPosition, richEditableText.selectionActivePosition);
+			}				
+			
+			private function onJustify():void
+			{
+				var textLayoutFormat:TextLayoutFormat = new TextLayoutFormat();
+				textLayoutFormat.textAlign = TextAlign.JUSTIFY;
+				richEditableText.setFormatOfRange(textLayoutFormat, richEditableText.selectionAnchorPosition, richEditableText.selectionActivePosition);
+			}				
+
+				
+			protected function onUpdateComplete(event:FlexEvent):void
+			{
+				dispatchEvent( event.clone() );
+			}
+			
+			protected function onSelectionChange(event:Event):void
+			{
+				var textLayoutFormat:TextLayoutFormat = 
+					richEditableText.getFormatOfRange(null, richEditableText.selectionAnchorPosition, richEditableText.selectionActivePosition);
+				fontSizeCombo.selectedItem = textLayoutFormat.fontSize;
+				for each(var font:Object in descFontFamily.dataProvider)
+				{
+					if (font.fontName== textLayoutFormat.fontFamily)
+					{
+						descFontFamily.selectedItem = font;
+						break
+					}
+				}
+				colorPicker.selectedColor = colorPicker.selectedItem = uint(textLayoutFormat.color);
+				btnBold.selected = (textLayoutFormat.fontWeight == FontWeight.BOLD);
+				btnItalic.selected = (textLayoutFormat.fontStyle == FontStyle.ITALIC);
+				btnUnderline.selected = (textLayoutFormat.textDecoration == TextDecoration.UNDERLINE);
+				btnLeft.selected = (textLayoutFormat.textAlign == TextAlign.LEFT);
+				btnCenter.selected = (textLayoutFormat.textAlign == TextAlign.CENTER);
+				btnRight.selected = (textLayoutFormat.textAlign == TextAlign.RIGHT);
+				btnJustify.selected = (textLayoutFormat.textAlign == TextAlign.JUSTIFY);
+			}
+			
+			public function get htmlText():String
+			{
+				return TextConverter.export(richEditableText.textFlow, TextConverter.TEXT_FIELD_HTML_FORMAT, ConversionType.STRING_TYPE) as String;
+			}
+
+			public function set htmlText(i_htmlText:String):void
+			{
+				richEditableText.textFlow = TextConverter.importToFlow(i_htmlText, TextConverter.TEXT_FIELD_HTML_FORMAT);
+			}
+			
+		]]>
+	</fx:Script>
+	<s:RichEditableText id="richEditableText" 
+						width="100%" height="100%"
+						updateComplete="onUpdateComplete(event)"
+						selectionChange="onSelectionChange(event)"/>
+
+	<s:BorderContainer width="100%" backgroundColor="0xC0C0C0">
+		<s:layout>
+			<s:VerticalLayout paddingTop="5" paddingLeft="5" paddingRight="5" paddingBottom="5" gap="5"/>
+		</s:layout>
+		<s:HGroup width="100%">
+			<s:DropDownList id="descFontFamily" labelField="fontName"
+						change="onFontChanged(event)"  width="100%"/>		
+			<s:ComboBox id="fontSizeCombo" change="onFontSize()" selectedIndex="4" width="50" 
+						skinClass="spark.skins.spark.ComboBoxSkin">
+				<s:dataProvider>
+					<mx:ArrayList>
+						<fx:String>8</fx:String>
+						<fx:String>9</fx:String>
+						<fx:String>10</fx:String>
+						<fx:String>11</fx:String>
+						<fx:String>12</fx:String>
+						<fx:String>14</fx:String>
+						<fx:String>16</fx:String>
+						<fx:String>18</fx:String>
+						<fx:String>20</fx:String>
+						<fx:String>22</fx:String>
+						<fx:String>24</fx:String>
+						<fx:String>26</fx:String>
+						<fx:String>28</fx:String>
+						<fx:String>36</fx:String>
+						<fx:String>48</fx:String>
+						<fx:String>72</fx:String>
+						<fx:String>127</fx:String>
+					</mx:ArrayList>
+				</s:dataProvider>
+			</s:ComboBox>
+		</s:HGroup>
+		<s:HGroup width="100%">
+			<ColorPicker:SparkColorPicker id="colorPicker" 
+							change="onColorChanged()"  
+							 width="60"/>
+			
+			<s:Spacer width="5"/>
+			
+			<s:ToggleButton id="btnBold"
+							click="onBold()" width="20"/>
+			<s:ToggleButton id="btnItalic"
+							click="onItalic()" width="20"/>
+			<s:ToggleButton id="btnUnderline"
+							click="onUnderline()" width="20"/>
+			
+			<s:Spacer width="5"/>
+			
+			<s:ToggleButton id="btnLeft"
+							click="onLeft()" width="20"/>
+			<s:ToggleButton id="btnCenter"
+							click="onCenter()" width="20"/>
+			<s:ToggleButton id="btnRight"
+							click="onRight()" width="20"/>
+			<s:ToggleButton id="btnJustify"
+							click="onJustify()" width="20"/>
+
+		</s:HGroup>
+	</s:BorderContainer>
+</s:VGroup>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:SignagePlayerMobile xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:ms="*">
+	
+	
+	
+	<fx:Script>   
+		<![CDATA[
+			import mx.core.UIComponent;
+			
+			import spark.components.Label;
+			
+			private var m_userDirectory:Boolean = false;
+			
+			protected override function init():void
+			{
+				try
+				{
+					var dir:File = File.userDirectory.resolvePath("SignagePlayer");
+					if (dir.exists==false)
+					{ 
+						dir.createDirectory();
+					}
+					m_userDirectory = dir.exists;
+					
+				}
+				catch(e1:Error)
+				{
+					
+				}
+				
+				try
+				{ 
+					var deviceInfo : NativeDeviceInfo = new NativeDeviceInfo();
+					deviceInfo.addEventListener(NativeDeviceInfoEvent.PROPERTIES_PARSED, handleDevicePropertiesParsed);
+					deviceInfo.parse();
+				}
+				catch(e2:Error)
+				{
+					AlertEx.showOk(this, "No device info");
+					super.init();
+				}
+			}
+				
+			
+			
+			private function handleDevicePropertiesParsed(event : NativeDeviceInfoEvent) : void 
+			{
+				NativeDeviceInfo(event.target).removeEventListener(NativeDeviceInfoEvent.PROPERTIES_PARSED, handleDevicePropertiesParsed);
+				var product:String = NativeDevicePropertiesData(NativeDeviceProperties.PRODUCT_MODEL).value; 
+				//m_mediaSignageDevice = (product=="rk30sdk" || product=="ODROID-X" || "ODROID-X2");
+				super.init();
+				m_playerSocket.os = NativeDevicePropertiesData(NativeDeviceProperties.OS_NAME).value + " " +
+					NativeDevicePropertiesData(NativeDeviceProperties.OS_VERSION).value;
+				//AlertEx.showOk(this, m_mediaSignageDevice ? "MS\n" : "Other\n");
+			}	
+			
+			
+			protected override function get userDirectory():Boolean
+			{
+				return m_userDirectory;
+			}
+			
+			protected override function createWatchDogService():WatchDogService
+			{
+				return new WatchDogService(m_framework, false);
+			}
+			
+		]]> 
+	</fx:Script>
+</ms:SignagePlayerMobile>
+

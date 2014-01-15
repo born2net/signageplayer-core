@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:ms="*"
+	width="100%" height="100%"
+	label="{resourceManager.getString('player', 'catalog.title')}" xmlns:Accordion="Accordion.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.collections.XMLListCollection;
+			private var m_dataBaseManager:DataBaseManager;
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+				
+				scenePickerCtrl.framework = m_framework;
+				scenePickerCtrl.addEventListener(Event.CHANGE, onSceneChanged);
+				categoriesCtrl.addEventListener(MouseEvent.CLICK, onCategoriesChanged);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				
+				categoriesCtrl.invalidateCategories();
+				categoriesCtrl.validateNow();
+				
+				if (categoriesCtrl.catagoryMap==null)
+					return;
+				
+				var hPlayerData:int = BlockCatalogPlayer(m_playerLoader.player).hPlayerData;
+				var sceneText:String = resourceManager.getString('player', 'weather.sceneText')
+				/*???
+				if (hPlayerData!=-1)
+				{
+					var recPlayerData:Rec_player_data = m_dataBaseManager.table_player_data.getRecord(hPlayerData);
+					if (recPlayerData!=null)
+					{
+						var xmlPlayer:XML = new XML(recPlayerData.player_data_value);
+						sceneText = xmlPlayer.@label;
+					}
+					
+				}
+				scenePickerCtrl.scene.text = sceneText;
+				*/
+					
+					
+				scenePickerCtrl.hPlayerData = hPlayerData;
+					
+				kiosk.selected = BlockCatalogPlayer(m_playerLoader.player).kiosk;
+
+				var categoryValue:Object;
+				var hCategoryValue:int;
+				for each(categoryValue in categoriesCtrl.catagoryMap)
+				{
+					categoryValue.selected = 0;
+				}				
+
+				for each(var xmlCategory:XML in BlockCatalogPlayer(m_playerLoader.player).categories.*)
+				{
+					hCategoryValue = m_dataBaseManager.table_category_values.getHandle(int(xmlCategory.@id)); //??? what if id =-1. should also use handles.
+					categoryValue = categoriesCtrl.catagoryMap[hCategoryValue];
+					if (categoryValue!=null && ArrayCollection(categoryValue.children).length==0)
+					{
+						categoryValue.selected = 1;
+					}
+					else
+					{
+						// should not get here ???
+					}							
+				}
+
+				categoriesCtrl.invalidateSelections();
+				
+				updateMode();
+			}
+			
+
+     		private function onSceneChanged(event:Event):void
+     		{
+     			BlockCatalogPlayer(m_playerLoader.player).hPlayerData = scenePickerCtrl.hPlayerData
+     		}
+     		
+	        private function onCategoriesChanged(event:MouseEvent):void
+	        {
+	        	var checkbox:CheckBox = event.target as CheckBox;
+	        	if (checkbox!=null)
+	        	{ 
+	        		var item:Object = CategoryItemRenderer(checkbox.parent).data;
+	        		//m_dataBaseManager.table_catalog_items.openForEdit(m_hCatalogItem);
+	        		//var recCatalogItem:Rec_catalog_item = m_dataBaseManager.table_catalog_items.getRecord(m_hCatalogItem);
+	        		//recCatalogItem.item_date_modified = (new Date()).time;
+		        		
+	        		selectItem(item, checkbox.selected);
+	        		
+	        		delete BlockCatalogPlayer(m_playerLoader.player).categories.*; //M???
+					
+					for each(var categoryValue:Object in categoriesCtrl.catagoryMap)
+					{
+						if (categoryValue.selected == 1)
+						{
+							var xmlCategory:XML = <Category/>;
+							var hCategoryValue:int = xmlCategory.@handle = categoryValue.hCategoryValue;
+							xmlCategory.@id = categoryValue.id; 
+							BlockCatalogPlayer(m_playerLoader.player).categories.appendChild(xmlCategory);
+						}
+					}				
+	
+	    			categoriesCtrl.invalidateSelections();
+
+	    			BlockCatalogPlayer(m_playerLoader.player).updateCategories();
+	        	}
+	        }
+	        
+	        private function selectItem(i_item:Object, i_selected:Boolean):void
+	        {
+	    		if (ArrayCollection(i_item.children).length==0)
+	    		{
+		        	var hCategoryValue:int = int(i_item.hCategoryValue);
+		    		
+					i_item.selected = i_selected ? 1: 0;
+	    		}
+	    		else
+	    		{
+	    			for each(var item:Object in i_item.children)
+	    			{
+	    				selectItem(item, i_selected);
+	    			}
+	    		}
+	        }
+	        
+	        private function onKiosk():void
+	        {
+	        	BlockCatalogPlayer(m_playerLoader.player).kiosk = kiosk.selected;
+				
+				updateMode();
+	        }
+			
+			private function updateMode():void
+			{
+				var kiosk:Boolean = BlockCatalogPlayer(m_playerLoader.player).kiosk;
+				if (kiosk)
+				{
+					intervalStepper.enabled = false;
+					if (accordion.contains(eventsCtrl)==false)
+					{
+						accordion.addItem(eventsCtrl);
+					}
+					
+					eventsCtrl.editor = m_playerLoader;
+				}
+				else					
+				{
+					intervalStepper.enabled = true;
+					intervalStepper.value = BlockCatalogPlayer(m_playerLoader.player).itemInterval;
+					if (accordion.containsElement(eventsCtrl))
+					{
+						var index:int = accordion.getItemIndex(eventsCtrl);
+						accordion.removeItemAt(index);
+					}
+				}
+			}
+			
+	        
+	        private function onIntervalStepper():void
+	        {
+	        	BlockCatalogPlayer(m_playerLoader.player).itemInterval = intervalStepper.value;
+	        }
+			
+			private function onEventsCtrlInit():void
+			{
+				eventsCtrl.editor = m_playerLoader;
+			}
+			
+			
+
+		]]>
+	</fx:Script>
+	
+	
+	<fx:Declarations>
+		<ms:CatalogEventsCtrl id="eventsCtrl" width="100%" height="100%"
+								 creationComplete="onEventsCtrlInit()"/>
+	</fx:Declarations>
+
+	
+	<Accordion:SparkAccordion id="accordion" width="100%" height="100%">
+		<s:NavigatorContent label="General" width="100%" height="100%">
+			<s:layout>
+				<s:VerticalLayout/>
+			</s:layout>
+			<s:Form  width="200">
+				<s:FormItem label="{resourceManager.getString('player', 'ScenePickerCtrl.scene')}"  width="100%">
+					<ms:ScenePicker id="scenePickerCtrl" width="100%"/>
+				</s:FormItem>
+				<s:FormItem width="100%"
+					label="{resourceManager.getString('player', 'catalog.kiosk')}">
+					<s:CheckBox id="kiosk"
+						change="onKiosk()"/>
+				</s:FormItem>
+				<s:FormItem width="100%"
+					label="{resourceManager.getString('player', 'catalog.interval')}">
+					<ms:NumericStepperEx id="intervalStepper" minimum="2" maximum="999"
+						change="onIntervalStepper()"/>
+				</s:FormItem>
+			</s:Form>
+			<ms:CategoriesCtrl id="categoriesCtrl" 
+				width="100%" height="100%"/>
+		</s:NavigatorContent>
+	</Accordion:SparkAccordion>
+		
+</ms:PlayerPage>

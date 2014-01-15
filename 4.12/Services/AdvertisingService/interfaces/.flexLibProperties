@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<flexLibProperties includeAllClasses="false" useMultiPlatformConfig="false" version="1">
+  <includeClasses>
+    <classEntry path="IAdvertisingService"/>
+    <classEntry path="IAdDomainBusiness"/>
+    <classEntry path="IAdDomain"/>
+    <classEntry path="IAdReport"/>
+    <classEntry path="IAdDomainBusinessStation"/>
+    <classEntry path="IAdLocalStat"/>
+    <classEntry path="IAdStat"/>
+  </includeClasses>
+  <includeResources/>
+  <namespaceManifests/>
+</flexLibProperties>

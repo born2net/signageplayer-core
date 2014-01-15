@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+	implements="IPage"
+	label="{resourceManager.getString('player', 'weather.title')}"
+	width="100%" height="100%" xmlns:ViewStack="ViewStack.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.soap.WebService;
+			import mx.events.FlexEvent;
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			
+			
+			private var m_rssWeatherService:WebService;
+[Bindable]  private var m_resultCollection:XMLListCollection;			
+			private var m_searchList:Array;   
+			private var m_searchIndex:int = -1;
+			private var m_treeSeacrhLabel:String = 'name';
+			
+
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_framework = Global.getFramework(this);
+				
+				var masterServerUrl:String = String(m_framework.StateBroker.GetState("MasterServerUrl"));
+				m_rssWeatherService = new WebService();
+				m_rssWeatherService.useProxy = false;
+				m_rssWeatherService.addEventListener(FaultEvent.FAULT, onWebServiceFault);
+				m_rssWeatherService.loadWSDL(masterServerUrl+"RssWeatherService.asmx?wsdl");
+				m_rssWeatherService.SearchCityCode.addEventListener("result", onCityCode);
+				
+				scenePickerCtrl.framework = m_framework;
+				scenePickerCtrl.addEventListener(Event.CHANGE, onSceneChanged);
+				
+				
+				locationViewstack.selectedIndex = 0;
+				locationViewstack.validateNow();
+			}
+
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				
+				var hPlayerData:int = BlockRssWeatherPlayer(m_playerLoader.player).hPlayerData;
+				scenePickerCtrl.hPlayerData = hPlayerData;
+				
+				radioFahrenheit.validateNow();
+				radioCelsius.validateNow();
+				radioUsa.validateNow();
+				radioInternational.validateNow();
+				unitsGroup.selectedValue = BlockRssWeatherPlayer(m_playerLoader.player).units;
+				regionRadio.selectedValue = BlockRssWeatherPlayer(m_playerLoader.player).usa ? "usa" : "international";
+				if ( regionRadio.selectedValue == "usa" )
+				{
+					locationViewstack.selectedIndex=0;
+					zipCodeText.text = BlockRssWeatherPlayer(m_playerLoader.player).location;
+				} 
+				else 
+				{
+					locationViewstack.selectedIndex=1;
+					searchBox.text = BlockRssWeatherPlayer(m_playerLoader.player).search;
+				}				
+			}
+			
+
+			private function onWebServiceFault(event:FaultEvent):void
+			{
+				//m_debugLog.addError("SignageLoginCtrl.xml\n"+event.toString());
+			}		
+			
+			protected function onCityCode(event:ResultEvent):void
+			{
+				var xmlCityCode:XML = new XML(event.result);
+				m_resultCollection =  new XMLListCollection(xmlCityCode.*);
+			}
+			
+			private function onChangeRegion(event:Event):void
+			{
+				if ( regionRadio.selectedValue == "usa" )
+				{
+					locationViewstack.selectedIndex=0;
+				} 
+				else 
+				{
+					locationViewstack.selectedIndex=1;
+				}				
+			}
+			
+			private function onUnitChange(event:Event):void
+			{
+				BlockRssWeatherPlayer(m_playerLoader.player).units = unitsGroup.selectedValue.toString();
+			}
+			
+			
+     		private function onSearchCity():void
+     		{
+     			m_rssWeatherService.SearchCityCode(searchBox.text);
+     		}
+     		
+     		private function onLocationSelected():void
+     		{
+     			if (results.selectedItem==null)
+     				return;
+     			BlockRssWeatherPlayer(m_playerLoader.player).search = results.selectedItem.@name;	
+     			BlockRssWeatherPlayer(m_playerLoader.player).yahooCode = results.selectedItem.@code;
+     		}
+     		
+     		private function onSceneChanged(event:Event):void
+     		{
+     			BlockRssWeatherPlayer(m_playerLoader.player).hPlayerData = scenePickerCtrl.hPlayerData
+     		}
+     		
+     		private function setUsaZipCode():void
+     		{
+     			BlockRssWeatherPlayer(m_playerLoader.player).setUsaZipCode(zipCodeText.text);
+     		}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:RadioButtonGroup id="unitsGroup" change="onUnitChange(event)"/>	
+		<s:RadioButtonGroup id="regionRadio" change="onChangeRegion(event)"/>
+	</fx:Declarations>
+	
+	<ms:layout>
+		<s:VerticalLayout/>
+	</ms:layout>
+	
+	<s:Form>
+		<s:FormItem label="{resourceManager.getString('player', 'ScenePickerCtrl.scene')}"  width="100%">
+			<ms:ScenePicker id="scenePickerCtrl" width="100%"/>
+		</s:FormItem>	
+		<s:FormItem label="{resourceManager.getString('player', 'weather.unit')}">
+			<s:HGroup>
+				<s:RadioButton id="radioFahrenheit" 
+							   label="f" value="f" 
+							   groupName="unitsGroup"/>
+				<s:RadioButton id="radioCelsius"  
+							   label="c" value="c"
+							   groupName="unitsGroup" />
+			</s:HGroup>
+		</s:FormItem>
+		<s:FormItem label="{resourceManager.getString('player', 'weather.location')}">
+			<s:HGroup>
+				<s:RadioButton id="radioUsa" 
+							   label="{resourceManager.getString('player', 'weather.usa')}" 
+							   selected="true" 
+							   groupName="regionRadio" value="usa"/>
+				<s:RadioButton id="radioInternational" 
+							   label="{resourceManager.getString('player', 'weather.international')}" 
+							   groupName="regionRadio" value="international"/>
+			</s:HGroup>
+		</s:FormItem>
+	</s:Form>
+	
+	<ViewStack:SparkViewStack id="locationViewstack" width="100%" height="100%">
+		<s:NavigatorContent width="100%" height="100%">
+			<s:Form width="100%" height="100%">
+				<s:FormItem label="{resourceManager.getString('player', 'weather.zipCode')}">
+					<s:TextInput id="zipCodeText" 
+								 enter="setUsaZipCode()" focusOut="setUsaZipCode()"/>
+				</s:FormItem>
+			</s:Form>
+		</s:NavigatorContent>
+		
+		<s:NavigatorContent width="100%" height="100%">
+			<s:layout>
+				<s:VerticalLayout/>
+			</s:layout>
+			<s:Form width="100%">
+				<s:FormItem label="{resourceManager.getString('player', 'weather.searchBox')}">
+					<s:HGroup width="100%">
+						<s:TextInput id="searchBox" 
+									 width="120"  
+									 enter="onSearchCity()" />
+						<s:Button 
+							label="{resourceManager.getString('player', 'weather.search')}"
+							click="onSearchCity()"/>
+					</s:HGroup>
+				</s:FormItem>
+			</s:Form>
+			<s:VGroup width="100%" height="100%" paddingLeft="10" paddingRight="10" paddingBottom="10">
+				<s:List id="results" width="100%" height="100%" 
+						dataProvider="{m_resultCollection}" labelField="@name"
+						change="onLocationSelected()"/>
+			</s:VGroup>
+		</s:NavigatorContent>
+	</ViewStack:SparkViewStack>
+</ms:PlayerPage>	
+

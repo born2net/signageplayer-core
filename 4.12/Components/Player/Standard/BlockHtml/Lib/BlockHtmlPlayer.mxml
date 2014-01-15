@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*">
+	
+	<fx:Script>
+		<![CDATA[
+			protected var m_playerUrl:String = "http://m.digg.com/";
+			protected var m_configUrl:String = "";
+		
+			protected override function onDispose():void
+			{
+				super.onDispose();
+			}
+			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.HTML.@src).length()>0)
+				{
+					m_playerUrl = XML(i_data.HTML.@src).toString();
+				}
+				if (XMLList(i_data.HTML.@config).length()>0)
+				{
+					m_configUrl = XML(i_data.HTML.@config).toString();
+				}
+				invalidateProperties();
+			}
+			 
+			public override function save():XML
+			{
+				var xmlHTML:XML = <HTML/>;
+				xmlHTML.@src = m_playerUrl;
+				if (m_configUrl!=null)
+				{
+					xmlHTML.@config = m_configUrl;
+				}
+				return xmlHTML;  
+			}		
+
+			public function set playerUrl(i_playerUrl:String):void
+			{
+				m_playerLoader.modified = true;
+				m_playerUrl = i_playerUrl;
+				invalidateProperties();
+			}
+			public function get playerUrl():String
+			{
+				return m_playerUrl;
+			}
+			
+			public function set configUrl(i_configUrl:String):void
+			{
+				m_playerLoader.modified = true;
+				m_configUrl = i_configUrl;
+				invalidateProperties();
+			}
+			public function get configUrl():String
+			{
+				return m_configUrl;
+			}
+			
+			public function reload():void
+			{
+				
+			}
+
+			public override function get propertyPages():Array
+			{
+				return [BlockHtmlPage];
+			}
+			
+			public override function clear():void
+			{
+			}
+			
+			public override function start():void
+			{
+			}
+			
+			public override function stop():void
+			{
+			}
+			
+			public override function get seek():Number
+			{
+				return 0;				
+			}
+			
+			public override function set seek(i_seek:Number):void
+			{
+				
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+			}
+		]]>
+	</fx:Script>	
+</ms:PlayerModule>	

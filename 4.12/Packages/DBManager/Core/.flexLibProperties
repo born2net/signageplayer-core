@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<flexLibProperties includeAllClasses="false" useMultiPlatformConfig="false" version="1">
+  <includeClasses>
+    <classEntry path="DataBaseManager"/>
+    <classEntry path="DataManager"/>
+    <classEntry path="DataModuleBase"/>
+    <classEntry path="Fifo"/>
+    <classEntry path="Record"/>
+    <classEntry path="Table"/>
+  </includeClasses>
+  <includeResources/>
+  <namespaceManifests/>
+</flexLibProperties>

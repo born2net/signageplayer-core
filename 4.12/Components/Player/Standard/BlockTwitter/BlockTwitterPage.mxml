@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:Accordion="Accordion.*"
+			   xmlns:ms="*"
+			   label="Twitter" width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				scenePickerCtrl.framework = m_framework;
+				scenePickerCtrl.addEventListener(Event.CHANGE, onSceneChanged);
+				eventsCtrl.editor = m_playerLoader;
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				consumerKey.text = BlockTwitterPlayer(m_playerLoader.player).consumerKey;
+				consumerSecret.text = BlockTwitterPlayer(m_playerLoader.player).consumerSecret;
+				screenName.text = BlockTwitterPlayer(m_playerLoader.player).screenName;
+				scenePickerCtrl.hPlayerData = BlockTwitterPlayer(m_playerLoader.player).hPlayerData;
+				enableSlideShow.selected = intervalStepper.enabled= BlockTwitterPlayer(m_playerLoader.player).slideShow;
+				intervalStepper.value = BlockTwitterPlayer(m_playerLoader.player).itemInterval;
+				
+				eventsCtrl.editor = m_playerLoader;
+			}
+			
+
+			private function onConsumer():void
+			{
+				BlockTwitterPlayer(m_playerLoader.player).consumerKey = consumerKey.text;
+				BlockTwitterPlayer(m_playerLoader.player).consumerSecret = consumerSecret.text;
+			}
+
+			
+     		private function onSceneChanged(event:Event):void
+     		{
+				BlockTwitterPlayer(m_playerLoader.player).hPlayerData = scenePickerCtrl.hPlayerData
+     		}
+     		
+	        
+	        private function onIntervalStepper():void
+	        {
+				BlockTwitterPlayer(m_playerLoader.player).itemInterval = intervalStepper.value;
+	        }
+			
+			private function onScreenName():void
+			{
+				BlockTwitterPlayer(m_playerLoader.player).screenName = screenName.text;
+			}			
+			
+			private function onSlideShow():void
+			{
+				BlockTwitterPlayer(m_playerLoader.player).slideShow = intervalStepper.enabled = enableSlideShow.selected;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	
+	<Accordion:SparkAccordion width="100%" height="100%">
+		<s:NavigatorContent label="General" width="100%" height="100%">
+			<s:Form width="100%" height="100%">
+				<s:FormItem label="Consumer Key">
+					<s:TextInput id="consumerKey"
+								 enter="onConsumer()" focusOut="onConsumer()"/>
+				</s:FormItem>
+				<s:FormItem label="Consumer Secret">
+					<s:TextInput id="consumerSecret"
+								 enter="onConsumer()" focusOut="onConsumer()"/>
+				</s:FormItem>
+				<s:FormItem label="Screen Name">
+					<s:TextInput id="screenName"
+								 enter="onScreenName()" focusOut="onScreenName()"/>
+				</s:FormItem>
+				<s:FormItem label="{resourceManager.getString('player', 'ScenePickerCtrl.scene')}"  width="100%">
+					<ms:ScenePicker id="scenePickerCtrl" width="100%"/>
+				</s:FormItem>		
+				<s:FormItem label="SlideShow">
+					<s:CheckBox id="enableSlideShow" click="onSlideShow()"/>	
+				</s:FormItem>
+				
+				<s:FormItem width="100%"
+							label="Interval">
+					<ms:NumericStepperEx id="intervalStepper" minimum="2" maximum="999"
+									  change="onIntervalStepper()"/>
+				</s:FormItem>		
+			</s:Form>
+		</s:NavigatorContent>
+		<ms:TwitterEventsCtrl id="eventsCtrl" width="100%" height="100%"/>
+	</Accordion:SparkAccordion>
+</ms:PlayerPage>

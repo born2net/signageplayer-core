@@ -1,0 +1,431 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+	implements="ICatalogItemProvider"> 
+	
+	<fx:Script>
+		<![CDATA[
+			import spark.components.Button;
+			private var m_dataBaseManager:DataBaseManager;
+			private var m_catalogService:ICatalogService;
+			private var m_playerTransitionService:IPlayerTransitionService;
+			private var m_resourceService:IResourceService;
+			private var m_advertisingService:IAdvertisingService;
+			
+			
+			private var m_hPlayerData:int = -1;
+			private var m_kiosk:Boolean = false;
+			private var m_itemInterval:Number = 5;
+			private var m_xmlCategories:XML = <Categories/>;
+			private var m_allItems:Array;
+			private var m_activeItems:Array;
+			private var m_index:int = 0;
+			private var m_item:Object;
+			private var m_recCatalogItem:Rec_catalog_item;
+			private var m_recCatalogItemInfo:Rec_catalog_item_info;
+			private var m_resourcePath:String;
+			private var m_resourceType:String;
+			
+			private var m_playerTransition:IPlayerTransition;
+			private var m_timer:Timer;
+			private var m_time:Number = 0;
+			private var m_startTime:Number = 0;
+			
+			private var m_adLocalStat:IAdLocalStat = null;
+			
+			
+			public override function initModule():void
+			{
+				super.initModule();
+				m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+				m_catalogService = m_framework.ServiceBroker.QueryService("CatalogService") as ICatalogService;
+				m_playerTransitionService = m_framework.ServiceBroker.QueryService("PlayerTransitionService") as IPlayerTransitionService;
+				m_resourceService= m_framework.ServiceBroker.QueryService("ResourceService") as IResourceService;
+				m_advertisingService = m_framework.ServiceBroker.QueryService("AdvertisingService") as IAdvertisingService;
+				m_timer = new Timer(m_itemInterval * 1000); 
+				m_timer.addEventListener(TimerEvent.TIMER, onTimer);
+			}
+
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Catalog).length()>0)
+				{
+					m_hPlayerData = i_data.Catalog.Player.@hDataSrc;
+					
+					if (XMLList(i_data.Catalog.Categories).length()>0)
+					{
+						m_xmlCategories = i_data.Catalog.Categories[0];
+					}
+					
+						
+					if (XMLList(i_data.Catalog.@kiosk).length()>0)
+					{
+						m_kiosk = i_data.Catalog.@kiosk=="1";
+					}
+					
+					if (XMLList(i_data.Catalog.@itemInterval).length()>0)
+					{
+						m_itemInterval = int(i_data.Catalog.@itemInterval);
+					}
+					
+					if (m_itemInterval==0)
+						m_itemInterval = 5;
+					m_timer.delay = m_itemInterval * 1000;
+					updateItems();
+					invalidateProperties();
+				}
+			}
+			
+			public override function save():XML
+			{
+				var recPlayerData:Rec_player_data = m_dataBaseManager.table_player_data.getRecord(m_hPlayerData);
+				var xmlCatalog:XML = <Catalog>
+										<Player hDataSrc={m_hPlayerData}/>
+									</Catalog>;
+				xmlCatalog.@kiosk = m_kiosk ? "1" : "0";
+				xmlCatalog.@itemInterval = m_itemInterval;
+				xmlCatalog.appendChild(m_xmlCategories);
+				return xmlCatalog; 
+			}   
+			
+			public override function start():void
+			{
+				super.start();
+				m_index = 0;
+				m_startTime = 0;
+				m_time = 0;
+				playItem();
+				
+				if (m_kiosk==false)
+				{
+					m_timer.start();
+				}
+			} 
+
+			public override function stop():void
+			{
+				super.stop();
+				m_timer.stop();
+			} 
+								
+			public override function onFrame(i_time:Number):void
+			{
+				super.onFrame(i_time);
+				m_time = i_time;
+				if (m_playerTransition!=null)
+				{
+					m_playerTransition.tick(i_time - m_startTime);
+				}
+			}					
+	
+			
+			
+			public override function onCommand(i_eventHandler:IEventHandler, i_eventParam:Object):void
+			{
+				if (m_kiosk==false)
+					return;
+				
+				switch(i_eventHandler.commandName)
+				{
+					case "prevPage":
+						prevItem();
+						break;
+					
+					case "nextPage":
+						nextItem();
+						break;
+				}
+			}
+			
+			
+			
+			public function getName():String
+			{
+				if (m_recCatalogItem==null)
+					return "name";
+				return m_recCatalogItem.item_name;
+			}
+			
+			public function getInfo(i_index:int):String
+			{
+				if (m_recCatalogItem==null)
+					return "name";
+				return m_recCatalogItemInfo["info"+i_index.toString()];
+			}
+			
+			public function getResourcePath():String
+			{
+				return m_resourcePath;
+			}			
+
+			public function getResourceType():String
+			{
+				return m_resourceType;
+			}			
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockCatalogPage];
+			}
+			
+			public function get hPlayerData():int
+			{
+				return m_hPlayerData;
+			}
+			
+			public function set hPlayerData(i_hPlayerData:int):void
+			{
+				m_playerLoader.modified = true;
+				m_hPlayerData = i_hPlayerData;
+				var recPlayerData:Rec_player_data = m_dataBaseManager.table_player_data.getRecord(m_hPlayerData);
+				invalidateProperties();
+			}
+
+			public function get kiosk():Boolean
+			{
+				return m_kiosk;
+			}
+			
+			public function set kiosk(i_kiosk:Boolean):void
+			{
+				m_playerLoader.modified = true;
+				m_kiosk = i_kiosk;
+				invalidateProperties();
+			}
+			
+			public function get itemInterval():Number
+			{
+				return m_itemInterval;
+			}
+			
+			public function set itemInterval(i_itemInterval:Number):void
+			{
+				m_playerLoader.modified = true;
+				m_itemInterval = i_itemInterval;
+				m_timer.delay = m_itemInterval * 1000;
+			}
+
+			
+			public function get categories():XML
+			{
+				return m_xmlCategories;
+			}
+			
+			public function updateCategories():void
+			{
+				m_playerLoader.modified = true;
+				updateItems();
+			}
+			
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_playerTransition = m_playerTransitionService.createPlayerTransition(container);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerTransition==null)
+					return;
+				
+				if (m_hPlayerData==-1)
+				{
+					showBlockInfo("[No scene assigned]");
+					return;
+				}
+				showBlockInfo(null);
+				var xmlPlayer:XML = <Player />;
+				xmlPlayer.@hDataSrc = m_hPlayerData;
+				m_playerTransition.load(xmlPlayer, 0);
+				m_playerTransition.playerLoader.setDataProvider(this);
+				m_playerTransition.playerLoader.start();
+				m_startTime = m_time;
+			}
+
+			private function updateItems():void
+			{
+				var categoryList:Array = new Array;
+				getCategories(m_xmlCategories, categoryList);
+				m_allItems = m_catalogService.queryItemList(categoryList);
+				updateActiveItems();
+			}
+			
+			private function updateActiveItems():void
+			{
+				m_activeItems = new Array();
+				var today:Date = new Date();
+				for each(var hItem:int in m_allItems)
+				{
+					var recCatalogItem:Rec_catalog_item = m_dataBaseManager.table_catalog_items.getRecord(hItem);
+					var add:Boolean = true;
+					if (recCatalogItem.ad_local_content_id!=-1)
+					{
+						var recAdLocalContent:Rec_ad_local_content = m_dataBaseManager.table_ad_local_contents.getRecord(recCatalogItem.ad_local_content_id);
+						if (recAdLocalContent!=null) // is null for Web Player
+						{
+							if (recAdLocalContent.enabled)
+							{
+								var recAdLocalPackage:Rec_ad_local_package = m_dataBaseManager.table_ad_local_packages.getRecord(recAdLocalContent.ad_local_package_id);
+								if (recAdLocalPackage.use_date_range)
+								{
+									if (today.time < recAdLocalPackage.start_date.time || today.time>recAdLocalPackage.end_date.time+86400000)
+										add = false;
+								}
+							}
+							else
+							{
+								add = false;
+							}
+						}
+					}
+					if (add)
+					{
+						m_activeItems.push(hItem);
+					}
+				}
+			}
+
+			private function getCategories(i_xmlCategories:XML, i_categoryList:Array):void
+			{
+				if (i_xmlCategories.children().length()>0)
+				{
+					for each(var xmlCategory:XML in i_xmlCategories.*)
+					{
+						getCategories(xmlCategory, i_categoryList);
+					}
+				}
+				else
+				{
+					i_categoryList.push(int(i_xmlCategories.@handle));
+				}
+			}			
+			
+			private function playItem():void
+			{
+				addPrevStat();
+				
+				if (m_activeItems==null || m_activeItems.length==0)
+					return;
+				
+				var hItem:int = m_activeItems[m_index];
+				m_recCatalogItem = m_dataBaseManager.table_catalog_items.getRecord(hItem);
+				
+				if (m_recCatalogItem.ad_local_content_id!=-1)
+				{
+					var recAlLocalContent:Rec_ad_local_content = m_dataBaseManager.table_ad_local_contents.getRecord(m_recCatalogItem.ad_local_content_id);
+					if (recAlLocalContent!=null && recAlLocalContent.enabled)
+					{
+						var hAdLocalContent:int = m_recCatalogItem.ad_local_content_id;
+						m_adLocalStat = m_advertisingService.getLocalStat(hAdLocalContent);
+						if (m_adLocalStat!=null)
+						{
+							m_adLocalStat.beginPlay(width, height);
+						}
+					}
+				}				
+				
+				
+				m_recCatalogItemInfo = m_dataBaseManager.table_catalog_item_infos.getRecord(hItem);
+				var itemResourceList:Array = m_catalogService.getResourceList(hItem); //???
+				if (itemResourceList!=null && itemResourceList.length>0)
+				{
+					var hCatalogItemResource:int = itemResourceList[0];
+					var recCatalogItemResource:Rec_catalog_item_resource = m_dataBaseManager.table_catalog_item_resources.getRecord(hCatalogItemResource);
+					m_resourcePath = m_resourceService.getPathFromHandle(recCatalogItemResource.resource_id);
+					m_resourceType = m_resourceService.getTypeFromHandle(recCatalogItemResource.resource_id);
+				}
+				invalidateProperties();
+				invalidateDisplayList();
+
+			}
+			
+			private function nextItem(event:Event = null):void
+			{
+				if (m_activeItems==null || m_activeItems.length==0)
+				{
+					updateActiveItems();
+					return;
+				}
+				
+				m_index++;
+				if (m_index>=m_activeItems.length)
+				{
+					updateActiveItems();
+					m_index = 0;
+				}
+				playItem();
+			}
+
+			private function prevItem(event:Event = null):void
+			{
+				if (m_activeItems.length==0)
+					return;
+				m_index--;
+				if (m_index<0)
+				{
+					m_index = m_activeItems.length-1;
+				}
+				playItem();
+			}
+			
+			private function onTimer(event:TimerEvent):void
+			{
+				nextItem();
+			}
+			
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (m_playerTransition!=null)
+				{
+					if (unscaledWidth>0 && unscaledHeight>0)
+					{
+						m_playerTransition.updateDisplayList(unscaledWidth, unscaledHeight);
+					}
+				}
+				if (m_adLocalStat!=null)
+				{
+					m_adLocalStat.updatePlay(width, height);
+				}				
+			}
+			
+		
+			
+			private function addPrevStat():void
+			{
+				if (m_adLocalStat!=null)
+				{
+					m_adLocalStat.finishPlay();
+					m_adLocalStat = null;
+				}
+			}
+
+			
+		    protected override function onDispose():void
+		    {
+		    	super.onDispose();
+				
+				addPrevStat();
+				
+		    	m_timer.removeEventListener(TimerEvent.TIMER, onTimer);
+		    	if (m_playerTransition!=null)
+		    	{
+		    		m_playerTransition.clean();
+		    		m_playerTransition = null;
+		    	}
+		    	
+		    }
+		]]>
+	</fx:Script>	
+	<s:BorderContainer id="container" width="100%" height="100%"
+					   borderVisible="false"
+					   backgroundAlpha="0"/>
+</ms:PlayerModule>	

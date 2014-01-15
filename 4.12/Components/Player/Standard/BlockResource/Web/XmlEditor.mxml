@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" 
+		xmlns:mx="library://ns.adobe.com/flex/mx" 
+		xmlns:ms="*" width="400" height="300"
+	implements="IDialog">
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			//M??? import mx.controls.Alert;
+			private var m_okCancelDlg:OkCancelDlg;
+			private var m_key:String;
+			private var m_value:String;
+			private var m_framework:IFramework;
+			
+			public function init(i_framework:IFramework, i_key:String, i_value:String):void
+			{
+				m_framework = i_framework;
+				m_key = i_key;
+				m_value = i_value;
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				xmlCtrl.name = m_key;
+				xmlCtrl.text = m_value;
+			}
+			
+			public function setOkCancelDlg(i_okCancelDlg:OkCancelDlg):void
+			{
+				m_okCancelDlg = i_okCancelDlg;
+			}
+
+			public function onOk():void
+			{
+				try 
+				{ 
+					var x1:XML = new XML(xmlCtrl.text); 
+				} 
+				catch(err:TypeError) 
+				{ 
+					m_okCancelDlg.enabled = true;
+					/*M???
+					AlertEx.showOk(
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),  
+						"The XML is not properly formatted, make corrections and press ok to continue", "Invalid xml format");
+					*/
+					return;
+				} 
+				
+				m_okCancelDlg.close(true);
+			}
+			
+			public function onCancel():void
+			{
+				m_okCancelDlg.close(false);
+			}
+			
+			public function onButton(i_name:String):void
+			{
+			}
+			
+		]]>
+	</fx:Script>
+	<s:TextArea id="xmlCtrl" width="100%" height="100%" />
+</s:BorderContainer>

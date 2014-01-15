@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:GridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" clipAndEnableScrolling="true">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.CollectionEvent;
+			
+			import spark.components.DataGrid;
+
+			
+			override public function prepare(hasBeenRecycled:Boolean):void 
+			{
+				
+			}
+			
+			public override function set data(value:Object):void
+			{
+				super.data = value;
+				if (data==null)
+					return;
+				
+				if (data.commandParams!=null)
+				{
+					pinList.selectedIndex = data.commandParams.Param.@pin
+						
+						
+					var write:String = data.commandParams.Param.@write;
+					for each(var writeType:Object in ArrayList(writePin.dataProvider).source)
+					{
+						if (writeType.name==write)
+						{
+							writePin.selectedItem = writeType;
+							break;
+						}
+					}
+				}
+				
+				
+				
+				
+				updateButtons();
+			}			
+			
+			
+			private function onPinSelected():void
+			{
+				if (data.commandParams==null)
+				{
+					data.commandParams = <Params><Param/></Params>
+				}
+				data.commandParams.Param.@pin = pinList.selectedIndex; 
+				ArrayCollection(DataGrid(owner).dataProvider).dispatchEvent( new CollectionEvent(CollectionEvent.COLLECTION_CHANGE) );
+			} 
+			
+			private function onWritePin():void
+			{
+				if (data.commandParams==null)
+					return;
+
+				data.commandParams.Param.@write = writePin.selectedItem.name;
+				ArrayCollection(DataGrid(owner).dataProvider).dispatchEvent( new CollectionEvent(CollectionEvent.COLLECTION_CHANGE) );
+			} 
+
+			
+			private function updateButtons():void
+			{
+			}			
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:HorizontalLayout gap="0"/>
+	</s:layout>
+	<s:DropDownList id="pinList" labelField="label"
+					change="onPinSelected()">
+		<s:dataProvider>
+			<s:ArrayList>
+				<fx:Object label="ioio0"/>
+				<fx:Object label="ioio1"/>
+				<fx:Object label="ioio2"/>
+				<fx:Object label="ioio3"/>
+				<fx:Object label="ioio4"/>
+				<fx:Object label="ioio5"/>
+				<fx:Object label="ioio6"/>
+				<fx:Object label="ioio7"/>
+				<fx:Object label="ioio8"/>
+				<fx:Object label="ioio9"/>
+				<fx:Object label="ioio10"/>
+				<fx:Object label="ioio11"/>
+				<fx:Object label="ioio12"/>
+				<fx:Object label="ioio13"/>
+				<fx:Object label="ioio14"/>
+				<fx:Object label="ioio15"/>
+				<fx:Object label="ioio16"/>
+				<fx:Object label="ioio17"/>
+				<fx:Object label="ioio18"/>
+				<fx:Object label="ioio19"/>
+				<fx:Object label="ioio20"/>
+				<fx:Object label="ioio21"/>
+				<fx:Object label="ioio22"/>
+				<fx:Object label="ioio23"/>
+				<fx:Object label="ioio24"/>
+				<fx:Object label="ioio25"/>
+				<fx:Object label="ioio26"/>
+				<fx:Object label="ioio27"/>
+				<fx:Object label="ioio28"/>
+				<fx:Object label="ioio29"/>
+				<fx:Object label="ioio30"/>
+				<fx:Object label="ioio31"/>
+				<fx:Object label="ioio32"/>
+				<fx:Object label="ioio33"/>
+				<fx:Object label="ioio34"/>
+				<fx:Object label="ioio35"/>
+				<fx:Object label="ioio36"/>
+				<fx:Object label="ioio37"/>
+				<fx:Object label="ioio38"/>
+				<fx:Object label="ioio39"/>
+			</s:ArrayList>
+		</s:dataProvider>
+	</s:DropDownList>
+	<s:HGroup id="paramForm" width="100%" gap="0">
+		<s:DropDownList id="writePin" labelField="label"
+						change="onWritePin()">
+			<s:dataProvider>
+				<s:ArrayList>
+					<fx:Object name="0" label="Off"/>
+					<fx:Object name="1" label="On"/>
+					<fx:Object name="value" label="value"/>
+				</s:ArrayList>
+			</s:dataProvider>
+		</s:DropDownList>
+	</s:HGroup>
+</s:GridItemRenderer>

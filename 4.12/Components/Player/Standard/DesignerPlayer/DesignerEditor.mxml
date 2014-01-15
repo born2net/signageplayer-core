@@ -1,0 +1,894 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:DesignerPlayer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:ms="*"
+				   xmlns:objecthandles="com.roguedevelopment.objecthandles.*"
+	width="100%" height="100%"
+	dragEnter="onDragEnter(event)"
+	dragOver="onDragOver(event)"
+	dragDrop="onDragDrop(event)"
+	mouseDown="onMouseDown(event)"
+	skinClass="DesignerSkin"
+	implements="IPlayerOutline" >
+
+ 
+	<fx:Script>
+		<![CDATA[ 
+			import com.roguedevelopment.objecthandles.ObjectHandleEvent;
+			import com.roguedevelopment.objecthandles.ObjectHandles;
+			import com.roguedevelopment.objecthandles.ObjectHandlesEx;
+			import com.roguedevelopment.objecthandles.ObjectHandlesSkin;
+			import com.roguedevelopment.objecthandles.Selectable;
+			import com.roguedevelopment.objecthandles.SelectionManager;
+			
+			import mx.core.FlexGlobals;
+			import mx.core.IVisualElement;
+			import mx.core.IVisualElementContainer;
+			import mx.core.UIComponent;
+			import mx.events.DragEvent;
+			import mx.graphics.IFill;
+			import mx.graphics.IStroke;
+			import mx.graphics.ImageSnapshot;
+			import mx.managers.DragManager;
+			
+			import spark.components.BorderContainer;
+			import spark.components.Group;
+			import spark.components.SkinnableContainer;
+			import spark.layouts.BasicLayout;
+			import spark.layouts.HorizontalLayout;
+			import spark.layouts.TileLayout;
+			import spark.layouts.VerticalLayout;
+			import spark.skins.SparkSkin;
+			import spark.skins.spark.BorderContainerSkin;
+			import spark.skins.spark.TitleWindowSkin;
+
+			private var m_stateManager:IStateManager;
+			private var m_propertyService:IPropertyService;
+			private var m_invalidatePlayerOutline:Boolean = false;
+			
+			
+			private var m_menuCopy:ContextMenuItem;
+			private var m_menuPaste:ContextMenuItem;
+			private var m_menuDelete:ContextMenuItem;
+			
+			
+			private var _borderStroke:IStroke;
+			private var _backgroundFill:IFill;
+			
+			private var m_selectionManager:SelectionManager;
+			private static var m_sceneId:int = 0;
+			private var m_groupName:String;
+			
+			
+			public function get borderStroke():IStroke
+			{
+				return _borderStroke;
+			}
+			
+			/**
+			 *  @private
+			 */ 
+			public function set borderStroke(value:IStroke):void
+			{
+				if (value == _borderStroke)
+					return;
+				
+				_borderStroke = value;
+				
+				if (skin)
+					skin.invalidateDisplayList();
+			}
+
+			
+			public function get backgroundFill():IFill
+			{
+				return _backgroundFill;
+			}
+			
+			/**
+			 *  @private
+			 */ 
+			public function set backgroundFill(value:IFill):void
+			{
+				if (value == _backgroundFill)
+					return;
+				
+				_backgroundFill = value;
+				
+				if (skin)
+					skin.invalidateDisplayList();
+			}
+
+			
+			
+			
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				
+				if (m_playerLoader.embedded)
+				{
+					m_invalidatePlayerOutline = true;
+				}
+			}
+			
+			 
+			/************************************/
+			/* implements IPlayerEditor			*/
+			/************************************/			
+			public override function save():XML
+			{
+				var xmlScene:XML = <Scene/>;
+				xmlScene.@defaultDuration = m_defaultDuration;
+				
+				var xmlLayout:XML = <Layout/>;
+				xmlScene.appendChild(xmlLayout);
+				if (layout==null || (layout is BasicLayout))
+				{
+					var xmlBasicLayout:XML = <BasicLayout/>;
+					xmlLayout.appendChild(xmlBasicLayout);
+				}
+				else if (layout is VerticalLayout)
+				{
+					var xmlVerticalLayout:XML = <VerticalLayout/>;
+					xmlLayout.appendChild(xmlVerticalLayout);
+					xmlVerticalLayout.@paddingLeft = VerticalLayout(layout).paddingLeft;
+					xmlVerticalLayout.@paddingRight = VerticalLayout(layout).paddingRight;
+					xmlVerticalLayout.@paddingTop = VerticalLayout(layout).paddingTop;
+					xmlVerticalLayout.@paddingBottom = VerticalLayout(layout).paddingBottom;
+					xmlVerticalLayout.@gap = VerticalLayout(layout).gap;
+				}
+				else if (layout is HorizontalLayout)
+				{
+					var xmlHorizontalLayout:XML = <HorizontalLayout/>;
+					xmlLayout.appendChild(xmlHorizontalLayout);
+					xmlHorizontalLayout.@paddingLeft = HorizontalLayout(layout).paddingLeft;
+					xmlHorizontalLayout.@paddingRight = HorizontalLayout(layout).paddingRight;
+					xmlHorizontalLayout.@paddingTop = HorizontalLayout(layout).paddingTop;
+					xmlHorizontalLayout.@paddingBottom = HorizontalLayout(layout).paddingBottom;
+					xmlHorizontalLayout.@gap = HorizontalLayout(layout).gap;
+				}
+				else if (layout is TileLayout)
+				{
+					var xmlTileLayout:XML = <TileLayout/>;
+					xmlLayout.appendChild(xmlTileLayout);
+					xmlTileLayout.@paddingLeft = TileLayout(layout).paddingLeft;
+					xmlTileLayout.@paddingRight = TileLayout(layout).paddingRight;
+					xmlTileLayout.@paddingTop = TileLayout(layout).paddingTop;
+					xmlTileLayout.@paddingBottom = TileLayout(layout).paddingBottom;
+					xmlTileLayout.@horizontalGap = TileLayout(layout).horizontalGap;
+					xmlTileLayout.@verticalGap = TileLayout(layout).verticalGap;
+					xmlTileLayout.@columnWidth = TileLayout(layout).columnWidth;
+					xmlTileLayout.@rowHeight = TileLayout(layout).rowHeight;
+				}
+				
+				
+				var xmlPlayers:XML = <Players/>;
+				xmlScene.appendChild(xmlPlayers);
+				var childPlayerLoader:PlayerLoader;
+				for(var i:int=0; i<numElements; i++)
+				{
+					var element:IVisualElement =  getElementAt(i);
+					childPlayerLoader = getPlayerLoader(element);
+					var xmlPlayerData:XML = childPlayerLoader.save();
+					xmlPlayers.appendChild(xmlPlayerData);
+				}
+				return xmlScene;
+			}
+
+			private function showProperties():void 
+			{ 
+				m_selectionManager.selectNone();
+				m_propertyService.beginRegister();
+				m_propertyService.registerPage(PlayerPosAndSizePage, m_playerLoader);
+				m_propertyService.registerPage(PlayerCommonPage, m_playerLoader);
+				m_propertyService.registerPage(DesignerPage, m_playerLoader);
+				m_propertyService.endRegister();
+				
+				var canUpdate:Boolean = m_stateManager.canUpdateRecord(m_dataBaseManager.table_player_data);
+				
+				m_propertyService.enabled = canUpdate;
+			}
+			
+			public override function get propertyPages():Array
+			{
+				return [PlayerPosAndSizePage, PlayerCommonPage, DesignerPage];
+			}
+
+
+			
+			private function showOutline():void
+			{
+				m_framework.StateBroker.SetState(this, "PlayerOutline", this);
+			}
+			
+ 			/************************************/
+			/* implements IPlayerOutline			*/
+			/************************************/	
+			
+			public function getPlayersCount():int
+			{
+				return numElements;
+			}
+			
+			
+			public function getPlayerLoaderAt(i_index:int):IPlayerLoader
+			{
+				if (i_index==-1)
+				{
+					return playerLoader;	
+				} 
+				else
+				{		
+					var childPlayerLoader:PlayerLoader = getPlayerLoader(getElementAt(i_index));
+					return childPlayerLoader;
+				}
+			}
+			
+			
+			public function getPlayerLabel(i_index:int):String
+			{
+				if (i_index==-1)
+				{
+					return m_playerLoader.label;	
+				} 
+				else
+				{		
+					var childPlayerLoader:PlayerLoader = getPlayerLoader(getElementAt(i_index));
+					return childPlayerLoader.label;
+				}
+			}
+			
+			public function setPlayerLabel(i_index:int, i_label:String):void
+			{
+				if (i_index==-1)
+				{
+					m_playerLoader.modified = true;
+					m_playerLoader.label = i_label;	
+				}
+				else
+				{ 
+					var childPlayerLoader:PlayerLoader = getPlayerLoader(getElementAt(i_index));
+					childPlayerLoader.label = i_label;
+				}
+			}
+			
+			public function getPlayerIcon(i_index:int):Class
+			{
+				var iconName:String;
+				if (i_index==-1)
+				{
+					if(playerLoader.embedded)
+					{
+						iconName = "player3510Icon";
+					}
+					else
+					{
+						iconName = "shortcutIcon";	
+					}
+					
+				} 
+				else
+				{		
+					var childPlayerLoader:PlayerLoader = getPlayerLoader(getElementAt(i_index));
+					if (childPlayerLoader.embedded)
+					{
+						iconName = "player" + childPlayerLoader.playerId.toString() + "Icon";
+					}
+					else
+					{
+						iconName = "shortcutIcon";	
+					}
+				}		
+				
+				return FlexGlobals.topLevelApplication.styleManager.getStyleDeclaration(".componentIcons").getStyle(iconName);
+			}
+			
+			public function getPlayerLocked(i_index:int):Boolean
+			{
+				if (i_index==-1)
+				{
+					return PlayerLoader(m_playerLoader).locked;
+				}
+				else
+				{ 
+					var childPlayerLoader:PlayerLoader = getPlayerLoader(getElementAt(i_index));
+					return childPlayerLoader.locked;
+				}				
+			}
+			
+			public function setPlayerLocked(i_index:int, i_locked:Boolean):void
+			{
+				var selectedPlayerLoader:PlayerLoader;
+				if (i_index==-1)
+				{
+					selectedPlayerLoader = PlayerLoader(m_playerLoader);
+				}
+				else
+				{ 
+					selectedPlayerLoader = getPlayerLoader(getElementAt(i_index));
+				}
+				
+				selectedPlayerLoader.modified = true;
+				selectedPlayerLoader.locked = i_locked;	
+				var objectHandle:ObjectHandlesEx = selectedPlayerLoader.container as ObjectHandlesEx;
+				if (objectHandle!=null)
+				{
+					var allow:Boolean = !i_locked;
+					objectHandle.allowHMove = objectHandle.allowVMove = objectHandle.allowHResize = objectHandle.allowVResize = allow;
+				}
+			}
+			
+			public function getGroupName():String
+			{
+				return m_groupName;
+			}
+			
+			public function get selectedPlayer():int
+			{
+				var child:ObjectHandles = m_selectionManager.currentlySelected as ObjectHandles;
+				if (child!=null)
+				{
+					if (child.parent==null)
+						return -1;
+					if (child.parent.parent.parent!=this) //???###
+					{
+						return -1;
+					}
+				}
+					
+				return (child!=null) ? getElementIndex(child) : -1;
+			}
+			
+			public function set selectedPlayer(i_index:int):void
+			{
+				if (i_index==-1)
+				{
+					showProperties();
+				} 
+				else
+				{
+					var child:ObjectHandles = getElementAt(i_index) as ObjectHandles;
+					m_selectionManager.setSelected(child, false);
+				}
+			}
+			public function swapPlayers(i_index1:int, i_index2:int):void
+			{
+				var lowIndex:int = Math.min(i_index1, i_index2);
+				var highIndex:int = Math.max(i_index1, i_index2);
+				var child1:ObjectHandlesEx = getElementAt(lowIndex) as ObjectHandlesEx;
+				var child2:ObjectHandlesEx = getElementAt(highIndex) as ObjectHandlesEx;
+				child1.m_autoDispose = false;
+				child2.m_autoDispose = false;
+				removeElementAt(highIndex) as ObjectHandlesEx;
+				removeElementAt(lowIndex) as ObjectHandlesEx;
+				child1.m_autoDispose = true;
+				child2.m_autoDispose = true;
+				addElementAt(child2, lowIndex);
+				addElementAt(child1, highIndex);
+			}
+			
+			public function deletePlayer(i_index:int):void
+			{
+				m_playerLoader.modified = true;
+				
+				
+
+				if (i_index!=-1)
+				{
+					dispatchEvent(new Event("event_child_removed", true) );
+					
+	 				var objectHandle:ObjectHandles = getElementAt(i_index) as ObjectHandles;
+					objectHandle.removeEventListener(ObjectHandleEvent.OBJECT_MOVED_EVENT, onObjectMoved);
+					objectHandle.removeEventListener(ObjectHandleEvent.OBJECT_RESIZED_EVENT, onObjectResized);
+					objectHandle.removeEventListener(ObjectHandleEvent.OBJECT_SELECTED, onObjectSelected);
+					removeElementAt(i_index);
+				}
+				else
+				{
+					var parentDesignerEditor:DesignerEditor = parentDocument as DesignerEditor;
+					if (parentDesignerEditor!=null)
+					{
+						parentDesignerEditor.deletePlayer( parentDesignerEditor.selectedPlayer );
+					}
+				}
+			}
+
+
+ 			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+				m_stateManager = m_framework.ServiceBroker.QueryService("StateManager") as IStateManager;
+				m_propertyService = m_framework.ServiceBroker.QueryService("PropertyService") as IPropertyService;
+				addEventListener("RequestDelete", onRequestDelete);
+				
+				m_groupName = "Scene";
+				m_selectionManager = SelectionManager.getInstace(m_groupName);
+				//m_sceneId++;
+				//m_groupName = "Scene" + m_sceneId.toString();
+				
+				
+				//m_selectionManager.initialized(this, m_groupName);
+				m_selectionManager.enableSeletionRect = true;
+				//m_selectionManager.container = this;
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				initMenu();
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				// Fix bug in Flex! (allow drag & drop to call dragOver event)
+				setStyle("mouseShield", true);
+				setStyle("mouseShieldChildren", true);
+				
+				if (m_invalidatePlayerOutline)
+				{
+					m_invalidatePlayerOutline = false;
+					
+					showOutline();
+				}
+				
+				if (playerLoader.embedded)
+				{
+					UIComponent(playerLoader).mouseEnabled=true;
+					UIComponent(playerLoader).mouseChildren=true;							
+				}
+				
+			}
+			
+			
+			private function onMouseDown(event:MouseEvent):void
+			{
+				if (event.target.parent==this)
+				{
+					setFocus();
+					showProperties();
+					/*
+					if (playerLoader.parent is Selectable)
+					{
+						m_selectionManager.setSelected(Selectable(playerLoader.parent), false);
+					}
+					*/
+				}
+				else
+				{
+					event.preventDefault();
+					event.stopPropagation();
+				}
+				dispatchEvent(new Event("event_child_selected", true) );
+			}
+			
+			
+			private function onRequestDelete(event:Event):void
+			{
+				event.stopPropagation(); 
+				AlertEx.showYesNo(UIComponent(m_framework.StateBroker.GetState("topWindow")), 
+					"Are you sure?", "Delete component", onDeletePlayer);
+			}
+			
+			private function onDeletePlayer():void
+			{
+				deletePlayer( selectedPlayer );	
+				showProperties();
+			}
+			
+
+			private function onDragEnter(event:DragEvent):void
+			{
+				DragManager.acceptDragDrop(UIComponent(event.currentTarget));
+			}
+			
+			private function onDragOver(event:DragEvent):void
+	        {
+	        	var itemsArray:Array = null;
+				if (event.dragSource.hasFormat("itemsByIndex"))
+				{
+					var items:Vector.<Object> = event.dragSource.dataForFormat('itemsByIndex') as Vector.<Object>;
+					var item:Object = items[0];
+					if (item is XML)
+					{
+						var xmlItem:XML = XML(item);
+						if (xmlItem.name()=="Resource" || xmlItem.name()=="Player"  || xmlItem.name()=="Item")
+						{
+							DragManager.showFeedback(DragManager.COPY);
+							return;
+						}   
+					}
+					else
+					{
+						if (item.name=="PlayerData" && item.mode=="scenePicker")
+						{
+							DragManager.showFeedback(DragManager.COPY);
+							return;
+						}
+					}
+	            }
+	           	DragManager.showFeedback(DragManager.NONE);
+	        }
+			
+			
+			private function onDragDrop(event:DragEvent):void
+			{
+	        	var itemsArray:Array = null;
+				var hModule:int;
+				if (event.dragSource.hasFormat("itemsByIndex"))
+				{
+					var items:Vector.<Object> = event.dragSource.dataForFormat('itemsByIndex') as Vector.<Object>;
+					var item:Object = items[0];
+	                
+					if (item is XML)
+					{
+						var xmlItem:XML = XML(item);
+		                var playerId:int = -1;
+		                var hResource:int = xmlItem.@hResource;
+		                hModule = xmlItem.@handle;
+		                var propertyId:int
+		                var objectHandle:ObjectHandlesEx;
+		                var childPlayerLoader:PlayerLoader;
+		                var xmlPlayer:XML;
+		                var viewer:UIComponent;
+		                
+		                if (xmlItem.name()=="Resource")
+		                {
+		                	playerId = int(xmlItem.@player);
+		                	var recResource:Rec_resource = m_dataBaseManager.table_resources.getRecord(hResource);
+		                	
+							if (playerId!=-1)
+							{
+								xmlPlayer = 
+									<Player player={playerId} label="Resource">
+									  <Data>
+										<Layout x={event.localX} y={event.localY} width="100" height="100" />
+										<Common />
+										<Resource resource={recResource.native_id} hResource={hResource} />
+									  </Data>
+								  </Player>	
+							}
+							else
+							{
+								xmlPlayer = 
+									<Player label="Resource">
+									  <Resource resource={recResource.native_id} hResource={hResource} />
+									  <Data>
+										<Layout x={event.localX} y={event.localY} width="100" height="100" />
+										<Common />
+									  </Data>
+								  </Player>	
+							}						
+							
+							childPlayerLoader = createPlayer();
+							loadChildPlayer(childPlayerLoader, xmlPlayer);
+							m_playerLoader.modified = true;
+		                }
+		                else  if (xmlItem.name()=="Player")
+		                {
+		                	playerId = int(xmlItem.@player);
+		                	
+		                	xmlPlayer = 
+		                	  <Player player={playerId}>
+								<Data>
+								  <Layout x={event.localX} y={event.localY} width="100" height="100">
+								    <Actions/>
+								  </Layout>
+								</Data>
+							  </Player>	
+							childPlayerLoader = createPlayer();
+							loadChildPlayer(childPlayerLoader, xmlPlayer);
+		                	if (childPlayerLoader.label=="")
+								childPlayerLoader.label = xmlItem.@label;
+							childPlayerLoader.modified = true;
+		                }
+					}
+					else
+					{
+						if (item.name=="PlayerData")
+						{
+							hModule = item.handle;
+							//var xmlItemParent:XML = xmlItem.parent();
+							//playerId = int(xmlItemParent.@player);
+							var recPlayerData:Rec_player_data = m_dataBaseManager.table_player_data.getRecord(hModule);
+							var xmlPlayerValue:XML = new XML(recPlayerData.player_data_value);
+							playerId = xmlPlayerValue.@player;
+							xmlPlayerValue.Data.Layout.@x = event.localX;
+							xmlPlayerValue.Data.Layout.@y = event.localY;
+							
+							xmlPlayer = 
+								<Player player={playerId} hDataSrc={hModule}>
+									<Data>
+									  <Layout x={event.localX} y={event.localY}/>
+									</Data>
+								</Player>	
+							
+							
+							var copyOrLinkSceneDlg:CopyOrLinkSceneDlg = new CopyOrLinkSceneDlg();
+							copyOrLinkSceneDlg.defaultDuration = defaultDuration;
+							copyOrLinkSceneDlg.xmlPlayer1 = xmlPlayer;
+							copyOrLinkSceneDlg.xmlPlayer2 = xmlPlayerValue;
+							var okCancelDlg:OkCancelDlg = OkCancelDlg.CreateDlg(
+								UIComponent(m_framework.StateBroker.GetState("topWindow")),
+								"Scene", copyOrLinkSceneDlg);
+							okCancelDlg.addEventListener("event_dialog_ok", onDropReplaceDlgClosed);
+						}
+
+					}
+					
+					
+					if (childPlayerLoader!=null)
+					{
+						var objectHandles:ObjectHandles = childPlayerLoader.parent as ObjectHandles;
+						m_selectionManager.setSelected(objectHandles, false);
+						dispatchEvent(new Event("event_child_added", true) );
+					}
+				}
+			}
+			
+			private function onDropReplaceDlgClosed(event:Event):void
+			{
+				var okCancelDlg:OkCancelDlg = OkCancelDlg(event.target);
+				okCancelDlg.removeEventListener("event_dialog_ok", onDropReplaceDlgClosed);
+				var copyOrLinkSceneDlg:CopyOrLinkSceneDlg = CopyOrLinkSceneDlg(okCancelDlg.dialog);
+				
+				var objectHandle:ObjectHandlesEx;
+				objectHandle = new ObjectHandlesEx();
+				objectHandle.groupName = m_groupName;
+				
+				
+				var xmlPlayer:XML = (copyOrLinkSceneDlg.addMode.selectedValue=="sceneShortcut") ? copyOrLinkSceneDlg.xmlPlayer1 : copyOrLinkSceneDlg.xmlPlayer2;
+				
+				
+				
+				
+				var childPlayerLoader:PlayerLoader = createPlayer();
+				loadChildPlayer(childPlayerLoader, xmlPlayer);
+				if (childPlayerLoader.label=="")
+					childPlayerLoader.label = "Scene";
+				m_playerLoader.modified = true;
+				
+				
+				var objectHandles:ObjectHandles = childPlayerLoader.parent as ObjectHandles;
+				m_selectionManager.setSelected(objectHandles, false);
+				dispatchEvent(new Event("event_child_added", true) );
+			}
+			
+			
+/*
+			protected override function createPlayer():PlayerLoader
+			{
+				var playerLoader:PlayerLoader = super.createPlayer();
+				playerLoader.setStyle("skinClass", ObjectHandlesSkin);
+				playerLoader.createDeferredContent();
+            	return playerLoader;
+			}
+*/
+			protected override function createPlayer():PlayerLoader
+			{
+				var childPlayerLoader:PlayerLoader = new PlayerLoader();
+				childPlayerLoader.framework = m_framework;
+				childPlayerLoader.parentPlayerLoader = m_playerLoader;
+				
+				var objectHandle:ObjectHandlesEx = new ObjectHandlesEx();
+				objectHandle.groupName = m_groupName;
+				objectHandle.clipAndEnableScrolling=false;
+				objectHandle.enableDoubleClick = true;
+				childPlayerLoader.container = objectHandle;
+				objectHandle.allowRotate = false;
+				
+				objectHandle.minHeight=0;
+				objectHandle.minWidth=0;
+				objectHandle.addEventListener(ObjectHandleEvent.OBJECT_MOVED_EVENT, onObjectMoved);
+				objectHandle.addEventListener(ObjectHandleEvent.OBJECT_RESIZED_EVENT, onObjectResized);
+				objectHandle.addEventListener(ObjectHandleEvent.OBJECT_SELECTED, onObjectSelected);
+				objectHandle.addElement(childPlayerLoader);
+				addElement(objectHandle);
+				return childPlayerLoader;
+			}
+			
+			protected override function loadChildPlayer(i_childPlayerLoader:PlayerLoader, i_xmlPlayer:XML):void
+			{
+				if (i_xmlPlayer.@player=="3510")
+				{
+					i_childPlayerLoader.editModule = true;
+				}
+				
+				super.loadChildPlayer(i_childPlayerLoader, i_xmlPlayer);
+				
+				// this will allow drag the traget Command 
+				i_childPlayerLoader.mouseEnabled=false;
+				i_childPlayerLoader.mouseChildren=false;							
+
+				
+				var objectHandle:ObjectHandlesEx = ObjectHandlesEx(i_childPlayerLoader.container);
+				var allow:Boolean = !(i_childPlayerLoader.locked);
+				objectHandle.allowHMove = objectHandle.allowVMove = objectHandle.allowHResize = objectHandle.allowVResize = allow;
+			}			
+
+			protected override function getPlayerLoader(i_element:IVisualElement):PlayerLoader
+			{
+				var o:Object = IVisualElementContainer(i_element).getElementAt(0);
+				return IVisualElementContainer(i_element).getElementAt(0) as PlayerLoader;
+			}
+			
+			private function onObjectSelected(event:ObjectHandleEvent):void
+			{
+				var selected:Object = m_selectionManager.currentlySelected;
+				if (selected!=null)
+				{
+					var childPlayerLoader:PlayerLoader = selected.getElementAt(0) as PlayerLoader;
+					
+					if (childPlayerLoader==null) // check why childPlayerLoader is null  ???
+						return;
+					
+					if (childPlayerLoader.player!=null)
+					{
+						showChildProperty();
+					}
+					else
+					{
+						childPlayerLoader.addEventListener("event_player_ready", onPlayerReady);
+					}
+				}
+			}
+			
+			private function onPlayerReady(event:Event):void
+			{
+				event.target.removeEventListener("event_player_ready", onPlayerReady);
+				showChildProperty();
+			}
+			
+			private function showChildProperty():void
+			{
+				var selected:Object = m_selectionManager.currentlySelected;
+				if (selected!=null)
+				{
+					var childPlayerLoader:PlayerLoader = selected.getElementAt(0) as PlayerLoader;
+					m_propertyService.beginRegister();
+					m_propertyService.registerPage(PlayerPosAndSizePage, childPlayerLoader);
+					childPlayerLoader.showProperties();
+					m_propertyService.endRegister();
+				}
+				
+			}
+
+			
+			private function onObjectMoved(event:ObjectHandleEvent):void
+			{
+				m_playerLoader.modified = true;
+				for each (var objectHandles:ObjectHandles in m_selectionManager.items)
+				{
+					if (objectHandles.isSelected)
+					{
+						var childPlayerLoader:PlayerLoader = objectHandles.getElementAt(0) as PlayerLoader;
+						childPlayerLoader.playerPosAndSize.setProperty("x", objectHandles.x, false);
+						childPlayerLoader.playerPosAndSize.setProperty("y", objectHandles.y, false);
+					}
+				}
+				m_propertyService.invalidateData();
+			} 
+			
+			private function onObjectResized(event:ObjectHandleEvent):void
+			{
+				m_playerLoader.modified = true;
+				for each (var objectHandles:ObjectHandlesEx in m_selectionManager.items)
+				{
+					if (objectHandles.isSelected)
+					{
+						var childPlayerLoader:PlayerLoader = objectHandles.getElementAt(0) as PlayerLoader;
+						if (childPlayerLoader!=null && childPlayerLoader.playerPosAndSize!=null)
+						{
+							childPlayerLoader.playerPosAndSize.setProperty("x", objectHandles.x, false);
+							childPlayerLoader.playerPosAndSize.setProperty("y", objectHandles.y, false);
+							childPlayerLoader.playerPosAndSize.setProperty("width", objectHandles.width, false);
+							childPlayerLoader.playerPosAndSize.setProperty("height", objectHandles.height, false);
+						}
+					}
+				}
+				m_propertyService.invalidateData();
+			}
+			
+			
+			private function initMenu():void
+			{
+				contextMenu = new ContextMenu();
+				if (contextMenu!=null)
+				{
+					var cm:Object = contextMenu;
+					cm.addEventListener(ContextMenuEvent.MENU_SELECT, menuSelectHandler);
+					
+					
+					cm.hideBuiltInItems();
+		            var defaultItems:ContextMenuBuiltInItems = cm.builtInItems;
+		            //defaultItems.print = true;
+	
+		            m_menuCopy = new ContextMenuItem("Copy.");
+					cm.customItems.push(m_menuCopy);
+		            m_menuCopy.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, onMenuCopy);
+		            
+		            m_menuPaste = new ContextMenuItem("Paste.");
+					cm.customItems.push(m_menuPaste);
+		            m_menuPaste.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, onMenuPaste);
+	
+		            m_menuDelete = new ContextMenuItem("Delete.");
+					cm.customItems.push(m_menuDelete);
+		            m_menuDelete.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, onMenuDelete);
+				}
+			}
+			
+	        private function menuSelectHandler(event:ContextMenuEvent):void 
+	        {
+				var selected:Object = m_selectionManager.currentlySelected;
+            	m_menuCopy.enabled = (selected!=null);
+            	m_menuDelete.enabled = (selected!=null);
+            	
+	        	var xmlPlayer:XML = m_framework.StateBroker.GetState("Clipboard") as XML;
+	        	m_menuPaste.enabled = (xmlPlayer!=null && xmlPlayer.name()=="Player");
+	        }
+			
+	        private function onMenuCopy(event:ContextMenuEvent):void 
+	        {
+				var selected:Object = m_selectionManager.currentlySelected;
+				if (selected!=null)
+				{
+					var childPlayerLoader:PlayerLoader = selected.getElementAt(0) as PlayerLoader;
+					m_framework.StateBroker.SetState(this, "Clipboard", childPlayerLoader.save());
+				}
+	        }
+
+	        private function onMenuPaste(event:ContextMenuEvent):void 
+	        {
+	        	var xmlPlayer:XML = m_framework.StateBroker.GetState("Clipboard") as XML;
+	        	if (xmlPlayer==null || xmlPlayer.name()!="Player")
+	        		return;
+	        		
+	        	if (XMLList(xmlPlayer.Data.Layout.@x).length()>0)
+	        	{
+	        		xmlPlayer.Data.Layout.@x = int(xmlPlayer.Data.Layout.@x) + 10;
+	        		xmlPlayer.Data.Layout.@y = int(xmlPlayer.Data.Layout.@y) + 10;
+	        	}
+	        	
+				var childPlayerLoader:PlayerLoader = createPlayer();
+				loadChildPlayer(childPlayerLoader, xmlPlayer);
+            	if (childPlayerLoader.label=="")
+					childPlayerLoader.label = "Resource";
+				m_playerLoader.modified = true;
+				
+				var objectHandles:ObjectHandles = childPlayerLoader.parent as ObjectHandles;
+				m_selectionManager.setSelected(objectHandles, false);
+				
+				dispatchEvent(new Event("event_child_added", true) );
+	        }
+	        
+	        private function onMenuDelete(event:ContextMenuEvent):void
+	        {
+	        	onDeletePlayer();	
+	        }
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				removeEventListener("RequestDelete", onRequestDelete);
+				if (contextMenu!=null)
+				{
+					m_menuCopy.removeEventListener(ContextMenuEvent.MENU_ITEM_SELECT, onMenuCopy);
+					m_menuPaste.removeEventListener(ContextMenuEvent.MENU_ITEM_SELECT, onMenuPaste);
+					m_menuDelete.removeEventListener(ContextMenuEvent.MENU_ITEM_SELECT, onMenuDelete);
+				}
+			}
+
+		]]>
+	</fx:Script>
+	
+</ms:DesignerPlayer>

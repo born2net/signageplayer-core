@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"
+	label="Advertising"
+	width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			
+			
+			private var m_dataBaseManager:DataBaseManager;
+			
+[Bindable]	private var m_allFonts:Array;			
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_framework = Global.getFramework(this);
+				m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+				resourcePicker.framework = m_framework;
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				
+				
+				var hDefaultResource:int = BlockAdvertisingPlayer(m_playerLoader.player).hDefaultResource;
+				if (hDefaultResource!=-1)
+				{
+					var recResource:Rec_resource = m_dataBaseManager.table_resources.getRecord(hDefaultResource);
+					resourcePicker.text = (recResource!=null) ? recResource.resource_name : "[deleted]";
+				}
+			}
+			
+			private function onResourcePicker():void
+			{
+				BlockAdvertisingPlayer(m_playerLoader.player).hDefaultResource = resourcePicker.hResource;
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<s:Form>
+		<s:FormItem label="default resource">
+			<ms:ResourcePicker id="resourcePicker" change="onResourcePicker()"/>	
+		</s:FormItem>
+	</s:Form>		
+</ms:PlayerPage>	
+

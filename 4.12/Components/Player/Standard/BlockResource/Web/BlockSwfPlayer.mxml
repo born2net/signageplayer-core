@@ -1,0 +1,665 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:EmbeddedResource xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					 xmlns:s="library://ns.adobe.com/flex/spark" 
+					 xmlns:mx="library://ns.adobe.com/flex/mx" 
+					 xmlns:ms="*"
+	width="100%" height="100%">
+
+	<fx:Script>
+		<![CDATA[
+			import Controls.ProgressBar;
+			
+			import mx.controls.SWFLoader;
+			import mx.core.IFlexDisplayObject;
+			import mx.core.UIComponent;
+			import mx.managers.SystemManager;
+			import mx.states.RemoveChild;
+			
+			import spark.modules.ModuleLoader;
+
+			
+			public var m_swfLoader:mx.controls.SWFLoader;
+			protected var m_trustLoader:TrustLoader;
+			protected var m_moduleLoader:ModuleLoader;
+			
+			
+			private var m_timer:Timer;
+			
+			private var m_childPlayer:IChildPlayer;
+			private var m_xmlPropertyDefinitions:XML;
+			private var m_flashData:Object;
+
+			
+			protected var m_air:Boolean;
+			protected var m_resourceTrust:Boolean;
+			protected var m_flexModule:Boolean;
+			protected var m_useHtmlContainer:Boolean;
+			
+
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data); 
+				
+				if (m_resourceService!=null)
+				{
+					if (XMLList(i_data.Resource.Properties).length()>0)
+					{
+						m_xmlPropertyDefinitions = i_data.Resource.Properties[0];
+					}
+					
+					var xmlField:XML;
+					if (XMLList(i_data.Resource.FlashData).length()>0)
+					{
+						m_flashData = new Object();
+						var hResource:int;
+						for each(var xmlItem:XML in i_data.Resource.FlashData.*)
+						{
+							if (xmlItem.name()=="Item")
+							{
+								var group:Object = m_flashData[String(xmlItem.@key)];
+								if (group==null)
+								{
+									m_flashData[String(xmlItem.@key)] = group = new Object();
+								}
+								for each(xmlField in xmlItem.*)
+								{
+									if (xmlField.@type=="resource")
+									{
+										if (XMLList(xmlField.Resource).length()>0)
+										{
+											group[String(xmlField.@key)] = new Resource(xmlField.Resource.@hResource);	
+										}
+										else
+										{
+											group[String(xmlField.@key)] = new Resource(-1);
+										}
+									}
+									else
+									{
+										group[String(xmlField.@key)] = String(xmlField.@value)	
+									}
+								}
+							}
+							else
+							{
+								var list:Array = m_flashData[String(xmlItem.@key)] = new Array();
+								var i:int = 0;
+								for each(var xmlSubItem:XML in xmlItem.*)
+								{
+									var data:Object = list[i] = new Object();
+									for each(xmlField in xmlSubItem.*)
+									{
+										if (xmlField.@type=="resource")
+										{
+											if (XMLList(xmlField.Resource).length()>0)
+											{
+												data[String(xmlField.@key)] = new Resource(xmlField.Resource.@hResource);
+											}
+											else
+											{
+												data[String(xmlField.@key)] = new Resource(-1);
+											}
+										}
+										else
+										{
+											data[String(xmlField.@key)] = String(xmlField.@value)	
+										}
+									}
+									i++;
+								}
+							}
+						}
+					}
+				}
+			}
+
+			public override function save():XML
+			{
+				var xmlResource:XML = super.save();
+				
+				if (m_flashData!=null)
+				{
+					var xmlField:XML;
+					var subKey:String;
+					var v:Object;
+					var hResource:int;
+					var xmlSubResource:XML;
+					xmlResource.appendChild(m_xmlPropertyDefinitions);
+					var xmlFlashData:XML = <FlashData/>;
+					xmlResource.appendChild(xmlFlashData);
+					for(var key:String in m_flashData)
+					{
+						var value:Object = m_flashData[key];
+						var xmlItem:XML;
+						if (value is Array)
+						{
+							xmlItem = <ItemList/>
+							xmlItem.@key = key;
+							var count:int = value.length;
+							xmlItem.@count = count;
+							for(var i:int=0;i<count;i++)
+							{
+								var xmlSubItem:XML = <Item/>
+								xmlItem.appendChild(xmlSubItem);
+								var subValue:Object = value[i];
+								for(subKey in subValue)
+								{
+									xmlField = <Field/>
+									v = subValue[subKey];
+									if (v is Resource)
+									{
+										xmlField.@type="resource";
+										hResource = Resource(v).hResource;
+										if (hResource!=-1)
+										{
+											xmlSubResource = <Resource/>;
+											xmlSubResource.@hResource = hResource;
+											xmlField.appendChild(xmlSubResource);
+										}
+									}
+									else
+									{
+										xmlField.@type="string";
+										xmlField.@value = v;
+									}
+									
+									xmlField.@key = subKey;
+									xmlSubItem.appendChild(xmlField);
+								}
+							} 
+						} 
+						else
+						{
+							xmlItem = <Item/>
+							xmlItem.@key = key;
+							
+							for(subKey in value)
+							{
+								xmlField = <Field/>
+								v = value[subKey];
+								if (v is Resource)
+								{
+									xmlField.@type="resource";
+									hResource = Resource(v).hResource;
+									if (hResource!=-1)
+									{
+										xmlSubResource = <Resource/>;
+										xmlSubResource.@hResource = Resource(v).hResource;
+										xmlField.appendChild(xmlSubResource);
+									}
+								}
+								else
+								{
+									xmlField.@type="string";
+									xmlField.@value = v;
+								}
+								xmlField.@key = subKey;
+								xmlItem.appendChild(xmlField);
+							}							
+						}
+						xmlFlashData.appendChild(xmlItem);
+					}
+				}
+				
+				return xmlResource;
+			}
+			
+			/*M???
+			public override function set modified(i_modified:Boolean):void
+			{
+				super.modified = i_modified;
+				if (childPlayer!=null)
+				{
+					childPlayer.refresh();
+				}
+			}
+			*/
+			
+			
+			public override function start():void
+			{
+				super.start();
+				if (childPlayer!=null)
+				{
+					childPlayer.start();
+				}
+			}
+
+			public override function stop():void
+			{
+				super.stop();
+				if (childPlayer!=null)
+				{
+					childPlayer.stop();
+				}
+			}
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockSwfPage];
+			}
+			
+			public override function set maintainAspectRatio(i_maintainAspectRatio:Boolean):void
+			{
+				super.maintainAspectRatio = i_maintainAspectRatio;
+				if (m_swfLoader!=null)
+				{ 
+					clear();
+					invalidateProperties();
+				}
+			}
+			
+			public override function clear():void
+			{
+				removeProgress();
+				
+            	if (m_timer!=null)
+            	{
+            		m_timer.stop();
+            		m_timer.removeEventListener(TimerEvent.TIMER, onTimer);
+            		m_timer = null;
+            	} 
+				if (m_swfLoader!=null)
+				{
+					m_swfLoader.unloadAndStop(false);
+					m_swfLoader.validateNow();
+					m_swfLoader = null;
+				} 
+				if (m_trustLoader!=null)
+				{
+					m_trustLoader.unloadAndStop(false);
+					m_trustLoader = null;
+				}
+				if (m_moduleLoader!=null)
+				{
+					m_moduleLoader.unloadModule();
+					m_moduleLoader = null;
+				}
+				if (m_childPlayer!=null)
+				{
+					m_childPlayer.dispose();
+					m_childPlayer = null;
+				}
+			}
+			
+			protected override function loadResource():void
+			{			
+				super.loadResource();
+				m_air = m_resourceService.isAir();
+				m_resourceTrust = m_resourceService.isTrust(m_hResource);
+				m_flexModule = m_resourceService.isFlexModule(m_hResource);
+				m_useHtmlContainer = m_resourceService.useHtmlContainer(m_hResource);
+			}
+			
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				loadSource();
+			}
+			
+			protected function loadSource():void
+			{
+				if (m_source==null)
+					return;
+				
+				if (m_flexModule)
+				{
+					if (m_moduleLoader==null)
+					{
+						m_moduleLoader = new ModuleLoader();
+						addElement(m_moduleLoader);
+						m_moduleLoader.url = m_source;
+					}
+				}
+				else if (m_air && m_resourceTrust)
+				{
+					if (m_trustLoader==null)
+					{
+						m_trustLoader = new TrustLoader();
+						m_trustLoader.addEventListener(Event.COMPLETE, onTrustContentLoaded);	
+						addElement(m_trustLoader);
+						m_trustLoader.width = width;
+						m_trustLoader.height = height;
+						m_trustLoader.source = m_source;
+					}
+				}
+				else
+				{
+					if (m_swfLoader==null)
+					{
+						var airPlayer:Boolean = (m_framework.StateBroker.GetState("airPlayer")==true); //???
+						m_swfLoader = new SWFLoader();
+						m_swfLoader.loadForCompatibility = true;
+						
+						
+						
+						
+						if (airPlayer)
+						{
+							//m_swfLoader.trustContent = false;
+							
+							
+							var loaderContext: LoaderContext = new LoaderContext(false, ApplicationDomain.currentDomain);
+							loaderContext.allowLoadBytesCodeExecution = true; 
+							m_swfLoader.loaderContext = loaderContext;
+						}
+						else
+						{
+							m_swfLoader.trustContent = true;
+						}
+					
+						 
+						m_swfLoader.maintainAspectRatio = m_maintainAspectRatio;
+						m_swfLoader.scaleContent = true;
+						addElement(m_swfLoader);
+						
+						m_swfLoader.width = width;
+						m_swfLoader.height = height;
+						
+						m_swfLoader.addEventListener(Event.COMPLETE, onContentLoaded);				
+						//M??? m_swfLoader.addEventListener(ProgressEvent.PROGRESS, onSwfProgress);
+					}
+					m_swfLoader.source = m_source;
+				}
+				
+				
+			}
+
+			public function get propertyDefinitions():XML
+			{
+				return m_xmlPropertyDefinitions;
+			}
+
+			public function get flashData():Object
+			{
+				return m_flashData;
+			}
+			
+			public function get childPlayer():IChildPlayer
+			{
+				if (m_childPlayer==null)
+				{	
+					var mc:MovieClip;
+					if (m_swfLoader!=null)
+					{
+						if (m_swfLoader.content!=null)
+						{
+							mc = m_swfLoader.content as MovieClip;
+							if (mc!=null && mc.hasOwnProperty("player") && mc.player!=null)
+							{
+								m_childPlayer = new FlashChildPlayer(mc.player);
+							}
+						}
+					}
+					else if (m_trustLoader!=null)
+					{
+						if (m_trustLoader.content!=null)
+						{
+							mc = m_trustLoader.content as MovieClip;
+							if (mc!=null && mc.hasOwnProperty("player") && mc.player!=null)
+							{
+								m_childPlayer = new FlashChildPlayer(mc.player);
+							}
+						}
+					}
+					else if (m_moduleLoader!=null)
+					{
+						
+					}
+				}
+				return m_childPlayer;
+			}
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (m_swfLoader!=null)
+				{
+					m_swfLoader.width = unscaledWidth;
+					m_swfLoader.height = unscaledHeight;
+				}
+				if (m_moduleLoader!=null)
+				{
+					m_moduleLoader.width = unscaledWidth
+					m_moduleLoader.height = unscaledHeight;
+				}
+				/*
+				if (m_uiComponent!=null)
+				{
+					m_uiComponent.width = unscaledWidth;
+					m_uiComponent.height = unscaledHeight;
+					m_loader.width = unscaledWidth;
+					m_loader.height = unscaledHeight;
+				}
+				*/
+				if (m_trustLoader!=null)
+				{
+					m_trustLoader.width=width;
+					m_trustLoader.height = height;
+				}
+			}
+			
+			/*M???
+			protected function onSwfProgress(event:ProgressEvent):void
+			{
+				if (m_progress!=null)
+				{
+					var percentage:int = int((event.bytesLoaded / event.bytesTotal) * 100);
+					m_progress.value = (event.bytesLoaded / event.bytesTotal);
+				}
+			}		
+			*/
+			
+        	/*M???
+        	private function removeProgress():void
+        	{
+            	if (m_progress!=null)
+            	{
+					removeElement(m_progress);
+            		m_progress = null;
+            	}
+            	if (m_swfLoader!=null)
+            	{
+            		m_swfLoader.removeEventListener(ProgressEvent.PROGRESS, onSwfProgress);
+				}
+        	}
+			*/
+
+			private function onContentLoaded(event:Event):void
+			{
+				removeProgress();
+				if (m_swfLoader!=null)
+				{
+					m_swfLoader.removeEventListener(Event.COMPLETE, onContentLoaded);
+				
+					if (childPlayer!=null)
+					{
+						childPlayer.framework = m_framework;
+						if (m_flashData==null)
+						{
+							createDefaultFlashData();	
+						}
+						childPlayer.data = m_flashData;
+					}
+					dispatchEvent( new Event("event_content_loaded") );
+					
+					// fix bug 518: SWF works fine in Rsources preview but not in Players (Web/Air)
+					// that happend to some swfs when m_maintainAspectRatio is false. 
+					if (m_maintainAspectRatio==false && m_swfLoader.content.width==0)  
+					{
+						m_timer = new Timer(100);
+						m_timer.addEventListener(TimerEvent.TIMER, onTimer);
+						m_timer.start();
+					}
+				}
+			}
+
+			private function onTrustContentLoaded(event:Event):void
+			{
+				if (m_trustLoader!=null)
+				{
+					m_trustLoader.removeEventListener(Event.COMPLETE, onTrustContentLoaded);
+				
+				
+					if (childPlayer!=null)
+					{
+						childPlayer.framework = m_framework;
+						if (m_flashData==null)
+						{
+							createDefaultFlashData();	
+						}
+						try
+						{
+							childPlayer.data = m_flashData;
+						}
+						catch(error:Error)
+						{
+							trace("error");
+						}
+					}
+					dispatchEvent( new Event("event_content_loaded") );
+				}
+			}
+
+			
+			public function addFlashItem(i_rootKey:String):Object
+			{
+				var properties:Object = BlockSwfPlayer(m_playerLoader.player).flashData;
+				var item:Object = new Object();
+				properties[i_rootKey].push(item);
+				
+				for each(var xmlItem:XML in m_xmlPropertyDefinitions.*)
+				{
+					if (i_rootKey==String(xmlItem.@key))
+					{
+        				for each(var xmlField:XML in xmlItem.*)
+        				{
+       						item[String(xmlField.@key)] = (xmlField.@type=="resource") ? new Resource(-1) : String(xmlField.@defaultValue);
+        				}
+					}
+				}
+				
+				m_playerLoader.modified = true;
+				return item;
+			}
+
+			public function deleteFlashItem(i_rootKey:String, i_index:int):void
+			{
+				var properties:Object = BlockSwfPlayer(m_playerLoader.player).flashData;
+				var array:Array = new Array()
+				var count:int = properties[i_rootKey].length;
+				if (count<2)
+					return;
+				for(var i:int = 0; i<count;i++)
+				{
+					if (i!=i_index)
+					{
+						array.push(properties[i_rootKey][i]);	
+					}
+				}
+				properties[i_rootKey] = array;
+				
+				m_playerLoader.modified = true;
+			}
+			
+			private function createDefaultFlashData():void
+			{
+        		m_xmlPropertyDefinitions = childPlayer.getPropertyDefinitions();
+        		m_flashData = new Object();
+        		for each(var xmlItem:XML in m_xmlPropertyDefinitions.*)
+        		{
+        			var xmlField:XML;
+        			if (xmlItem.name()=="Item")
+        			{
+        				var group:Object = m_flashData[xmlItem.@key];
+        				if (group==null)
+        				{
+        					m_flashData[String(xmlItem.@key)] = group = new Object();
+        				}
+        				
+        				for each(xmlField in xmlItem.*)
+        				{
+        					if (xmlField.@type=="resource")
+        					{
+        						group[String(xmlField.@key)] = new Resource(-1);
+        					}
+        					else
+        					{
+        						group[String(xmlField.@key)] = String(xmlField.@defaultValue);	
+        					}
+        				}
+        			}
+        			else
+        			{
+        				var list:Array = m_flashData[xmlItem.@key] = new Array();
+        				var count:int = xmlItem.@count;
+        				for(var i:int = 0; i<count;i++)
+        				{
+            				for each(xmlField in xmlItem.*)
+            				{
+            					var subItem:Object = list[i];
+            					if (subItem==null)
+            					{
+            						subItem = list[i] = new Object();
+            					}
+            					if (xmlField.@type=="resource")
+            					{
+            						subItem[String(xmlField.@key)] = new Resource(-1);
+            					}
+            					else
+            					{
+            						subItem[String(xmlField.@key)] = String(xmlField.@defaultValue);	
+            					}
+            				}
+            			}
+        			}
+        		}
+			}
+			
+			private function onTimer(event:TimerEvent):void
+			{
+				if (m_swfLoader!=null)
+				{
+					if (m_swfLoader.content.width==0)
+						return;
+					
+					m_swfLoader.invalidateDisplayList();
+				}
+				
+				if (m_timer!=null)
+				{
+					m_timer.stop();
+					m_timer.removeEventListener(TimerEvent.TIMER, onTimer);
+					m_timer = null;
+				}
+			}
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+            	if (m_swfLoader!=null)
+            	{
+					m_swfLoader.removeEventListener(Event.COMPLETE, onContentLoaded);				
+					//M??? m_swfLoader.removeEventListener(ProgressEvent.PROGRESS, onSwfProgress);
+            	}
+            	if (m_trustLoader!=null)
+            	{
+            		m_trustLoader.removeEventListener(Event.COMPLETE, onTrustContentLoaded);
+            	}
+				clear();
+			}
+		]]>
+	</fx:Script>	 
+</ms:EmbeddedResource>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*" 
+		   width="500" height="500"
+	implements="IDialog">
+	<fx:Script>
+		<![CDATA[
+			protected var m_okCancelDlg:OkCancelDlg;
+			private var m_csvText:String;
+			 
+			public function set csvText(i_csvText:String):void
+			{
+				m_csvText = i_csvText;
+				invalidateProperties();
+			} 
+			
+			public function get csvText():String
+			{
+				return m_csvText;
+			}
+			
+			public function setOkCancelDlg(i_okCancelDlg:OkCancelDlg):void
+			{
+				m_okCancelDlg = i_okCancelDlg;
+			} 
+			
+			public function onOk():void
+			{
+				m_csvText = csvTextArea.text.replace(/\r/g, "\n");
+				m_okCancelDlg.close();
+			}
+			
+			public function onCancel():void
+			{
+				m_okCancelDlg.close();
+			}
+			
+			public function onButton(i_name:String):void
+			{
+				
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				csvTextArea.text = m_csvText;
+			}
+		]]>
+	</fx:Script>	
+	<s:TextArea id="csvTextArea" width="100%" height="100%"/>
+</s:BorderContainer>

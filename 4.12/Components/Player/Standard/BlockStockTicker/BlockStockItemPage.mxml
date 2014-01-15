@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+	label="{resourceManager.getString('player', 'stockItem.title')}"
+	width="100%" height="100%" xmlns:local="*" xmlns:ColorPicker="ColorPicker.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				fontCtrl.addEventListener(FontCtrl.FONT_CHANGED, onFontChanged);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+
+				if (m_playerLoader.player==null)
+					return;
+				
+				for each(var xmlField:XML in comboField.dataProvider)
+				{
+					if (BlockStockItemPlayer(m_playerLoader.player).field==xmlField.@value)
+					{
+						comboField.selectedItem = xmlField;
+						break;
+					}
+				}
+				
+				negtiveColor.selectedColor = BlockStockItemPlayer(m_playerLoader.player).negativeColor;
+				fontCtrl.fontItem = BlockStockItemPlayer(m_playerLoader.player).fontItem;
+			}
+			
+			private function onFieldChanged(event:Event):void
+			{
+				var field:String = comboField.selectedItem.@value;
+				BlockStockItemPlayer(m_playerLoader.player).field = field; 
+			}
+			
+			private function onFontChanged(event:Event):void
+			{
+				BlockStockItemPlayer(m_playerLoader.player).fontItem = fontCtrl.fontItem;
+			}
+			
+			private function onNegativeColor(event:Event):void
+			{
+				BlockStockItemPlayer(m_playerLoader.player).negativeColor = negtiveColor.selectedColor;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<fx:XMLList id="fields">		
+			<Day 
+				label="{resourceManager.getString('player', 'stockItem.symbol')}"
+				value="{StockField.SYMBOL}"/>
+			<Day 
+				label="{resourceManager.getString('player', 'stockItem.lastTrade')}" 
+				value="{StockField.LAST_TRADE}"/>
+			<Day 
+				label="{resourceManager.getString('player', 'stockItem.tradeDate')}" 
+				value="{StockField.TRADE_DATE}"/>
+			<Day 
+				label="{resourceManager.getString('player', 'stockItem.tradeTime')}" 
+				value="{StockField.TRADE_TIME}"/>
+			<Day 
+				label="{resourceManager.getString('player', 'stockItem.change')}"
+				value="{StockField.CHANGE}"/>
+			<Day 
+				label="{resourceManager.getString('player', 'stockItem.percentChange')}"
+				value="{StockField.PERCENTAGE}"/>
+			<Day 
+				label="{resourceManager.getString('player', 'stockItem.open')}"
+				value="{StockField.OPEN}"/>
+			<Day 
+				label="{resourceManager.getString('player', 'stockItem.max')}"
+				value="{StockField.MAX}"/>
+			<Day 
+				label="{resourceManager.getString('player', 'stockItem.min')}"
+				value="{StockField.MIN}"/>
+			<Day 
+				label="{resourceManager.getString('player', 'stockItem.volume')}"
+				value="{StockField.VOLUME}"/>			
+		</fx:XMLList>
+	</fx:Declarations>
+	
+	
+	<s:Form width="100%">
+		<s:FormItem
+			label="{resourceManager.getString('player', 'stockItem.field')}">
+			<s:DropDownList id="comboField" x="86" y="8" width="100%"
+					labelField="@label" 
+					change="onFieldChanged(event)">
+				<s:dataProvider>
+					<s:XMLListCollection source="{fields}">
+						
+					</s:XMLListCollection>
+				</s:dataProvider>
+			</s:DropDownList>		
+		</s:FormItem>
+
+		<s:FormItem label="Font:"/>
+		<ms:FontCtrl id="fontCtrl" width="100%"/>		
+		<s:Spacer height="20"/>
+		<s:FormItem	label="{resourceManager.getString('player', 'stockItem.negtiveColor')}"/>
+		<s:BorderContainer width="100%" backgroundColor="0xC0C0C0">
+			<s:layout>
+				<s:VerticalLayout paddingTop="5" paddingLeft="5" paddingRight="5" paddingBottom="5" gap="5"/>
+			</s:layout>
+			<ColorPicker:SparkColorPicker id="negtiveColor" width="60"
+										  change="onNegativeColor(event)" />	
+		</s:BorderContainer>
+	</s:Form>
+	
+	
+</ms:PlayerPage>	
+

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"	
+			   width="100%" height="300"
+	label="Item">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				fontCtrl.addEventListener(FontCtrl.FONT_CHANGED, onFontChanged);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				fontCtrl.fontItem = BlockTwitterItemPlayer(m_playerLoader.player).fontItem;
+				for each(var fieldName:Object in ArrayList(fieldNameCombo.dataProvider).source)
+				{
+					if (fieldName.name==BlockTwitterItemPlayer(m_playerLoader.player).fieldName)
+					{
+						fieldNameCombo.selectedItem = fieldName;
+						break;
+					}
+				}
+				
+				var fieldType:String = BlockTwitterItemPlayer(m_playerLoader.player).fieldType;
+				fontGroup.visible = (fieldType=="text");
+			}
+			
+			private function onFieldChanged():void
+			{
+				BlockTwitterItemPlayer(m_playerLoader.player).fieldName= fieldNameCombo.selectedItem.name;
+				BlockTwitterItemPlayer(m_playerLoader.player).fieldType= fieldNameCombo.selectedItem.type;
+				
+				fontGroup.visible = (BlockTwitterItemPlayer(m_playerLoader.player).fieldType=="text");
+			}
+			
+			private function onFontChanged(event:Event):void
+			{
+				BlockTwitterItemPlayer(m_playerLoader.player).fontItem = fontCtrl.fontItem;
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+	</fx:Declarations>	
+	
+	<ms:layout>
+		<s:VerticalLayout/>
+	</ms:layout>
+	
+	<s:Form width="100%">
+		<s:FormItem width="100%"
+					label="Field type">
+			<s:DropDownList id="fieldNameCombo" labelField="label" width="100%"
+						change="onFieldChanged()">
+				<s:dataProvider>
+					<s:ArrayList>
+						<fx:Object type="text" name="text" label="Text"/>
+						<fx:Object type="resource" name="user.profile_image_url" label="Profile Image"/>
+					</s:ArrayList>
+				</s:dataProvider>
+			</s:DropDownList>
+		</s:FormItem>
+	</s:Form> 
+	<s:VGroup id="fontGroup" width="100%">
+		<s:FormItem label="Font:"/>
+		<ms:FontCtrl id="fontCtrl" width="100%"/>
+	</s:VGroup>
+</ms:PlayerPage>

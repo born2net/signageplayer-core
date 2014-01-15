@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  width="400" height="300" implements="com.model.ILoginToFacebook"
+		  xmlns:view="view.*">
+	<!-- xmlns:mx="library://ns.adobe.com/flex/mx" -->
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.facebook.graph.FacebookWeb;
+			import com.facebook.graph.controls.Distractor;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var	_appId:String;
+			private var	_email:String;
+			private var	_passwd:String;
+			
+			private var	_parent:*;
+			private var	_param:Object;
+			private var	_loginWindow:LoginWindow;
+			
+			protected var _distractor:Distractor;
+			protected var _modalOverlay:Group;
+			
+			private function initCom():void {
+				try_group.visible = false;
+				contents.visible = false;
+			}
+			
+			private function configUI():void {
+				_distractor = new Distractor();
+				_distractor.text = 'Connecting to Facebook…';
+				
+				_modalOverlay = new Group();
+				_modalOverlay.graphics.beginFill(0xffffff, 1);
+				_modalOverlay.graphics.drawRect(0,0,1,1);
+			}
+			
+			public function init(param:Object):void {
+				if(param == null || param.parent == null
+					|| param.appId == null || param.appId == ""
+					|| param.email == null || param.email == ""
+					|| param.passwd == null || param.passwd == "" ) return;
+				
+				configUI();
+				
+				_param = param;
+				_parent = param.parent;
+				_appId = param.appId;
+				_email = param.email;
+				_passwd = param.passwd;
+				
+				showDistractor();
+				try_group.visible = false;
+				contents.visible = false;
+				
+				FacebookWeb.init(_appId, handleInit);
+			}
+			
+			public function logout():void {
+				if(_loginWindow) {
+					_loginWindow.close();
+					this.removeElement(_loginWindow);
+					_loginWindow = null;
+				}
+				hideDistractor();
+				if(try_group)
+					try_group.visible = false;
+				if(contents) {
+					contents.visible = false;
+					if(friends_list)
+						friends_list.close();
+				}
+				FacebookWeb.logout(handleLogout);
+			}
+			
+			private function doLogin():void {
+				var permissions:Array = ['publish_stream','create_event','rsvp_event','sms','offline_access','email','read_insights','read_stream','user_about_me',
+					'user_activities','user_birthday','user_education_history','user_events', 'friends_events','user_groups','user_hometown', 'friends_hometown',
+					'user_interests','user_likes','user_location','friends_location', 'user_notes','user_online_presence',
+					'user_photo_video_tags','user_photos','user_relationships','user_religion_politics','user_status',
+					'user_videos','user_website','user_work_history','read_friendlists','read_requests','user_notes'];
+				
+				_loginWindow = FacebookWeb.login(_email, _passwd, handleLogin, null, permissions);
+				this.addElement(_loginWindow);
+				_loginWindow.visible = false;
+			}
+			
+			private function handleInit(session:Object, fail:Object):void {
+				if (session != null) { // if already logged in
+					hideDistractor();
+					try_group.visible = false;
+					
+					friends_list.init({ parent:this, loadedCallback:loadedCallback });
+					
+					return;
+				}
+				doLogin();
+			}
+			
+			private function handleLogin(session:Object, fail:Object):void {
+				if (session != null) { // if success to log in
+					if(_loginWindow != null) {
+						_loginWindow.close();
+						this.removeElement(_loginWindow);
+						_loginWindow = null;
+					}
+					hideDistractor();
+					if(try_group)
+						try_group.visible = false;
+					
+					friends_list.init({ parent:this, loadedCallback:loadedCallback });
+					
+					return;
+				}
+				if(fail == "loaded") {
+					//if(_loginWindow != null)
+					//	_loginWindow.visible = true;
+					hideDistractor();
+				}
+				else if(fail == "login") {
+					showDistractor();
+				} else {
+					if(_loginWindow != null) {
+						_loginWindow.close();
+						this.removeElement(_loginWindow);
+						_loginWindow = null;
+					}
+					
+					hideDistractor();
+					FacebookWeb.logout();
+					
+					try_group.visible = true;
+				}
+			}
+			
+			private function loadedCallback(result:int):void {
+				if(result != 0) return;
+				contents.visible = true;
+			}
+			
+			private function handleLogout(logout:Boolean):void {
+				
+			}
+			
+			private function handleWindowResize(event:NativeWindowBoundsEvent = null):void {
+				
+				_distractor.x = width - _distractor.width >> 1;
+				_distractor.y = height - _distractor.height >> 1;
+				
+				_modalOverlay.width = width;
+				_modalOverlay.height = height;
+				
+				try_group.x = width - try_group.width >> 1;
+				try_group.y = height - try_group.height >> 1;
+			}
+			
+			private function handleSelection(event:IndexChangeEvent = null):void {
+				switch(event.newIndex) {
+					case 0:
+						friends_list.visible = true;
+						
+						break;
+					
+					case 1:
+						friends_list.visible = false;
+						
+						break;
+					
+					case 2:
+						friends_list.visible = false;
+						
+						break;
+				}
+				//friends_list
+			}
+			
+			private function showDistractor():void {
+				back_grp.addElement(_modalOverlay);
+				back_grp.addElement(_distractor);
+				handleWindowResize();
+			}
+			
+			private function hideDistractor():void {
+				if (_distractor && back_grp.contains(_distractor)) {
+					back_grp.removeElement(_distractor);
+					back_grp.removeElement(_modalOverlay);
+					back_grp.visible = false;
+				}
+			}
+			
+			public function get APPID():String { return _appId; }
+			public function set APPID(appId:String):void { _appId = appId; }
+			
+		]]>
+	</fx:Script>
+	<s:Group id="try_group" width="216" height="98">
+		<s:Label id="msg_txt" x="27" y="29" text="Login failed. Please try again."/>
+		<s:Button id="try_again" x="73" y="50" label="Log in" click="doLogin()"/>
+	</s:Group>
+	<s:Group id="back_grp" width="100%" height="100%"/>
+	<s:Group id="contents" width="100%" height="100%">
+		<s:VGroup>
+			<s:TabBar width="100%" change="handleSelection(event)" itemRenderer="spark.components.supportClasses.ItemRenderer">
+				<s:dataProvider>
+					<s:ArrayCollection source="['Friends List', 'Wall', 'Media List']"/>
+				</s:dataProvider>
+			</s:TabBar>
+			<s:Group width="100%">
+				<view:FriendsList id="friends_list" width="100%" height="100%"/>
+			</s:Group>
+		</s:VGroup>
+	</s:Group>
+</s:Group>

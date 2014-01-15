@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:ms="*"
+		 width="60" height="80"
+		 implements="IComponentProgress"
+		 verticalCenter="0" horizontalCenter="0">
+	<fx:Script>
+		<![CDATA[
+			public function setProgress(i_bytesLoaded:Number, i_bytesTotal:Number):void
+			{
+				var prcent:int = 100*i_bytesLoaded/i_bytesTotal;
+				progress.text = prcent +"%";
+			}			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<ms:SpinnerLoader id="spinner" width="60" height="60" size="30"/>
+	<s:Label id="progress" verticalCenter="0" bottom="0"/>
+</s:Group>

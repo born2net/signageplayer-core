@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:ms="*"
+				   xmlns:Navigator="Navigator.*">
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			import mx.managers.PopUpManager;
+			
+			private var m_framework:IFramework;
+			private var m_campaignBoardPlayer:CampaignBoardPlayer;
+			private var m_musicPlayer:MusicPlayer;
+			
+			
+			private var m_mouseX:Number;
+			private var m_mouseY:Number;
+			private var m_dlgX:Number;
+			private var m_dlgY:Number;
+			
+			public static function Create(i_parent:DisplayObject, i_framework:IFramework):MainPanel
+			{
+				var mainPanel:MainPanel = MainPanel(PopUpManager.createPopUp(i_parent, MainPanel, false));
+				mainPanel.m_framework = i_framework;
+				mainPanel.m_musicPlayer = new MusicPlayer();
+				return mainPanel;
+			}
+
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (parent==null)
+					return;
+				 
+				width = Math.min(640, parent.width * 0.9);
+				height = Math.min(800, parent.height * 0.95);
+				x = (parent.width-width)/2
+				y = (parent.height-height)/2
+			}
+			
+			
+			public function set campaignBoardPlayer(i_campaignBoardPlayer:CampaignBoardPlayer):void
+			{
+				m_campaignBoardPlayer = i_campaignBoardPlayer;
+			}
+			
+			public function get musicPlayer():MusicPlayer
+			{
+				return m_musicPlayer;
+			}
+			
+			private function onHide():void
+			{
+				visible = false;
+				dispatchEvent( new Event("event_hide") );
+			}
+			
+			private function onQuit():void
+			{
+				AlertEx.showYesNo(
+					UIComponent(m_framework.StateBroker.GetState("topWindow")), 
+					"Are you sure", "Exit", onExit);
+				
+			}
+			
+			private function onExit():void
+			{
+				NativeApplication.nativeApplication.exit(0);
+			}
+			
+			
+			private function onMusicPlayerContainer():void
+			{
+				m_musicPlayer.percentHeight = 100;
+				m_musicPlayer.percentWidth = 100;
+				musicPlayerContainer.addElement(m_musicPlayer);
+				
+			}
+			
+			private function onCaptionPressed(event:MouseEvent):void
+			{
+				if (event.target==caption.skin)
+				{
+					m_dlgX = x;
+					m_dlgY = y;
+					m_mouseX = event.stageX;
+					m_mouseY = event.stageY;
+					stage.addEventListener(MouseEvent.MOUSE_MOVE, onCaptionMove);
+					stage.addEventListener(MouseEvent.MOUSE_UP, onCaptionRelease);
+				}
+			}
+			
+			private function onCaptionMove(event:MouseEvent):void
+			{
+				x = m_dlgX + (event.stageX-m_mouseX);
+				y = m_dlgY + (event.stageY-m_mouseY);
+			}
+
+			private function onCaptionRelease(event:MouseEvent):void
+			{
+				stage.removeEventListener(MouseEvent.MOUSE_MOVE, onCaptionMove);
+				stage.removeEventListener(MouseEvent.MOUSE_UP, onCaptionRelease);
+				
+			}
+			
+		]]>
+	</fx:Script>
+	
+	
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+	
+	<s:states>
+		<s:State name="State_None"/>
+		<s:State name="State_Domain"/>
+		<s:State name="State_Login"/>
+		<s:State name="State_Registration"/>
+		<s:State name="State_Ready"/>
+	</s:states>
+	
+	<s:BorderContainer id="caption" width="100%" backgroundColor="0xA0A0A0"
+					   mouseDown="onCaptionPressed(event)">
+		<s:layout>
+			<s:HorizontalLayout paddingTop="4" paddingBottom="4" paddingLeft="4" paddingRight="4"/>
+		</s:layout>
+		<s:Label text="SignagePlayer" mouseChildren="false" mouseEnabled="false"/>
+		<s:Spacer width="100%"/>
+		<s:Button label="Hide" click="onHide()" includeIn="State_Ready"/>
+		<s:Button id="btnQuit" label="Quit" click="onQuit()"/>
+	</s:BorderContainer>
+	
+	
+	
+	<ms:DomainCtrl id="domainCtrl" includeIn="State_Domain" 
+				   width="100%" height="100%"/>
+	<ms:LoginCtrl id="loginCtrl" includeIn="State_Login" 
+				  x="0" y="0" width="100%" height="100%"
+				  creationComplete="loginCtrl.init(m_framework)"/>
+	<ms:RegistrationCtrl id="registrationCtrl" includeIn="State_Registration"
+						 x="0" y="0" width="100%" height="100%"
+						 creationComplete="registrationCtrl.init(m_framework)"/>
+	
+	<Navigator:SparkTabNavigator width="100%" height="100%" includeIn="State_Ready">
+		<s:NavigatorContent label="Presentation" width="100%" height="100%">
+			<ms:ReadyCtrl id="readyCtrl"  width="100%" height="100%"
+						  creationComplete="readyCtrl.init(m_framework, m_campaignBoardPlayer)" />
+		</s:NavigatorContent>
+		<s:NavigatorContent id="musicPlayerContainer" label="Background music" width="100%" height="100%"
+							creationComplete="onMusicPlayerContainer()">
+		</s:NavigatorContent>
+	</Navigator:SparkTabNavigator>
+</s:BorderContainer>

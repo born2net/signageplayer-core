@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:ms="*"
+			   backgroundColor="0"
+			   creationComplete="onInit()"
+			   addedToStage="onAddedToStage()">
+	
+	
+	<fx:Script>
+		<![CDATA[
+			private var m_debug:Boolean = false;
+			
+			private function onInit():void
+			{
+				appModuleLoader.writeMsg("Please wait...");
+				
+				var cloud:Boolean = false;
+				var file:File = new File("app:/config.xml");
+				if (file.exists)
+				{
+					appModuleLoader.writeMsg("Load config file");
+					
+					var fileStream:FileStream = new FileStream();
+					fileStream.open(file, FileMode.READ);
+					var xmlConfig:XML = XML(fileStream.readUTFBytes(fileStream.bytesAvailable));
+					fileStream.close();
+					var xmlAppModule:XML = xmlConfig.AppModule[0];
+					appModuleLoader.moduleUrl = xmlAppModule.@moduleUrl;
+					appModuleLoader.fileName = xmlAppModule.@fileName;
+					appModuleLoader.versionUrl = xmlAppModule.@versionUrl;
+					appModuleLoader.load();
+				}
+
+			}
+			
+			protected function onAddedToStage():void
+			{
+				var so:SharedObject = SharedObject.getLocal("Stage", "/", false);
+				if (so.data!=null && so.data.frameRate!=null && so.data.quality!=null)
+				{
+					stage.frameRate = so.data.frameRate;
+					stage.quality = so.data.quality;
+				}				
+			}
+			
+		]]>
+	</fx:Script>
+
+	<ms:AppModuleLoader id="appModuleLoader"
+		width="100%" height="100%" />
+</s:Application>

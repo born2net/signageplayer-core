@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+				 xmlns:media="flash.media.*">
+	
+	<fx:Script>
+		<![CDATA[
+			private var m_cameraIndex:int = 0;
+			private var m_invalidateCamera:Boolean;
+			private var m_keyFrameInterval:int = 15;
+			private var m_bandwidth:int = 16384;
+			private var m_quality:int = 0;
+			private var m_captureWidth:int = 160;
+			private var m_captureHeight:int = 120;
+			private var m_fps:int = 15;
+			private var m_favorArea:Boolean = true;
+			private var m_compress:Boolean = false;
+			
+			private var m_video:Video;
+
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/	
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Camera.@index).length()>0)
+				{
+					m_cameraIndex = int(i_data.Camera.@index);
+				}
+				if (XMLList(i_data.Camera.@keyFrameInterval).length()>0)
+				{
+					m_keyFrameInterval = int(i_data.Camera.@keyFrameInterval);
+				}
+				if (XMLList(i_data.Camera.@bandwidth).length()>0)
+				{
+					m_bandwidth = int(i_data.Camera.@bandwidth);
+				}
+				if (XMLList(i_data.Camera.@quality).length()>0)
+				{
+					m_quality = int(i_data.Camera.@quality);
+				}
+				if (XMLList(i_data.Camera.@captureWidth).length()>0)
+				{ 
+					m_captureWidth = int(i_data.Camera.@captureWidth);
+				}
+				if (XMLList(i_data.Camera.@captureHeight).length()>0)
+				{
+					m_captureHeight = int(i_data.Camera.@captureHeight);
+				}
+				if (XMLList(i_data.Camera.@fps).length()>0)
+				{
+					m_fps = int(i_data.Camera.@fps);
+				}
+				if (XMLList(i_data.Camera.@favorArea).length()>0)
+				{
+					m_favorArea = (i_data.Camera.@favorArea=="1");
+				}
+				if (XMLList(i_data.Camera.@compress).length()>0)
+				{
+					m_compress = (i_data.Camera.@compress)=="1";
+				} 
+				m_invalidateCamera = true;
+				invalidateProperties();
+			}
+			
+			public override function save():XML
+			{
+				var xmlCamera:XML = <Camera/>;
+				xmlCamera.@index = m_cameraIndex;
+				xmlCamera.@keyFrameInterval = m_keyFrameInterval;
+				xmlCamera.@bandwidth		= m_bandwidth;
+				xmlCamera.@quality 			= m_quality;
+				xmlCamera.@captureWidth 	= m_captureWidth;
+				xmlCamera.@captureHeight 	= m_captureHeight;
+				xmlCamera.@fps 				= m_fps;
+				xmlCamera.@favorArea 		= m_favorArea ? "1" : "0";
+				xmlCamera.@compress 		= m_compress ? "1" : "0";
+				return xmlCamera; 
+			}  
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockCameraPage];
+			}
+			
+			public override function clear():void
+			{
+				System.gc();
+			}
+			
+			 
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_cameraIndex==-1)
+					return;
+				if (m_video==null)
+				{
+					if (m_cameraIndex<Camera.names.length)
+					{
+						var videoCollection:Object = m_framework.StateBroker.GetState("videoCollection");
+						if (videoCollection==null)
+						{
+							videoCollection = new Object();
+							m_framework.StateBroker.SetState(this, "videoCollection", videoCollection);
+						}
+						m_video = videoCollection["video"+m_cameraIndex];
+						if (m_video==null)
+						{ 
+							Security.showSettings(SecurityPanel.MICROPHONE);
+							m_video = new Video(width, height);
+							videoCollection["video"+m_cameraIndex] = m_video;
+							var camera:Camera = Camera.getCamera(m_cameraIndex.toString());
+							camera.setMode(720, 480, 30);
+							m_video.attachCamera(camera);
+						}
+						container.addChild(m_video);
+					}
+				}
+				/*
+				if (m_camera!=null && m_invalidateCamera)
+				{
+					m_invalidateCamera = false;
+					//m_camera.setKeyFrameInterval(m_keyFrameInterval);
+					//m_camera.setQuality(m_bandwidth, m_quality);
+					//m_camera.setMode(m_captureWidth, m_captureHeight, m_fps, m_favorArea);
+					//m_camera.setLoopback(m_compress);
+				}
+				*/
+			}
+			
+			 
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (m_video!=null)
+				{
+					m_video.width = unscaledWidth;
+					m_video.height = unscaledHeight;
+				}
+			}
+			
+			public function set cameraIndex(i_cameraIndex:int):void
+			{
+				m_playerLoader.modified = true;
+				clear();
+				m_cameraIndex = i_cameraIndex;
+				invalidateProperties();
+			}
+			
+			public function get cameraIndex():int
+			{
+				return m_cameraIndex;
+			}
+			
+			
+			public function set keyFrameInterval(i_keyFrameInterval:int):void
+			{
+				m_playerLoader.modified = true;
+				m_keyFrameInterval = i_keyFrameInterval;
+				m_invalidateCamera = true;
+				invalidateProperties();
+			}
+			
+			public function get keyFrameInterval():int
+			{
+				return m_keyFrameInterval;
+			}
+
+			//////////////
+			
+			public function set bandwidth(i_bandwidth:int):void
+			{
+				m_playerLoader.modified = true;
+				m_bandwidth = i_bandwidth;
+				m_invalidateCamera = true;
+				invalidateProperties();
+			}
+			
+			public function get bandwidth():int
+			{
+				return m_bandwidth;
+			}
+
+			//////////////
+			
+			public function set quality(i_quality:int):void
+			{
+				m_playerLoader.modified = true;
+				m_quality = i_quality;
+				m_invalidateCamera = true;
+				invalidateProperties();
+			}
+			
+			public function get quality():int
+			{
+				return m_quality;
+			}
+
+			//////////////
+			
+			public function set captureWidth(i_captureWidth:int):void
+			{
+				m_playerLoader.modified = true;
+				m_captureWidth = i_captureWidth;
+				m_invalidateCamera = true;
+				invalidateProperties();
+			}
+			
+			public function get captureWidth():int
+			{
+				return m_captureWidth;
+			}
+
+			//////////////
+			
+			public function set captureHeight(i_captureHeight:int):void
+			{
+				m_playerLoader.modified = true;
+				m_captureHeight = i_captureHeight;
+				m_invalidateCamera = true;
+				invalidateProperties();
+			}
+			
+			public function get captureHeight():int
+			{
+				return m_captureHeight;
+			}
+
+			//////////////
+			
+			public function set fps(i_fps:int):void
+			{
+				m_playerLoader.modified = true;
+				m_fps = i_fps;
+				m_invalidateCamera = true;
+				invalidateProperties();
+			}
+			
+			public function get fps():int
+			{
+				return m_fps;
+			}
+
+			//////////////
+			
+			public function set favorArea(i_favorArea:Boolean):void
+			{
+				m_playerLoader.modified = true;
+				m_favorArea = i_favorArea;
+				m_invalidateCamera = true;
+				invalidateProperties();
+			}
+			
+			public function get favorArea():Boolean
+			{
+				return m_favorArea;
+			}
+
+			//////////////
+			
+			public function set compress(i_compress:Boolean):void
+			{
+				m_playerLoader.modified = true;
+				m_compress = i_compress;
+				m_invalidateCamera = true;
+				invalidateProperties();
+			}
+			
+			public function get compress():Boolean
+			{
+				return m_compress;
+			}
+			
+			
+			
+			///////////////////////
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				clear();
+			}
+			
+		]]>
+	</fx:Script>	
+	<mx:UIComponent id="container" width="100%" height="100%"/>
+ </ms:PlayerModule>	

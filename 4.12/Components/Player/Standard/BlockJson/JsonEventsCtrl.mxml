@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:Menu="Menu.*"
+		 width="400" height="300"
+		 label="Events" >
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			
+			
+[Bindable]  public var m_menuBarCollection:XMLListCollection;
+			private var m_xmlAdd:XML;
+			private var m_xmlDelete:XML;
+			
+			protected var m_playerLoader:IPlayerLoader;
+			
+			public function set editor(i_editor:IEditor):void
+			{
+				m_playerLoader = i_editor as IPlayerLoader;
+				invalidateProperties();
+			}
+			
+			public function get editor():IEditor
+			{
+				return m_playerLoader;
+			}
+
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				initMenu();
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader==null)
+					return;
+				
+				eventGrid.dataProvider = m_playerLoader.eventHandlers;
+				
+				updateButtons();
+			}
+			
+			
+			private function initMenu():void
+			{
+				m_menuBarCollection = new XMLListCollection();
+				m_xmlAdd = <Command id="addCampaign" label="" toolTip="Add" icon="addIcon" click="onAdd"/>;
+				m_xmlDelete = <Command id="del" label="" toolTip="Delete" icon="deleteIcon" click="onDelete"/>;
+				m_menuBarCollection.addItem(m_xmlAdd);
+				m_menuBarCollection.addItem(m_xmlDelete);
+			}			
+			
+			
+			public function onAdd():void
+			{
+				var eventCommand:IEventHandler = m_playerLoader.createEventHandler("", null, "nextPage", null);
+				m_playerLoader.eventHandlers.addItem(eventCommand);
+				eventGrid.dataProvider = m_playerLoader.eventHandlers;
+
+				eventGrid.selectedItem = eventCommand;
+				updateButtons();
+			}
+			
+			public function onDelete():void
+			{
+				var item:Object = eventGrid.selectedItem;
+				if (item==null)
+					return;
+				
+				m_playerLoader.eventHandlers.removeItemAt( m_playerLoader.eventHandlers.getItemIndex(item) );
+				
+				updateButtons();
+			}
+			
+			private function onEventSelected():void
+			{
+				updateButtons();
+			}
+			
+			private function updateButtons():void 
+			{
+				var item:Object = eventGrid.selectedItem;
+				m_xmlDelete.@enabled = (item!=null);
+			}			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+	<Menu:SparkToolBar callbackObj="{this}" dataProvider="{m_menuBarCollection}" width="100%" height="22"/>
+	<s:DataGrid	id="eventGrid" width="100%" height="100%"
+				editable="true"
+				click="onEventSelected()">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn itemRenderer="SenderItem" dataField="fromPlayer" headerText="from" editable="false" width="80"/>
+<!--zwave				
+				<s:GridColumn itemRenderer="EventItem" dataField="fromPlayer" headerText="Callback" editable="false"/>
+-->				
+				<s:GridColumn itemRenderer="EventJsonRenderer" headerText="Command"  editable="false"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+		
+</s:NavigatorContent>

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ms="*"
+		 xmlns:Controls="Controls.*"
+	width="374" height="344" 
+	clipAndEnableScrolling="true">
+
+	<fx:Script>
+		<![CDATA[
+			import flash.net.navigateToURL;
+			
+			import mx.core.UIComponent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.soap.WebService;
+			
+			
+			public static const LOGGED_IN_EVENT:String = "event_logged_in";
+			
+			private var m_framework:IFramework;
+			private var m_cryptoService:ICryptoService;
+			private var m_webService:WebService = new WebService(); 
+			
+			
+			
+			public function init(i_framework:IFramework):void
+			{ 
+				m_framework = i_framework;
+				m_cryptoService = m_framework.ServiceBroker.QueryService("CryptoService") as ICryptoService;
+				var mediaSignageUrl:String = String(m_framework.StateBroker.GetState("MasterServerUrl"));
+				m_webService.useProxy = false;
+				m_webService.addEventListener(FaultEvent.FAULT, onWebServiceFault);
+				m_webService.loadWSDL(mediaSignageUrl+"LoginService.asmx?wsdl");
+				m_webService.GetBusinessId.addEventListener("result", onGetBusinessId);
+			}
+			
+			private function onWebServiceFault(event:FaultEvent):void
+			{
+				enabled = true;
+				AlertEx.showOk(
+					UIComponent(m_framework.StateBroker.GetState("topWindow")),
+					"LoginCtrl:\n"+event.toString(), "onWebServiceFault");
+			}
+			
+			private function onLogin():void
+			{
+				enabled = false;
+				m_cryptoService.masterEncrypt(getBusinessId, textUser.text, textPassword.text);				
+			}
+			
+			private function getBusinessId(i_encryptRequest:IEncryptRequest):void
+			{
+				m_webService.GetBusinessId(i_encryptRequest.output);
+			} 
+			
+			private function onGetBusinessId(event:ResultEvent):void
+			{
+				enabled = true;
+				var businessId:int = int(event.result);
+				m_framework.StateBroker.SetState(this, "businessId", businessId);
+				
+				if (businessId!=-1) 
+				{
+					m_framework.StateBroker.SetState(this, "userName", textUser.text);
+					m_framework.StateBroker.SetState(this, "userPassword", textPassword.text);
+					textUser.text = textPassword.text = "";
+					m_framework.EventBroker.dispatchEvent( new Event(LOGGED_IN_EVENT) );
+				}
+				else
+				{
+					AlertEx.showOk(
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						"Invalid user or password", "onGetBusinessId");
+				}
+			}
+			
+			private function onOpenStudio():void
+			{
+				var xmlResellerInfo:XML = m_framework.StateBroker.GetState("resellerInfo") as XML;
+				if (xmlResellerInfo!=null)
+				{
+					var download:String = String(xmlResellerInfo.WhiteLabel.Studio.Application.Links.@download);
+					navigateToURL( new URLRequest(download), "_blank" );
+				}
+			}
+			
+			private function createNewAccount():void
+			{
+				navigateToURL( new URLRequest("http://start.mediasignage.com") );	
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Form width="100%" height="100%">
+		<s:FormItem label="Email" width="100%">
+			<ms:TextInputStr id="textUser" width="100%"/>		
+		</s:FormItem>
+		
+		<s:FormItem label="Password" width="100%">
+			<s:TextInput id="textPassword" displayAsPassword="true" width="100%"/>		
+		</s:FormItem>
+
+		<s:FormItem>
+			<s:Button label="Login " click="onLogin()" width="100%"/>
+		</s:FormItem>
+		<s:Spacer height="40"/>
+		<s:FormItem>
+			<Controls:LinkButton label="Create account" click="createNewAccount()" width="100%"/>
+		</s:FormItem>
+	</s:Form>	
+</s:Group>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<tree:TreeItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+	xmlns:s="library://ns.adobe.com/flex/spark" 
+	xmlns:mx="library://ns.adobe.com/flex/mx" 
+	xmlns:tree="Tree.*">
+	
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			
+			override public function set data(value:Object):void
+			{
+				super.data = value;
+				
+				selectionBorder.setStyle("borderVisible", selected);
+			}
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				
+				selectionBorder.setStyle("borderVisible", selected);
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:BorderContainer id="selectionBorder" width="100%" height="100%"
+					   borderColor="0xE5E5E5" backgroundAlpha="0">
+		<s:layout>
+			<s:HorizontalLayout paddingLeft="{indentation + 4}" verticalAlign="middle"
+				paddingBottom="4" paddingTop="4"/>
+		</s:layout>
+		
+		
+		
+		
+		<tree:DefaultDisclosureButton visible="{disclosureIconVisible}" 
+			click="{toggle();}"
+			currentState="{isOpen ? 'open' : 'closed'}"/>
+		
+		<s:HGroup doubleClickEnabled="true" doubleClick="{toggle();}">
+			<s:BitmapImage source="{icon}" visible="{Boolean(icon)}"
+						   includeInLayout="{Boolean(icon)}"/>
+			<s:Label id="labelDisplay" text="{label}" color="{textColor}"/>
+		</s:HGroup>
+	</s:BorderContainer>
+</tree:TreeItemRenderer>

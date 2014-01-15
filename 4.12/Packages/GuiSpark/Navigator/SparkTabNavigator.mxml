@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:ViewStack="ViewStack.*"
+		  implements="ViewStack.ISelectableList"
+		  gap="0"
+		  width="400" height="300">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.IndexChangedEvent;
+			
+			import spark.components.Button;
+			import spark.components.NavigatorContent;
+			import spark.components.ToggleButton;
+			import spark.events.IndexChangeEvent;
+			import spark.primitives.BitmapImage;
+			private var m_invalidateTabs:Boolean = false;
+			
+			public override function set mxmlContent(value:Array):void
+			{
+				if (value.length>0 && value[0]==tabBar)
+				{
+					super.mxmlContent = value;
+				}
+				else
+				{
+					
+					for each(var item:NavigatorContent in value)
+					{
+						var tab:ToggleButton = new ToggleButton();
+						tab.label = item.label;
+						tab.setStyle("icon", item.icon);
+						tabBar.addElement(tab);
+						tab.addEventListener(MouseEvent.CLICK, onTabselected);
+						if (tabBar.numElements==1)
+						{
+							tab.selected = true;
+						}
+						
+					}
+					viewStack.mxmlContent = value;
+				}
+				
+			}
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			///////////
+			
+			public function set selectedIndex(value:int):void
+			{
+				if (viewStack.selectedIndex!=-1)
+				{
+					var oldTab:ToggleButton = ToggleButton(tabBar.getElementAt(viewStack.selectedIndex));
+					oldTab.selected = false;
+				}
+				
+				viewStack.selectedIndex = value;
+				
+				
+				if (viewStack.selectedIndex!=-1)
+				{
+					var newTab:ToggleButton = ToggleButton(tabBar.getElementAt(viewStack.selectedIndex));
+					newTab.selected = true;
+				}
+			}
+			
+			public function get selectedIndex():int
+			{
+				return viewStack.selectedIndex;
+			}
+			
+			public function get selectedItem():Object
+			{
+				return viewStack.selectedItem;
+			}
+			
+			///////////////
+			
+			public function get length():int
+			{
+				return viewStack.length;
+			}
+			
+			public function addItem(item:Object):void
+			{
+				var index:int = viewStack.getItemIndex(item);
+				
+				if (index!=-1)
+					return;
+				
+				viewStack.addItem(item);
+				var tab:ToggleButton = new ToggleButton();
+				tab.label = item.label;
+				tab.height = 22;
+				tab.setStyle("icon", item.icon);
+				tabBar.addElement(tab);
+				tab.addEventListener(MouseEvent.CLICK, onTabselected);
+				if (tabBar.numElements==1)
+				{
+					tab.selected = true;
+				}
+			}
+			
+			public function addItemAt(item:Object, index:int):void
+			{
+				viewStack.addItemAt(item, index);
+			}
+			
+			public function getItemAt(index:int, prefetch:int = 0):Object
+			{
+				return viewStack.getItemAt(index, prefetch);
+			}
+			
+			public function getItemIndex(item:Object):int
+			{
+				return viewStack.getItemIndex(item);
+			}
+			
+			public function itemUpdated(item:Object, property:Object = null, 
+								 oldValue:Object = null, 
+								 newValue:Object = null):void
+			{
+				viewStack.itemUpdated(item, property, oldValue, newValue);
+			}
+			
+			public function setTabLabel(i_label:String, i_index:int):void
+			{
+				var item:Object = getItemAt(i_index);
+				var btn:ToggleButton = tabBar.getElementAt(i_index) as ToggleButton;
+				if (item!=null && btn!=null)
+				{
+					item.label = btn.label = i_label;
+				}
+			}
+			
+			public function removeAll():void
+			{
+				while(tabBar.numElements>0)
+				{
+					var tab:ToggleButton = ToggleButton(tabBar.removeElementAt(0));
+					tab.removeEventListener(MouseEvent.CLICK, onTabselected);
+				}
+				viewStack.removeAll();
+			}
+			
+			public function removeItemAt(index:int):Object
+			{
+				var tab:ToggleButton = ToggleButton(tabBar.removeElementAt(index));
+				tab.removeEventListener(MouseEvent.CLICK, onTabselected);
+				return viewStack.removeItemAt(index);
+			}
+			
+			public function removeItem(item:Object):void
+			{
+				var index:int = viewStack.getItemIndex(item);
+				viewStack.removeItemAt(index);
+				tabBar.removeElementAt(index);
+				if (selectedIndex!=-1)
+				{
+					ToggleButton(tabBar.getElementAt(selectedIndex)).selected = true;
+				}
+			}
+			
+			
+			public function setItemAt(item:Object, index:int):Object
+			{
+				return viewStack.setItemAt(item, index);
+			}
+			
+			public function toArray():Array
+			{
+				return viewStack.toArray();
+			}
+			
+			///////////////////////////////
+			
+			private function onTabselected(event:Event):void
+			{
+				var tab:ToggleButton = ToggleButton(event.target);
+				tab.selected = true;
+				var oldIndex:int = selectedIndex;
+				var newIndex:int = tabBar.getElementIndex(tab);
+				if (newIndex==oldIndex)
+					return;
+				if (oldIndex!=-1)
+				{
+					ToggleButton(tabBar.getElementAt(oldIndex)).selected = false;
+				}
+				
+				selectedIndex = newIndex;
+				
+				dispatchEvent( new IndexChangeEvent(IndexChangeEvent.CHANGE, false, false, oldIndex, newIndex) );
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<s:BorderContainer id="tabBar" width="100%" borderVisible="false" minHeight="0" minWidth="0" height="22">
+		<s:layout>
+			<s:HorizontalLayout gap="0"/>
+		</s:layout>
+	</s:BorderContainer>
+	<ViewStack:SparkViewStack id="viewStack" width="100%" height="100%"/>
+</s:VGroup>

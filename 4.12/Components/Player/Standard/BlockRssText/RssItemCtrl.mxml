@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" 
+		xmlns:mx="library://ns.adobe.com/flex/mx" 
+		xmlns:ms="*"
+		horizontalCenter="NaN">
+	<fx:Script>
+		<![CDATA[
+			import flashx.textLayout.conversion.TextConverter;
+			
+			import mx.controls.Spacer;
+			
+			import spark.components.Label;
+			import spark.components.RichText;
+			import spark.layouts.HorizontalLayout;
+			
+			
+			private var m_xmlItem:XML = null;
+			private var m_invalidateText:Boolean = false;
+			private var m_blockRssTextPlayer:BlockRssTextPlayer;
+			private var m_title:RichText;
+			private var m_description:RichText;
+			private var m_spacer:Spacer;
+			private var m_rtl:Boolean;
+			
+			public function set rtl(i_rtl:Boolean):void
+			{
+				m_rtl = i_rtl;
+			}
+			
+			public function set blockRssTestPlayer(i_blockRssTextPlayer:BlockRssTextPlayer):void
+			{
+				m_blockRssTextPlayer = i_blockRssTextPlayer;
+			}
+			
+			public function invalidateText():void
+			{
+				m_invalidateText = true;
+				invalidateProperties();
+			}
+			
+			public function load(i_xmlItem:XML):void
+			{
+				m_xmlItem = i_xmlItem;
+				m_invalidateText = true;
+				invalidateProperties();
+			}
+			
+			protected override function createChildren():void
+			{
+				layout = (m_blockRssTextPlayer.vertical) ? new VerticalLayout() : new HorizontalLayout();
+				
+				super.createChildren();
+				if (m_blockRssTextPlayer.vertical)
+				{
+					//direction = BoxDirection.VERTICAL;
+					//layout = new VerticalLayout();
+					
+					
+					percentWidth = 100;
+					
+					m_title = new RichText();
+					m_title.percentWidth = 100;
+					
+					if (m_rtl)
+					{
+						m_title.setStyle("textAlign", "right");
+					}
+ 
+					
+					addElement(m_title);
+					
+					m_description = new RichText();
+					m_description.percentWidth = 100;
+					
+					if (m_rtl)
+					{
+						m_description.setStyle("textAlign", "right");
+					}
+					
+					addElement(m_description);
+					
+					m_spacer = new Spacer();
+					m_spacer.height=25;
+					addElement(m_spacer);
+				}
+				else
+				{
+					//direction = BoxDirection.HORIZONTAL;
+					//layout = new HorizontalLayout();
+					
+					m_title = new RichText();
+					m_title.percentHeight = 100;
+					addElement(m_title);
+					
+					m_spacer = new Spacer();
+					m_spacer.width=100;
+					addElement(m_spacer);
+				}
+			}
+			
+			
+			protected override function commitProperties():void
+			{
+				if (m_invalidateText)
+				{
+					m_invalidateText = false;
+					super.commitProperties();
+					
+					var titleText:String = (XML(m_xmlItem.title[0]).toString()).replace(/\n/g, "");
+					m_title.text = m_rtl ? convertRTL(titleText) : titleText;
+					
+					m_blockRssTextPlayer.titleFontItem.applyStyles(m_title);
+					if (m_blockRssTextPlayer.vertical)
+					{
+						var descriptionText:String = XML(m_xmlItem.description[0]).toString();
+						var txt:String = m_rtl ? convertRTL(descriptionText) : descriptionText;
+						m_description.textFlow = TextConverter.importToFlow(txt, TextConverter.TEXT_FIELD_HTML_FORMAT);
+						m_blockRssTextPlayer.descriptionFontItem.applyStyles(m_description);
+					}
+				}
+			}
+
+			private function convertRTL(_str:String):String 
+			{
+				var i:int;
+				var tmp_arr:Array;
+		        var tt_arr:Array = _str.split("\r\n");
+		        for (var ii:int = 0; ii<tt_arr.length; ii++) 
+		        {
+		            var t_arr:Array = tt_arr[ii].split("");
+		            var h_arr:Array = [];
+		            var h_str:String = "";
+		            var j:Number = 0;
+		            for (i = 0; i<t_arr.length; i++) 
+		            {
+		                tmp_arr = [];
+		                if (t_arr[i].charCodeAt(0)>=1488) 
+		                {
+		                    for (j=i; j<t_arr.length && t_arr[j].charCodeAt(0)>=1488; j++) 
+		                    {
+		                        tmp_arr.push(t_arr.splice(j, 1, "%"));
+		                    }
+		                    tmp_arr.reverse();
+		                    h_arr.push(tmp_arr.join(""));
+		                }
+		            }
+		            h_arr.reverse();
+		            for (i = 0; i<t_arr.length; i++) 
+		            {
+		                if (t_arr[i] == "%") {
+		                    for (j=i+1; j<t_arr.length && t_arr[j] == "%"; ) 
+		                    {
+		                        t_arr.splice(j, 1);
+		                    }
+		                }
+		            }
+		            t_arr = t_arr.join("").split("%");
+		            for (i = 0; i<t_arr.length; i++) 
+		            {
+		                for (j=0; j<t_arr[i].length; j++) 
+		                {
+		                    if (t_arr[i].charAt(j) == "-" || t_arr[i].charAt(j) == "\"" || t_arr[i].charAt(j) == ":" || t_arr[i].charAt(j) == ";" || t_arr[i].charAt(j) == "." || t_arr[i].charAt(j) == "," || t_arr[i].charAt(j) == " " || t_arr[i].charAt(j) == "?" || t_arr[i].charAt(j) == "!") 
+		                    {
+		                        tmp_arr = t_arr[i].split("");
+		                        t_arr[i] = en_sort(tmp_arr);
+		                        break;
+		                    }
+		                }
+		            }
+		            t_arr.reverse();
+		            var rt:String = "";
+		            for (i = 0; i<t_arr.length; i++) 
+		            {
+		                h_arr[i] != undefined ? rt += t_arr[i]+h_arr[i] : "";
+		            }
+		            tt_arr[ii] = rt;
+		        }
+		        return tt_arr.join("\r");
+		    }
+		    
+	    	private function en_sort(_arr:Array):String 
+	    	{
+	    		var i:int;
+	    		var j:int;
+		        var end_arr:Array = [];
+		        var tmp_arr:Array = [];
+		        var tmp1_arr:Array = [];
+		        var tmp_str:String = "";
+		        var r_arr:Array = _arr;
+		        if (r_arr.length>1) 
+		        {
+		            for (i = 0; i<_arr.length; i++) 
+		            {
+		                if (r_arr[i] == " " || r_arr[i] == ":" || r_arr[i] == ";" || r_arr[i] == "-" || r_arr[i] == "," || r_arr[i] == "." || r_arr[i] == "\"" || r_arr[i] == "?" || r_arr[i] == "!") 
+		                {
+		                    for (j = i; (r_arr[j] == " " || r_arr[j] == ":" || r_arr[j] == ";" || r_arr[j] == "-" || r_arr[j] == "," || r_arr[j] == "." || r_arr[j] == "\"" || r_arr[j] == "?" || r_arr[j] == "!") && j<r_arr.length; j++) 
+		                    {
+		                        tmp_arr.push(r_arr.splice(j, 1, "%"));
+		                        i++;
+		                    }
+		                    tmp_arr.reverse();
+		                    tmp_str = tmp_arr.join("");
+		                    tmp1_arr.splice(0, 1, r_arr.join(""));
+		                    tmp_arr.splice(0);
+		                }
+		                end_arr.push(tmp_str);
+		                end_arr.reverse();
+		                tmp_str = "";
+		            }
+		            tmp1_arr = tmp1_arr.toString().split("");
+		            for (i = 0; i<tmp1_arr.length; i++) 
+		            {
+		                if (tmp1_arr[i] == "%" && tmp1_arr[i+1] == "%") 
+		                {
+		                    tmp1_arr.splice(i+1, 1);
+		                    i--;
+		                }
+		            }
+		            for (i = 0; i<tmp1_arr.length; i++) 
+		            {
+		                if (tmp1_arr[i] == "%") 
+		                {
+		                    tmp1_arr[i] = end_arr.splice(0, 1);
+		                }
+		            }
+		            tmp_str = tmp1_arr.join("");
+		        } 
+		        else 
+		        {
+		            tmp_str = r_arr.join("");
+		        }
+		        return tmp_str;
+		    }
+    
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	
+</s:Group>

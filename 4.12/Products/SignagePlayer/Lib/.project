@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>SignagePlayerLib</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>com.adobe.flexbuilder.project.flexbuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>com.adobe.flexbuilder.project.flexlibnature</nature>
+		<nature>com.adobe.flexbuilder.project.actionscriptnature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>[source path] AdvertisingService-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/AdvertisingService/core</location>
+		</link>
+		<link>
+			<name>[source path] AdvertisingService-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/AdvertisingService/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] CachingService-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/CachingService/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] CatalogService-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/CatalogService/core</location>
+		</link>
+		<link>
+			<name>[source path] CatalogService-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/CatalogService/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] CryptoService-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/CryptoService/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] DBManager-Core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/DBManager/Core</location>
+		</link>
+		<link>
+			<name>[source path] DebugLog-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/DebugLog/core</location>
+		</link>
+		<link>
+			<name>[source path] DebugLog-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/DebugLog/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] ERILib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/ERILib</location>
+		</link>
+		<link>
+			<name>[source path] Editor-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Editor/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Framework-Core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Framework/Core</location>
+		</link>
+		<link>
+			<name>[source path] Framework-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Framework/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] GuiLib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/GuiLib</location>
+		</link>
+		<link>
+			<name>[source path] GuiSpark</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/GuiSpark</location>
+		</link>
+		<link>
+			<name>[source path] LoaderManager-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/LoaderManager/core</location>
+		</link>
+		<link>
+			<name>[source path] LoaderManager-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/LoaderManager/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] ModuleService-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/core</location>
+		</link>
+		<link>
+			<name>[source path] ModuleService-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Persistent-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/Persistent/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Player-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Player/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Player-Lib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Player/Lib</location>
+		</link>
+		<link>
+			<name>[source path] PlayerService-Core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/PlayerService/Core</location>
+		</link>
+		<link>
+			<name>[source path] PlayerService-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/PlayerService/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] PostServiceLib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/PostServiceLib</location>
+		</link>
+		<link>
+			<name>[source path] PropertyService-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/PropertyService/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] StateManager-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/StateManager/core</location>
+		</link>
+		<link>
+			<name>[source path] StateManager-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/StateManager/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] StyleService-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/StyleService/core</location>
+		</link>
+		<link>
+			<name>[source path] StyleService-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/StyleService/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] ViewerService-Lib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/ViewerService/Lib</location>
+		</link>
+	</linkedResources>
+</projectDescription>

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<actionScriptProperties analytics="false" mainApplicationPath="SignagePlayerDesktopApp.mxml" projectUUID="dacada7b-8ea7-450a-8808-d795d58a65ca" version="10">
+  <compiler additionalCompilerArguments="-includes=mx.managers.systemClasses.MarshallingSupport" autoRSLOrdering="false" copyDependentFiles="false" flex3CompatMode="false" fteInMXComponents="false" generateAccessible="false" htmlExpressInstall="true" htmlGenerate="false" htmlHistoryManagement="false" htmlPlayerVersionCheck="true" includeNetmonSwc="false" outputFolderLocation="C:/MediaSignageDepot/Solution/4.12/Build/Master/Code/desktop_d" outputFolderPath="bin-debug" removeUnusedRSL="false" strict="true" targetPlayerVersion="0.0.0" useApolloConfig="true" useDebugRSLSwfs="false" verifyDigests="false" warn="true">
+    <compilerSourcePath>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Framework/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Framework/Core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/Persistent/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/Persistent/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/Air"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/DBManager/Core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/LoaderManager/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/LoaderManager/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StateManager/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StateManager/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Player/Lib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/LocalCommunication/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/LocalCommunication/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Player/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Products/SignagePlayer/Lib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StationService/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StationService/Core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/CryptoLib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/CryptoService/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/CryptoService/Core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/CampaignBoardPicker"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/DebugLog/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/DebugLog/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Editor/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/PropertyService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/RssService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/RssService/Lib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/RssService/Air"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StyleService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StyleService/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StyleService/Air"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Rc4Lib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/WatchDog/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/WatchDog/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/PostServiceLib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/CatalogService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/CatalogService/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/ViewerService/Lib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/PlayerService/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/PlayerService/Core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/PlayerService/Air"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/ERILib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/AdvertisingService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/AdvertisingService/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/CachingService/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/CachingService/Air"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Products/SignagePlayer/Air"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/GuiLib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/GuiSpark"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/WebServer/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/WebServer/Air"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/NativeExtension/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/NativeExtension/Core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/ZWaveService/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/ZWaveService/Air"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/ZWaveService/Desktop"/>
+    </compilerSourcePath>
+    <libraryPath defaultLinkType="1">
+      <libraryPathEntry kind="1" linkType="1" path="libs"/>
+      <libraryPathEntry kind="4" path=""/>
+      <libraryPathEntry kind="3" linkType="1" path="${PROJECT_FRAMEWORKS}/libs/mobile/mobilecomponents.swc" useDefaultLinkType="false"/>
+      <libraryPathEntry kind="3" linkType="1" path="${PROJECT_FRAMEWORKS}/themes/Mobile/mobile.swc" useDefaultLinkType="false"/>
+      <libraryPathEntry kind="5" linkType="2" path="C:/MediaSignageDepot/Solution/4.12/Packages/NativeExtension/Bin/digitalSignage.ane"/>
+    </libraryPath>
+    <sourceAttachmentPath/>
+  </compiler>
+  <applications>
+    <application path="SignagePlayerDesktopApp.mxml">
+      <airExcludes/>
+    </application>
+  </applications>
+  <modules/>
+  <buildCSSFiles>
+    <buildCSSFileEntry destPath="bin-debug" sourcePath="SignagePlayerStyle.css"/>
+    <buildCSSFileEntry destPath="bin-debug" sourcePath="SignagePlayerAir.css"/>
+    <buildCSSFileEntry destPath="bin-debug" sourcePath="PlayerStyles.css"/>
+  </buildCSSFiles>
+  <flashCatalyst validateFlashCatalystCompatibility="false"/>
+  <buildTargets>
+    <buildTarget buildTargetName="default">
+      <airSettings airCertificatePath="C:/MediaSignageDepot/Certificate/Signage.p12" airTimestamp="true" anePathSet="true" version="1">
+        <airExcludes/>
+        <anePaths>
+          <anePathEntry path="C:/MediaSignageDepot/Solution/4.12/Packages/NativeExtension/Bin/digitalSignage.ane"/>
+        </anePaths>
+      </airSettings>
+      <actionScriptSettings version="1"/>
+    </buildTarget>
+  </buildTargets>
+</actionScriptProperties>

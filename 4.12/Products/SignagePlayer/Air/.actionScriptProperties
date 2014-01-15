@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<actionScriptProperties analytics="false" mainApplicationPath="SignagePlayerAir.as" projectUUID="28ddaabf-00c7-486b-b78c-8bc7aa664b1b" version="10">
+  <compiler additionalCompilerArguments="-locale en_US" autoRSLOrdering="true" copyDependentFiles="false" flex3CompatMode="false" fteInMXComponents="false" generateAccessible="false" htmlExpressInstall="true" htmlGenerate="false" htmlHistoryManagement="false" htmlPlayerVersionCheck="true" includeNetmonSwc="false" outputFolderPath="bin" removeUnusedRSL="true" strict="true" targetPlayerVersion="0.0.0" useApolloConfig="true" useDebugRSLSwfs="true" verifyDigests="true" warn="true">
+    <compilerSourcePath>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Framework/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Framework/Core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/Persistent/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/Persistent/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/Air"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/DBManager/Core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/LoaderManager/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/LoaderManager/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StateManager/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StateManager/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Player/Lib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/LocalCommunication/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/LocalCommunication/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Player/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Products/SignagePlayer/Lib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StationService/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StationService/Core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/CryptoLib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/CryptoService/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/CryptoService/Core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/CampaignBoardPicker"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/DebugLog/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/DebugLog/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Editor/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/PropertyService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/RssService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/RssService/Lib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/RssService/Air"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StyleService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StyleService/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StyleService/Air"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Rc4Lib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/WatchDog/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/WatchDog/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/PostServiceLib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/CatalogService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/CatalogService/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/ViewerService/Lib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/PlayerService/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/PlayerService/Core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/PlayerService/Air"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/ERILib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/AdvertisingService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/AdvertisingService/core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/CachingService/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/CachingService/Air"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/GuiLib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/GuiSpark"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/WebServer/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/WebServer/Air"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/NativeExtension/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/NativeExtension/Core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/ZWaveService/Interfaces"/>
+    </compilerSourcePath>
+    <libraryPath defaultLinkType="0">
+      <libraryPathEntry kind="4" path="">
+        <modifiedEntries>
+          <libraryPathEntry kind="3" linkType="1" path="${PROJECT_FRAMEWORKS}/libs/authoringsupport.swc" useDefaultLinkType="false"/>
+          <libraryPathEntry kind="3" linkType="1" path="${PROJECT_FRAMEWORKS}/libs/flash-integration.swc" useDefaultLinkType="false"/>
+          <libraryPathEntry applicationDomain="default" forceLoad="false" index="9" kind="3" linkType="4" path="${PROJECT_FRAMEWORKS}/libs/osmf.swc" useDefaultLinkType="true">
+            <crossDomainRsls>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="" rslUrl="osmf_1.0.0.16316.swf"/>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="http://fpdownload.adobe.com/pub/swz/crossdomain.xml" rslUrl="http://fpdownload.adobe.com/pub/swz/flex/4.6.0.23043/osmf_1.0.0.16316.swf"/>
+            </crossDomainRsls>
+          </libraryPathEntry>
+        </modifiedEntries>
+        <excludedEntries>
+          <libraryPathEntry kind="3" linkType="1" path="${PROJECT_FRAMEWORKS}/libs/flex.swc" useDefaultLinkType="false"/>
+          <libraryPathEntry applicationDomain="default" forceLoad="false" index="10" kind="3" linkType="4" path="${PROJECT_FRAMEWORKS}/libs/advancedgrids.swc" useDefaultLinkType="true">
+            <crossDomainRsls>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="" rslUrl="advancedgrids_4.6.0.23043.swf"/>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="http://fpdownload.adobe.com/pub/swz/crossdomain.xml" rslUrl="http://fpdownload.adobe.com/pub/swz/flex/4.6.0.23043/advancedgrids_4.6.0.23043.swf"/>
+            </crossDomainRsls>
+          </libraryPathEntry>
+          <libraryPathEntry applicationDomain="default" forceLoad="false" index="8" kind="3" linkType="4" path="${PROJECT_FRAMEWORKS}/libs/mx/mx.swc" useDefaultLinkType="true">
+            <crossDomainRsls>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="" rslUrl="mx_4.6.0.23043.swf"/>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="http://fpdownload.adobe.com/pub/swz/crossdomain.xml" rslUrl="http://fpdownload.adobe.com/pub/swz/flex/4.6.0.23043/mx_4.6.0.23043.swf"/>
+            </crossDomainRsls>
+          </libraryPathEntry>
+          <libraryPathEntry kind="3" linkType="1" path="${PROJECT_FRAMEWORKS}/libs/core.swc" useDefaultLinkType="false"/>
+          <libraryPathEntry applicationDomain="default" forceLoad="false" index="7" kind="3" linkType="4" path="${PROJECT_FRAMEWORKS}/libs/spark_dmv.swc" useDefaultLinkType="true">
+            <crossDomainRsls>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="" rslUrl="spark_dmv_4.6.0.23043.swf"/>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="http://fpdownload.adobe.com/pub/swz/crossdomain.xml" rslUrl="http://fpdownload.adobe.com/pub/swz/flex/4.6.0.23043/spark_dmv_4.6.0.23043.swf"/>
+            </crossDomainRsls>
+          </libraryPathEntry>
+        </excludedEntries>
+      </libraryPathEntry>
+      <libraryPathEntry kind="3" linkType="1" path="${PROJECT_FRAMEWORKS}/libs/mobile/mobilecomponents.swc" useDefaultLinkType="false"/>
+      <libraryPathEntry kind="3" linkType="1" path="${PROJECT_FRAMEWORKS}/themes/Mobile/mobile.swc" useDefaultLinkType="false"/>
+    </libraryPath>
+    <sourceAttachmentPath/>
+  </compiler>
+  <applications>
+    <application path="SignagePlayerAir.as"/>
+  </applications>
+  <modules/>
+  <buildCSSFiles/>
+  <flashCatalyst validateFlashCatalystCompatibility="false"/>
+</actionScriptProperties>

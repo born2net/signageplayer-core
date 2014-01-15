@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*">
+	
+	<fx:Script>
+		<![CDATA[
+			//M??? import mx.controls.Label;
+
+			protected var m_url:String;
+			protected var m_cachingService:ICachingService;
+			
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/	
+			public override function clear():void
+			{
+				super.clear();
+				m_url = null;
+				showBlockInfo(null);
+			}
+			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.LINK.@src).length()>0)
+				{
+					m_url = XML(i_data.LINK.@src).toString();
+				}
+				invalidateProperties();
+			}
+			 
+			public override function save():XML
+			{
+				var xmlLink:XML = <LINK/>;
+				xmlLink.@src = m_url;
+				return xmlLink; 
+			}		
+			
+			
+			public function get url():String
+			{
+				return m_url;
+			}
+
+			public function set url(i_url:String):void
+			{
+				m_playerLoader.modified = true;
+				m_url = i_url;
+				invalidateProperties();
+			}
+			
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_cachingService = m_framework.ServiceBroker.QueryService("CachingService") as ICachingService;
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				showBlockInfo((m_url==null) ? "[Empty]" : null );
+			} 
+			
+			
+			protected function get source():String
+			{
+				if (m_cachingService!=null && m_url!=null)
+				{
+					var fileName:String = m_cachingService.generateFileName(m_url);
+					var cachingItem:ICachingItem = m_cachingService.getCachingItem("Caching", fileName);
+					cachingItem.url = m_url;
+					cachingItem.expireDuration = 60 * 60 * 24 * 30;  // this file will be deleted if not been used for 30 days.
+					if (isNaN(cachingItem.lastDownload) || cachingItem.lastDownload>60) // download new file if it's older then 1 hour
+					{
+						cachingItem.cache(true);
+					} 
+					return cachingItem.source;
+				}
+				else
+				{
+					return m_url;
+				}
+			}
+			
+		]]>
+	</fx:Script>	
+</ms:PlayerModule>	

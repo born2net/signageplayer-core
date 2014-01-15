@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:ms="*"
+		 borderVisible="false" backgroundAlpha="0"
+		 addedToStage="init()"
+		 width="100%" height="100%">
+	<fx:Script>
+		<![CDATA[
+			import flash.display.DisplayObject;
+			import flash.events.ErrorEvent;
+			import flash.events.Event;
+			import flash.events.MouseEvent;
+			import flash.events.TimerEvent;
+			import flash.system.ApplicationDomain;
+			import flash.system.Capabilities;
+			import flash.utils.Timer;
+			
+			import mx.charts.AreaChart;
+			import mx.charts.BarChart;
+			import mx.charts.BubbleChart;
+			import mx.charts.CandlestickChart;
+			import mx.charts.ColumnChart;
+			import mx.charts.HLOCChart;
+			import mx.charts.Legend;
+			import mx.charts.LineChart;
+			import mx.charts.PieChart;
+			import mx.charts.PlotChart;
+			import mx.charts.series.AreaSeries;
+			import mx.charts.series.BarSeries;
+			import mx.charts.series.BubbleSeries;
+			import mx.charts.series.CandlestickSeries;
+			import mx.charts.series.ColumnSeries;
+			import mx.charts.series.HLOCSeries;
+			import mx.charts.series.LineSeries;
+			import mx.charts.series.PieSeries;
+			import mx.charts.series.PlotSeries;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.Application;
+			import spark.components.DataGrid;
+			import spark.components.DropDownList;
+			import spark.components.Form;
+			import spark.components.FormHeading;
+			import spark.components.FormItem;
+			import spark.components.HSlider;
+			import spark.components.NumericStepper;
+			import spark.components.RadioButton;
+			import spark.components.TextArea;
+			import spark.components.TitleWindow;
+			import spark.components.ToggleButton;
+			import spark.components.VideoDisplay;
+			import spark.skins.spark.FormHeadingSkin;
+			import spark.skins.spark.FormItemSkin;
+			import spark.skins.spark.FormSkin;
+			import spark.skins.spark.SkinnableContainerSkin;
+			import spark.skins.spark.TitleWindowSkin;
+			
+			
+			//???!!! workaround SDK 4.6
+			private var m_test1:HSlider;
+			private var m_test2:NumericStepper;
+			private var m_test3:TitleWindow; 
+			private var m_test4:TitleWindowSkin;
+			
+			private var m_test5:Form;
+			private var m_test6:FormSkin;
+			private var m_test6_1:FormHeading;
+			private var m_test6_2:FormHeadingSkin;
+			private var m_test7:FormItem;
+			private var m_test8:FormItemSkin;
+			private var m_test9:SkinnableContainerSkin;
+			private var m_test11:TextArea;
+			private var m_test12:RadioButton;
+			private var m_test16:ToggleButton;
+			private var m_test19:DataGrid;
+			private var m_test20:VideoDisplay;
+			private var m_test25:DropDownList;
+			private var m_test30:Legend;
+			private var m_test31:PieChart; 
+			private var m_test32:AreaChart;
+			private var m_test33:BarChart;
+			private var m_test34:ColumnChart;
+			private var m_test35:LineChart;
+			private var m_test36:PlotChart;
+			private var m_test37:BubbleChart;
+			private var m_test38:CandlestickChart;
+			private var m_test39:HLOCChart; 
+			private var m_test40:PieSeries;
+			private var m_test41:AreaSeries;
+			private var m_test42:BarSeries;
+			private var m_test43:ColumnSeries;
+			private var m_test44:LineSeries;
+			private var m_test45:PlotSeries;
+			private var m_test46:BubbleSeries;
+			private var m_test47:CandlestickSeries;
+			private var m_test48:HLOCSeries;
+			
+			
+			
+			
+			protected var m_framework:IFramework;
+			protected var m_debugLog:IDebugLog;
+			protected var m_moduleService:ModuleService;
+			protected var m_dataBaseManager:DataBaseManager;
+			protected var m_styleService:IStyleService;
+			protected var m_loaderManager:LoaderManager;
+			protected var m_resourceService:IResourceService;
+			protected var m_playerLoaderService:IPlayerLoaderService;
+			protected var m_playerEventService:IPlayerEventService;
+			protected var m_advertisingService:IAdvertisingService;
+			protected var m_catalogService:CatalogService;
+			
+			protected var m_playerTransitionService:IPlayerTransitionService;
+			
+			protected var m_applicationDomain:ApplicationDomain;
+			
+			
+			protected var m_masterServerUrl:String;
+
+			
+			
+			protected var m_campaignBoardPlayer:CampaignBoardPlayer;
+			protected var m_debug:Boolean = false;
+			protected var m_environment:String;
+			
+			
+			protected var m_campaign_board_id:int = -1;
+			protected var m_campaign_id:int = -1;
+			protected var m_board_id:int = -1;
+			
+
+			
+			protected var m_pleaseWait:PleaseWait;
+			
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			protected function init():void
+			{
+				m_framework = new Framework();
+				m_applicationDomain = ApplicationDomain.currentDomain; 
+				m_framework.StateBroker.SetState(this, "ApplicationDomain", m_applicationDomain);
+				
+				m_dataBaseManager = new DataBaseManager();
+				m_framework.ServiceBroker.RegisterService("DataBaseManager", m_dataBaseManager);
+				
+				m_moduleService = createModuleService();
+				m_framework.ServiceBroker.RegisterService("ModuleService", m_moduleService);
+				
+				m_styleService = createStyleService();
+				m_framework.ServiceBroker.RegisterService("StyleService", m_styleService);
+				
+				
+				m_catalogService = new CatalogService(m_framework);
+				m_framework.ServiceBroker.RegisterService("CatalogService", m_catalogService);
+				
+				
+				m_playerTransitionService = createPlayerTransitionService();
+				m_framework.ServiceBroker.RegisterService("PlayerTransitionService", m_playerTransitionService);
+
+				
+				if (loaderInfo!=null)
+				{
+					loaderInfo.uncaughtErrorEvents.addEventListener(UncaughtErrorEvent.UNCAUGHT_ERROR, uncaughtErrorHandler);
+				}
+			}
+			
+			
+			private function uncaughtErrorHandler(event:UncaughtErrorEvent):void
+			{
+				if ((event.error is SecurityError))
+				{
+					event.preventDefault();
+					return;
+				}
+				
+				if (event.error is Error)
+				{
+					var error:Error = event.error as Error;
+					
+					
+					
+					if (error.errorID==2099) 	// The loading object is not sufficiently loaded to provide this information
+					{
+						event.preventDefault();
+						return;
+					}
+					
+					if (error.errorID==2036)  // Load Never Completed
+					{
+						// I saw it happend when icons on timeline never finish to load
+						// but It might be call on other cases 
+						// so not sure if I need to call event.preventDefault();
+						// and prevent the re-try in other places
+						return;    
+					}
+					
+					
+					try
+					{
+						DebugLog(m_debugLog).setStackTrace( error.getStackTrace() );
+					}
+					catch(e:Error)
+					{
+						//Ignore
+					}
+					
+					m_debugLog.addError("SignagePlayer Error:\n" + error.message);
+				}
+				else if (event.error is ErrorEvent)
+				{
+					var errorEvent:ErrorEvent = event.error as ErrorEvent;
+					
+					if (errorEvent is IOErrorEvent) 
+					{
+						event.preventDefault();
+						return;
+					}
+					
+					m_debugLog.addError("ErrorEvent:\n" + errorEvent.text);
+				}
+				else
+				{
+					// a non-Error, non-ErrorEvent type was thrown and uncaught
+				}
+			}			
+			
+			
+			protected function createModuleService():ModuleService
+			{
+				var debug:Boolean = false;
+				return new ModuleService(m_framework, m_applicationDomain, debug); //M???
+			}
+			
+			protected function createStyleService():StyleService
+			{
+				return null;
+			}
+			
+			
+			protected function createCachingService():ICachingService
+			{
+				return null;
+			}
+			
+			protected function createResourceService():IResourceService
+			{
+				return null; 
+			} 
+			
+			
+			protected function createPlayerLoaderService():IPlayerLoaderService
+			{
+				return new PlayerLoaderService(m_framework); 
+			} 
+			
+			protected function createPlayerEventService():IPlayerEventService
+			{
+				return new PlayerEventService(m_framework);
+			}
+			
+			protected function createPlayerTransitionService():IPlayerTransitionService
+			{
+				return new PlayerTransitionService(m_framework); 
+			} 
+			
+			protected function createLoaderManager():LoaderManager
+			{
+				return new LoaderManager(m_framework, false);
+			}
+
+			
+			
+			public function setBusinessParams(	i_sourceId:int,
+												i_businessId:int,
+												i_businessName:String,
+												i_businessDomain:String,
+												i_businessDbName:String):void
+			{
+				m_framework.StateBroker.SetState(this, "sourceId", i_sourceId);
+				m_framework.StateBroker.SetState(this, "businessId", i_businessId);
+				m_framework.StateBroker.SetState(this, "businessName", i_businessName);
+				m_framework.StateBroker.SetState(this, "businessDomain", i_businessDomain);
+				m_framework.StateBroker.SetState(this, "businessDbName", i_businessDbName);
+			}
+			
+			
+			protected function setToMyBusiness():void
+			{
+				m_debugLog.addInfo("setToMyBusiness");
+				var businessDomain:String = m_framework.StateBroker.GetState("businessDomain") as String;
+				var businessDbName:String = String(m_framework.StateBroker.GetState("businessDbName"));
+				var businessId:int = int(m_framework.StateBroker.GetState("businessId"));
+				var businessResource:String = businessDomain + "/Resources/";
+				m_loaderManager.selectDomainBusiness(businessDomain, businessId);
+				m_resourceService.selectDomainBusiness(businessDomain, businessId);
+			}
+			
+			
+			public function reqData():void
+			{
+				m_debugLog.addInfo("SignagePlayerBase.reqData()");
+				var businessId:int = int(m_framework.StateBroker.GetState("businessId"));
+				var branchStationId:int = int(m_framework.StateBroker.GetState("branchStationId"));
+				m_advertisingService.requestBusinessAds(businessId, branchStationId,  onAdsAndData, null);
+			}		
+			
+			private function onAdsAndData(i_result:Boolean, i_callbackData:Object):void
+			{
+				reqData2();
+			}
+				
+			
+			protected function reqData2():void
+			{
+				m_debugLog.addInfo("SignagePlayerBase.reqData2()");
+				var tableRequest:ITableRequest = m_loaderManager.CreateTableRequest();
+				tableRequest.add("board_templates", "board_id="+m_board_id);	
+				tableRequest.add("board_template_viewers", ""); //???board_pc_browser_id="+m_board_pc_browser_id
+				tableRequest.add("resources", "");
+				tableRequest.add("ad_local_packages", "");
+				tableRequest.add("ad_local_contents", "");
+				tableRequest.add("catalog_items", "");
+				tableRequest.add("catalog_item_infos", ""); //??? need to be on demand only! 
+				tableRequest.add("catalog_item_resources", "");
+				tableRequest.add("category_values", "");
+				tableRequest.add("catalog_item_categories", "");
+				tableRequest.add("boards", "");
+				tableRequest.add("campaign_boards", "");
+				tableRequest.add("campaigns", "campaign_id="+m_campaign_id);
+				tableRequest.add("campaign_events", "campaign_id="+m_campaign_id);
+				tableRequest.add("campaign_timelines", "campaign_id="+m_campaign_id);	
+				tableRequest.add("campaign_timeline_board_templates", "campaign_board_id="+m_campaign_board_id);
+				tableRequest.add("campaign_timeline_board_viewer_chanels", "");
+				tableRequest.add("campaign_timeline_chanels", "");	
+				tableRequest.add("campaign_timeline_chanel_players", "");
+				tableRequest.add("campaign_timeline_schedules", ""); //??? only for campaign_id (need inner join)
+				tableRequest.add("campaign_timeline_sequences", "campaign_id="+m_campaign_id);
+				tableRequest.add("player_data", "");
+				//ZWave ???tableRequest.add("scripts", "");
+				tableRequest.add("music_channels", "");
+				tableRequest.add("music_channel_songs", "");
+				
+				tableRequest.add("campaign_channels", "");
+				tableRequest.add("campaign_channel_players", "");
+				tableRequest.add("campaign_timeline_board_viewer_channels", "");
+				
+				setToMyBusiness();
+				m_loaderManager.persistRequest("output"+m_campaign_board_id.toString(), "campaign_board_details", tableRequest, false, false, true, true, onTableData2);
+			}
+			
+			
+			protected function onTableData2(i_transaction:ITransaction):void
+			{
+				if (m_debugLog)
+				{
+					m_debugLog.addInfo("SignagePlayerBase.onTableData2()");
+				}
+				initTableData();
+			}
+			
+			protected function initTableData():void
+			{
+				ResourceService(m_resourceService).update();
+				m_campaignBoardPlayer.initTableData();
+			}
+			
+			protected function start():void
+			{
+				m_campaignBoardPlayer.start();
+			}
+
+			protected function stop():void
+			{
+				m_campaignBoardPlayer.stop();
+				m_advertisingService.flushStats();
+			}
+			
+			
+			
+			
+			
+			
+			public function dispose():void
+			{
+				if (loaderInfo!=null)
+				{
+					loaderInfo.uncaughtErrorEvents.removeEventListener(UncaughtErrorEvent.UNCAUGHT_ERROR, uncaughtErrorHandler);
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+</s:BorderContainer>

@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"
+	label="Collection"
+	width="100%" height="100%" xmlns:Accordion="Accordion.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			import mx.events.CollectionEvent;
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				addEventListener("event_select_page_begin", onSelectPageBegin );
+				addEventListener("event_select_page_end", onSelectPageEnd );
+			}
+			
+			private function onSelectPageBegin(event:Event):void
+			{
+				accordion.selectedIndex = 1;
+			}
+
+			private function onSelectPageEnd(event:Event):void
+			{
+				accordion.selectedIndex = 2;
+			}
+
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				
+				if (m_playerLoader.player==null)
+					return;
+				
+				var viewList:XMLListCollection = BlockCollectionPlayer(m_playerLoader.player).viewList;
+				collectionCtrl.init(viewList);
+				
+				for each(var item:Object in ArrayList(modeCombo.dataProvider).source)
+				{
+					if (item.name==BlockCollectionPlayer(m_playerLoader.player).mode)
+					{
+						modeCombo.selectedItem = item;
+						break;
+					}
+				}
+				currentState = modeCombo.selectedItem.name;
+				updateMode();
+			}
+			
+			private function onMode():void
+			{
+				currentState = modeCombo.selectedItem.name;
+				BlockCollectionPlayer(m_playerLoader.player).mode = currentState;
+				updateMode();
+			}
+			
+			private function updateMode():void
+			{
+				var mode:String = BlockCollectionPlayer(m_playerLoader.player).mode;
+				if (mode=="slideshow")
+				{
+					durationForm.visible = true;
+					if (durationCtrl!=null)
+					{
+						durationCtrl.value = BlockCollectionPlayer(m_playerLoader.player).duration;
+					}
+					if (accordion.containsElement(eventsCtrl))
+					{
+						var index:int = accordion.getItemIndex(eventsCtrl);
+						accordion.removeItemAt(index);
+					}
+				}
+				else
+				{
+					durationForm.visible = false;
+					if (accordion.contains(eventsCtrl)==false)
+					{
+						accordion.addItem(eventsCtrl);
+					}
+					
+					eventsCtrl.editor = m_playerLoader;
+				}
+			}
+			
+			private function onDuration():void
+			{
+				BlockCollectionPlayer(m_playerLoader.player).duration = durationCtrl.value;
+			}
+			
+			private function onEventsCtrlInit():void
+			{
+				eventsCtrl.editor = m_playerLoader;
+			}
+			
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<ms:CollectionEventsCtrl id="eventsCtrl" width="100%" height="100%"
+								 creationComplete="onEventsCtrlInit()"/>
+	</fx:Declarations>
+	
+	<ms:states>
+		<s:State name="kiosk"/>
+		<s:State name="slideshow"/>
+	</ms:states>
+
+	<Accordion:SparkAccordion id="accordion" width="100%" height="100%">
+		<s:NavigatorContent label="General" width="100%" height="100%">
+			<s:Form id="generalForm">
+				<s:FormItem label="Mode">
+					<s:DropDownList id="modeCombo" labelField="label" width="100"
+									change="onMode()">
+						<s:dataProvider>
+							<s:ArrayList>
+								<fx:Object name="kiosk" label="Kiosk"/>
+								<fx:Object name="slideshow" label="Slideshow"/>
+							</s:ArrayList>
+						</s:dataProvider>
+					</s:DropDownList>
+				</s:FormItem>
+				<s:FormItem width="100%" id="durationForm" label="Default duration">
+					<ms:NumericStepperEx id="durationCtrl" minimum="2" maximum="999"
+										 change="onDuration()"/>
+				</s:FormItem>			
+			</s:Form>
+		</s:NavigatorContent>
+	
+		<ms:CollectionCtrl id="collectionCtrl" width="100%" height="100%"/>
+		
+	</Accordion:SparkAccordion>
+</ms:PlayerPage>	
+

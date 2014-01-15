@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:SignagePlayerBase xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"
+			   mouseMove="onMouseMove(event)">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.core.FlexGlobals;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			protected var m_rssService:IRssService;
+			protected var m_viewerService:IViewerService;
+			
+			private var m_GetBusinessInfo:PostService;
+			
+			private var m_banner:Boolean = false;
+			
+			private var m_boardCampaignId:int = -1;
+			
+			
+			
+			public function set framework(i_framework:IFramework):void
+			{
+				m_framework = i_framework;
+			}
+			
+			public function get framework():IFramework
+			{
+				return m_framework;
+			}
+
+			
+			protected override function createResourceService():IResourceService
+			{
+				return new ResourceService(m_framework); 
+			}
+			
+			protected override function createStyleService():StyleService
+			{
+				return new StyleService(m_framework, false);
+			}
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			
+			protected override function init():void
+			{
+				super.init();
+				
+				m_framework.StateBroker.SetState(this, "topWindow", this);
+				
+				var url:String = systemManager.loaderInfo.loaderURL;
+				
+				if (FlexGlobals.topLevelApplication.parameters.banner!=null && FlexGlobals.topLevelApplication.parameters.banner=="1")
+				{
+					btnFullScreen.visible = false;
+					m_banner = true;
+				}
+				
+				var masterUrl:String = null;
+				
+				ERI.decrypt(FlexGlobals.topLevelApplication.parameters.eri);
+				masterUrl = "http://" + ERI.domain + "/";
+				
+				
+				m_framework.StateBroker.SetState(this, "MasterUrl", masterUrl);
+				
+				m_masterServerUrl = masterUrl + "WebService/";
+				
+				m_debugLog = new DebugLog(m_framework, Capabilities.isDebugger);
+				m_debugLog.setParam("application", "SignagePlayerWeb");
+				if (stage!=null)
+				{
+					try
+					{
+						DebugLog(m_debugLog).initDebug(stage);
+					}
+					catch(err:Error)
+					{
+						// Ignore
+					}					
+				}				
+				framework.ServiceBroker.RegisterService("DebugLog", m_debugLog);
+				
+				m_rssService = new RssServiceWeb(m_masterServerUrl);
+				m_framework.ServiceBroker.RegisterService("RssService", m_rssService);
+				
+				crossdomain();				
+				
+				framework.EventBroker.addEventListener("event_module_service_ready", onModuleServiceReady);
+				
+				m_campaignBoardPlayer = new CampaignBoardPlayerWeb(m_framework, mainWindow, true);
+				
+				m_viewerService = m_framework.ServiceBroker.QueryService("ViewerService") as IViewerService;
+				var screensRect:Rectangle = m_banner ?
+					new Rectangle(0, 0, width, height) :
+					new Rectangle(0, 0, Capabilities.screenResolutionX, Capabilities.screenResolutionY);
+				m_viewerService.setTotalRect(screensRect);
+				
+				
+				m_GetBusinessInfo = new PostService(m_masterServerUrl+"LoginService.asmx", "GetBusinessInfo2", "i_businessId");
+				m_GetBusinessInfo.addEventListener(ResultEvent.RESULT, onBusinessInfoResult);
+				m_GetBusinessInfo.addEventListener(FaultEvent.FAULT, onBusinessInfoFail);
+				
+				
+				
+				var encrypt:String = FlexGlobals.topLevelApplication.parameters.playerParams;
+				var playerParams:String = RC4.decrypt(encrypt, "8547963624824263");
+				var params:Array = playerParams.split(",");
+				
+				
+				var businessId:int = params[0];
+				m_boardCampaignId = params[8];
+				m_GetBusinessInfo.call(businessId);
+			}
+			
+			private function onBusinessInfoFail(event:FaultEvent):void
+			{
+			}
+			
+			private function onBusinessInfoResult(event:ResultEvent):void
+			{
+				var xmlBusinessInfo:XML = new XML(event.result);
+				
+				m_moduleService.setAppStoreList(xmlBusinessInfo.Apps.App);	
+				
+				if (XMLList(xmlBusinessInfo.ResellerInfo.BusinessInfo).length()>0)
+				{
+					m_framework.StateBroker.SetState(this, "resellerInfo", XML(xmlBusinessInfo.ResellerInfo.BusinessInfo[0]));
+				}				
+				
+				var xmlResellerInfo:XML = m_framework.StateBroker.GetState("resellerInfo") as XML;
+				if (XMLList(xmlResellerInfo.InstalledApps).length()>0)
+				{
+					m_moduleService.registerAppList(xmlResellerInfo.InstalledApps[0]);
+				}
+				else
+				{
+					m_moduleService.registerAppList(AppStore.installedApps);
+				}	
+				
+				
+				var businessDomain:String = xmlBusinessInfo.SourceInfo.@businessDomain;
+				var businessId:int = int(xmlBusinessInfo.@businessId);
+				
+				m_moduleService.init(businessDomain, "1.0"); //???
+				
+				m_dataBaseManager.createDataBase(businessDomain, businessId);
+				
+				var styleService:StyleService = m_framework.ServiceBroker.QueryService("StyleService") as StyleService;
+				
+				if (XMLList(xmlBusinessInfo.Weathers).length()>0)
+				{
+					styleService.setWeathers(xmlBusinessInfo.Weathers.*)
+				}
+				
+				
+				setBusinessParams(
+					int(xmlBusinessInfo.SourceInfo.@id),
+					int(xmlBusinessInfo.@businessId),
+					String(xmlBusinessInfo.@name),
+					String(xmlBusinessInfo.SourceInfo.@businessDomain),
+					String(xmlBusinessInfo.SourceInfo.@businessDbName));
+				
+				m_resourceService = createResourceService();
+				m_framework.ServiceBroker.RegisterService("ResourceService", m_resourceService);
+				
+				m_playerLoaderService = createPlayerLoaderService();
+				m_framework.ServiceBroker.RegisterService("PlayerLoaderService", m_playerLoaderService);
+				
+				
+				m_loaderManager = createLoaderManager();
+				m_framework.ServiceBroker.RegisterService("LoaderManager", m_loaderManager);
+				
+				m_campaignBoardPlayer.init();
+				
+				StyleService(m_styleService).m_baseUrl = "http://" + businessDomain + "/";
+				
+				reqData2();
+				
+				fadeOut.play();
+			}
+			
+			protected override function createLoaderManager():LoaderManager
+			{
+				return new LoaderManager(m_framework, false);
+			}
+			
+
+			protected override function initTableData():void
+			{
+				var hBoardCampaign:int = m_dataBaseManager.table_campaign_boards.getHandle(m_boardCampaignId);
+				m_campaignBoardPlayer.setSignageParams(	hBoardCampaign );
+				super.initTableData();
+			}
+				
+			
+
+			
+			private function onModuleServiceReady(event:Event):void
+			{
+				reqData();
+			}
+			
+			public function crossdomain():void 
+			{
+				var masterServerUrl:String = m_framework.StateBroker.GetState("MasterServerUrl") as String;
+				Security.allowDomain("master.mediasignage.com");
+				Security.loadPolicyFile(masterServerUrl+"crossdomain.xml");
+			}
+			
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (m_banner==false)
+				{
+					btnFullScreen.x = (width-btnFullScreen.width)/2;
+					btnFullScreen.y = (height-btnFullScreen.height)*0.3;
+				}
+			} 
+			
+			protected override function reqData2():void
+			{
+				var tableRequest:ITableRequest = m_loaderManager.CreateTableRequest();
+				tableRequest.add("board_templates", "");	
+				tableRequest.add("board_template_viewers", ""); //???board_pc_browser_id="+m_board_pc_browser_id
+				tableRequest.add("resources", "");
+				tableRequest.add("catalog_items", "");
+				tableRequest.add("catalog_item_infos", ""); //??? need to be on demand only! 
+				tableRequest.add("catalog_item_resources", "");
+				tableRequest.add("category_values", "");
+				tableRequest.add("catalog_item_categories", "");
+				tableRequest.add("boards", "");
+				tableRequest.add("campaign_boards", "");
+				tableRequest.add("campaigns", "");
+				tableRequest.add("campaign_timelines", "");	
+				tableRequest.add("campaign_timeline_board_templates", "");
+				tableRequest.add("campaign_timeline_board_viewer_chanels", "");
+				tableRequest.add("campaign_timeline_chanels", "");	
+				tableRequest.add("campaign_timeline_chanel_players", "");
+				tableRequest.add("campaign_timeline_schedules", ""); //??? only for campaign_id (need inner join)
+				tableRequest.add("campaign_timeline_sequences", "");
+				tableRequest.add("player_data", "");
+				tableRequest.add("music_channels", "");
+				tableRequest.add("music_channel_songs", "");
+				
+				tableRequest.add("campaign_channels", "");
+				tableRequest.add("campaign_channel_players", "");
+				tableRequest.add("campaign_timeline_board_viewer_channels", "");
+				
+				setToMyBusiness();
+				m_loaderManager.persistRequest("output"+m_campaign_board_id.toString(), "campaign_board_details", tableRequest, false, false, true, true, onTableData2);
+			}
+			
+			
+			private function onMouseMove(event:MouseEvent):void
+			{
+				if (m_banner==true)
+					return;
+				
+				if (systemManager.stage.displayState == StageDisplayState.NORMAL)
+				{
+					fadeOut.stop();
+					btnFullScreen.alpha = 1.0;
+					btnFullScreen.visible = true;
+					fadeOut.play();
+				}
+			}
+			
+			private function onFullScreen():void
+			{
+				if (m_banner)
+					return;
+				fadeOut.stop();
+				btnFullScreen.visible = false;
+				systemManager.stage.displayState = StageDisplayState.FULL_SCREEN;		
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<mx:Fade id="fadeOut" startDelay="3000" duration="1000" alphaFrom="1.0" alphaTo="0.0" 
+				 target="{btnFullScreen}" effectEnd="btnFullScreen.visible=false"/>
+	</fx:Declarations>
+	
+	
+	<s:Group id="mainWindow" width="100%" height="100%"/>
+	<s:Button id="btnFullScreen"
+			  visible="false" 
+			  label="Click here to enter full screen mode" 
+			  width="500" height="60" fontSize="20" alpha="0.5"
+			  click="onFullScreen()"/>
+</ms:SignagePlayerBase>
+

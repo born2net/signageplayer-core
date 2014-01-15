@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Skin xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" 
+		xmlns:mx="library://ns.adobe.com/flex/mx"
+		width="250" height="10" xmlns:components="com.rain.pg.download.view.components.*">
+	<!-- host component -->
+	<fx:Metadata>
+		[HostComponent("Controls.ProgressBar")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import Controls.ProgressBar;
+		]]>
+	</fx:Script>
+	
+	<s:Rect id="track" top="0" right="0" bottom="0" left="0"
+			radiusX="0" radiusY="0">
+		
+		
+		<s:stroke>
+			<s:SolidColorStroke color="#000000" weight="1"/>
+		</s:stroke>
+		
+		<!--0 <s:filters>
+		<s:DropShadowFilter angle="135" inner="true" distance="1" blurX="1" blurY="1" alpha=".7"/>
+		</s:filters> -->
+		<s:fill>
+			<s:SolidColor color="#CCCCCC"/>
+		</s:fill>
+		
+		
+	</s:Rect>
+	
+	<s:Rect id="bar" radiusX="0" radiusY="0"
+			width="{track.width * (ProgressBar(hostComponent).value / ProgressBar(hostComponent).maximum)}"
+			height="10">
+		<s:fill>
+			<s:LinearGradient rotation="90">
+				<s:GradientEntry color="#5E5E5E"/>
+				<s:GradientEntry color="#5E5E5E"/>
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>
+</s:Skin>

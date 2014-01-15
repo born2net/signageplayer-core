@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.formatters.DateFormatter;
+			
+			private var m_styleService:IStyleService;
+			private var m_fontItem:IFontItem;
+			private var m_timer:Timer;
+			private var m_clockFormat:String;
+			private var m_clockMask:String;
+			private var m_invalidateFont:Boolean = false;
+			private var m_invalidateTime:Boolean = true;
+		
+			public override function initModule():void
+			{
+				super.initModule();
+				m_timer = new Timer(1000);
+				m_timer.addEventListener(TimerEvent.TIMER, onTimer);
+				m_timer.start();
+				
+				m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+				m_fontItem = m_styleService.createFontItem();				
+			} 
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_styleService.addEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+			}
+			
+			private function onStyleComplete(event:ServiceStyleEvent):void
+			{
+				m_invalidateFont = true;
+				invalidateProperties();
+			}
+			
+			
+			public function set fontItem(i_fontItem:IFontItem):void
+			{
+				m_playerLoader.modified = true;
+				m_fontItem = i_fontItem;
+				m_invalidateFont = true;
+				invalidateProperties();
+			}
+
+			public function get fontItem():IFontItem
+			{		
+				return m_fontItem;
+			}
+
+			public function set clockFormat(i_clockFormat:String):void
+			{
+				m_playerLoader.modified = true;
+				m_clockFormat = i_clockFormat;
+				switch(m_clockFormat)
+				{
+					case ClockFormat.DATE:
+						m_clockMask = "MM/DD/YY";	
+					break;
+					case ClockFormat.TIME:
+						m_clockMask = "J:NN:SS";	
+					break;
+					case ClockFormat.DATE_TIME:
+						m_clockMask = "EEEE, MMM. D, YYYY at L:NN A";	
+					break;
+				}
+				m_invalidateTime = true;
+				invalidateProperties();
+			}
+
+			public function get clockFormat():String
+			{		
+				return m_clockFormat;
+			}
+
+			public function set clockMask(i_clockMask:String):void
+			{
+				m_playerLoader.modified = true;
+				m_clockMask = i_clockMask;
+				m_invalidateTime = true;
+				invalidateProperties();
+			}
+
+			public function get clockMask():String
+			{		
+				return m_clockMask;
+			}
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Clock).length()>0)
+				{
+					m_fontItem.load(i_data.Clock.Font[0]);
+					m_clockFormat = i_data.Clock.@clockFormat;
+					m_clockMask = i_data.Clock.@clockMask;
+				}
+				else
+				{
+					m_fontItem.fontSize = 22;
+					m_clockFormat = ClockFormat.TIME;
+					m_clockMask = "J:NN:SS";
+				}
+				
+				m_invalidateFont = true;
+				invalidateProperties();
+			}
+			
+			public override function save():XML
+			{
+				var xmlClock:XML = <Clock/>
+				xmlClock.appendChild( m_fontItem.save() );
+				xmlClock.@clockFormat = m_clockFormat;
+				xmlClock.@clockMask = m_clockMask;
+				return xmlClock; 
+			}   
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockClockPage];
+			}
+			
+			 
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateFont)
+				{
+					m_invalidateFont = false;
+					m_fontItem.applyStyles(clock);
+				}
+				if (m_invalidateTime)
+				{
+					m_invalidateTime = false;
+					try // SDK-17091 DateFormatter bug with negative timezoneOffset
+					{
+						var date:Date = new Date();
+						var formatter:DateFormatter = new DateFormatter();
+						formatter.formatString = m_clockMask;
+						clock.text = formatter.format(date);
+					}
+					catch(error:Error)
+					{
+						clock.text= "00:00";
+					}	
+				}
+			}
+			
+			private function onTimer(event:TimerEvent):void
+			{
+				m_invalidateTime = true;
+				invalidateProperties();
+			}
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				m_timer.removeEventListener(TimerEvent.TIMER, onTimer);
+				m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+			}
+		]]>
+	</fx:Script>	
+
+ 	<s:Label id="clock"
+ 		width="100%" height="100%"/> 
+</ms:PlayerModule>	

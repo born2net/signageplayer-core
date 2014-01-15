@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.formatters.DateFormatter;
+			
+			private var m_styleService:IStyleService;
+			private var m_fontItem:IFontItem;
+			private var m_timer:Timer;
+			private var m_formatText:String;
+			private var m_mode:String = "Date";
+			private var m_finalDate:Date;
+			private var m_duration:Number;
+			private var m_playTime:Number;
+			private var m_invalidateFont:Boolean = false;
+			private var m_invalidateTime:Boolean = true;
+		
+			public override function initModule():void
+			{
+				super.initModule();
+				m_timer = new Timer(1000);
+				m_timer.addEventListener(TimerEvent.TIMER, onTimer);
+				
+				
+				m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+				m_fontItem = m_styleService.createFontItem();				
+			} 
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_styleService.addEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+			}
+			
+			private function onStyleComplete(event:ServiceStyleEvent):void
+			{
+				m_invalidateFont = true;
+				invalidateProperties();
+			}
+			
+			
+			public function set fontItem(i_fontItem:IFontItem):void
+			{
+				m_playerLoader.modified = true;
+				m_fontItem = i_fontItem;
+				m_invalidateFont = true;
+				invalidateProperties();
+			}
+
+			public function get fontItem():IFontItem
+			{		
+				return m_fontItem;
+			}
+
+			
+			public function get mode():String
+			{
+				return m_mode;
+			}
+			
+			public function set mode(i_mode:String):void
+			{
+				m_playerLoader.modified = true;
+				m_mode = i_mode;
+				m_invalidateTime = true;
+				invalidateProperties();
+			} 
+
+
+			public function set formatText(i_formatText:String):void
+			{
+				m_playerLoader.modified = true;
+				m_formatText = i_formatText;
+				m_invalidateTime = true;
+				invalidateProperties();
+			}
+
+			
+			public function get formatText():String
+			{		
+				return m_formatText;
+			}
+			
+			public function get finalDate():Date
+			{
+				return m_finalDate;
+			}
+
+			public function set finalDate(i_finalDate:Date):void
+			{
+				m_playerLoader.modified = true;
+				m_finalDate = i_finalDate;
+				m_invalidateTime = true;
+				invalidateProperties();
+			} 
+
+			public function get duration():Number
+			{
+				return m_duration;
+			}
+			
+			public function set duration(i_duration:Number):void
+			{
+				m_playerLoader.modified = true;
+				m_duration = i_duration;
+				m_playTime = 0;
+				m_invalidateTime = true;
+				invalidateProperties();
+			} 
+
+
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				m_finalDate = new Date();
+				if (XMLList(i_data.Countdown).length()>0)
+				{
+					m_fontItem.load(i_data.Countdown.Font[0]);
+					m_formatText = i_data.Countdown.@formatText;
+					m_mode = i_data.Countdown.@mode;
+					if (m_mode=="Date")
+					{
+						m_finalDate.time = Number(i_data.Countdown.@finalDate);
+					}
+					else
+					{
+						m_duration = Number(i_data.Countdown.@duration);
+						m_playTime = 0;
+					}
+				}
+				else
+				{
+					m_duration = 60;
+					m_fontItem.fontSize = 22;
+					m_formatText = "%D days and %H:%M:%S Left!!!";
+				}
+				
+				m_invalidateFont = true;
+				invalidateProperties();
+			}
+			
+			public override function save():XML
+			{
+				var xmlCountdown:XML = <Countdown/>
+				xmlCountdown.appendChild( m_fontItem.save() );
+				xmlCountdown.@formatText = m_formatText;
+				xmlCountdown.@mode = m_mode;
+				if (m_mode=="Date")
+				{
+					xmlCountdown.@finalDate = m_finalDate.time;
+				}
+				else
+				{
+					xmlCountdown.@duration = duration;
+				}
+				return xmlCountdown; 
+			}   
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockCountdownPage]; 
+			}
+			
+			
+			public override function start():void
+			{
+				super.start();
+				m_playTime = 0;
+				m_timer.start();
+			}
+			
+			public override function stop():void
+			{
+				super.stop();
+				m_timer.stop();
+			}
+
+
+			 
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateFont)
+				{
+					m_invalidateFont = false;
+					m_fontItem.applyStyles(countdown);
+				}
+				if (m_invalidateTime)
+				{
+					m_invalidateTime = false;
+					try
+					{
+						var time:int = 0;
+						if (m_mode=="Date")
+						{
+							var date:Date = new Date();
+							time = Math.max(0, (m_finalDate.time - date.time)/1000);
+						}
+						else
+						{
+							time = Math.max(0, m_duration - m_playTime);
+						}
+						var seconds:int = time % 60;
+						time/=60;
+						var minuts:int = time % 60;
+						time/=60;
+						var hours:int = time % 24;
+						var days:int = time/24;
+						var str:String = m_formatText;
+						str = str.replace(/%D/g, days.toString());
+						str = str.replace(/%H/g, hours.toString());
+						str = str.replace(/%M/g, ((minuts<10) ? "0" : "") + minuts.toString());
+						str = str.replace(/%S/g, ((seconds<10) ? "0" : "") + seconds.toString());
+						countdown.text = str;
+					}
+					catch(error:Error)
+					{
+						countdown.text= "00:00";
+					}	
+				}
+			}
+			
+			private function onTimer(event:TimerEvent):void
+			{
+				m_invalidateTime = true;
+				m_playTime++;
+				invalidateProperties();
+			}
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				m_timer.removeEventListener(TimerEvent.TIMER, onTimer);
+				m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+			}
+		]]>
+	</fx:Script>	
+
+ 	<s:Label id="countdown"
+ 		width="100%" height="100%"/> 
+</ms:PlayerModule>	

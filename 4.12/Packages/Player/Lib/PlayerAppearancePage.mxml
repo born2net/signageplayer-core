@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerEffectPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					 xmlns:s="library://ns.adobe.com/flex/spark" 
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 xmlns:ms="*">
+
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			import mx.events.ItemClickEvent;
+			import flash.display.BlendMode;
+			
+[Bindable]	private var m_blendModeCollection:XMLListCollection;
+			
+			
+			public override function get effectName():String
+			{
+				return resourceManager.getString('customer', 'PlayerAppearancePage.title');
+			}
+			
+			protected override function get playerEffect():PlayerEffect
+			{
+				return m_playerLoader.playerAppearance;
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_blendModeCollection = new XMLListCollection();
+				m_blendModeCollection.addItem(<Bland label="Normal" mode={BlendMode.NORMAL}/>);
+				m_blendModeCollection.addItem(<Bland label="Add" mode={BlendMode.ADD}/>);
+				m_blendModeCollection.addItem(<Bland label="Alpha" mode={BlendMode.ALPHA}/>);
+				m_blendModeCollection.addItem(<Bland label="Draken" mode={BlendMode.DARKEN}/>);
+				m_blendModeCollection.addItem(<Bland label="Differance" mode={BlendMode.DIFFERENCE}/>);
+				m_blendModeCollection.addItem(<Bland label="Erase" mode={BlendMode.ERASE}/>);
+				m_blendModeCollection.addItem(<Bland label="Hardlight" mode={BlendMode.HARDLIGHT}/>);
+				m_blendModeCollection.addItem(<Bland label="Invert" mode={BlendMode.INVERT}/>);
+				m_blendModeCollection.addItem(<Bland label="Layer" mode={BlendMode.LAYER}/>);
+				m_blendModeCollection.addItem(<Bland label="Lighten" mode={BlendMode.LIGHTEN}/>);
+				m_blendModeCollection.addItem(<Bland label="Multiply" mode={BlendMode.MULTIPLY}/>);
+				m_blendModeCollection.addItem(<Bland label="Overlay" mode={BlendMode.OVERLAY}/>);
+				m_blendModeCollection.addItem(<Bland label="Screen" mode={BlendMode.SCREEN}/>);
+				m_blendModeCollection.addItem(<Bland label="Subtract" mode={BlendMode.SUBTRACT}/>);
+			}
+
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader==null)
+					return;
+				if (playerEffect==null)
+					return;
+				m_alpha.value 			= Number(playerEffect.getProperty("alpha"));
+
+				
+				var blendMode:String =  String(playerEffect.getProperty("blendMode"));
+				blendCombo.selectedItem = m_blendModeCollection.source.(@mode==blendMode)[0];
+			}
+			
+			
+			protected override function updateButtons():void
+			{
+				super.updateButtons();
+				propCtrl.enabled = (m_playerActiveCtrl.propType.selectedValue!="Off");
+			}
+			
+			protected override function createPlayerEffect(i_enabled:Boolean):void
+			{
+				m_playerLoader.createPlayerAppearance(i_enabled);
+			}
+			
+			protected override function createPoint1():void
+			{
+				var data:Object = new Object();
+				data.alpha = 0.5;
+				data.blendMode = BlendMode.NORMAL;
+				playerEffect.insert(null, data);
+			}		
+
+			protected override function createPoint2():void
+			{
+				var data:Object = new Object();
+				data.alpha = 1;
+				data.blendMode = BlendMode.NORMAL;
+				var playerAction:PlayerAction =  new PlayerAction();
+				playerAction.delay = 0;
+				playerAction.duration = 2000;
+				playerEffect.insert(playerAction, data);
+				playerEffect.index = 0;
+			}
+			
+			private function onBlendMode():void
+			{
+				m_playerLoader.modified = true;
+				var blendMode:String =  blendCombo.selectedItem.@mode;
+				playerEffect.setProperty("blendMode", blendMode);
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<ms:layout>
+		<s:VerticalLayout/>
+	</ms:layout>
+	<s:VGroup id="propCtrl" width="100%" height="100%">
+		<s:Form>
+			<s:FormItem label="{resourceManager.getString('customer', 'effect.alpha')}">
+				<s:HSlider id="m_alpha" name="alpha"
+					snapInterval="0.1"
+					minimum="0" maximum="1" value="1"
+					change="onSliderChanged(event)"
+					x="64" y="10" width="86"/>
+			</s:FormItem>
+			<s:FormItem label="blendMode">
+				<s:DropDownList id="blendCombo" 
+					dataProvider="{m_blendModeCollection}" labelField="@label"
+					change="onBlendMode()"/>
+			</s:FormItem>				
+		</s:Form>
+	</s:VGroup>
+</ms:PlayerEffectPage>

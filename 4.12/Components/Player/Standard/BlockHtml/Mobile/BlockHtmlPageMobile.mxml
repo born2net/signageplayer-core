@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:BlockHtmlPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				  xmlns:s="library://ns.adobe.com/flex/spark" 
+				  xmlns:mx="library://ns.adobe.com/flex/mx" 
+				  xmlns:ms="*">
+	<fx:Script>
+		<![CDATA[
+			//import mx.controls.HTML;
+			
+			//private var m_htmlEditor:HTML;
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				//m_htmlEditor = new HTML();
+				//M??? m_htmlEditor.setStyle("left", 0);
+				//M??? m_htmlEditor.setStyle("right", 0);
+				//M??? m_htmlEditor.setStyle("top", 70);
+				//M??? m_htmlEditor.setStyle("bottom", 0);
+				//M??? addElement(m_htmlEditor);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				/*
+				if (BlockHtmlPlayer(m_playerLoader.player).configUrl!=null)
+				{
+					m_htmlEditor.location = BlockHtmlPlayer(m_playerLoader.player).configUrl;
+				}
+				else
+				{
+					m_htmlEditor.location = "";
+				}
+				
+				updateButtons();
+				*/
+			}
+			
+			protected override function reloadConfig():void
+			{
+				//m_htmlEditor.reload();
+				updateButtons();
+			}
+			
+			protected override function onConfigUrl():void
+			{
+				super.onConfigUrl();
+				/*
+				if (m_htmlEditor.location != BlockHtmlPlayer(m_playerLoader.player).configUrl)
+				{
+					m_htmlEditor.cancelLoad();
+					m_htmlEditor.location = BlockHtmlPlayer(m_playerLoader.player).configUrl;	
+					updateButtons();
+				}
+				*/
+			}
+
+			private function updateButtons():void
+			{
+				// workaround FIX ME !!! ???
+				// need to unload the HTML
+				//M??? m_htmlEditor.visible = (BlockHtmlPlayer(m_playerLoader.player).configUrl!="")   
+			}
+			
+		]]>
+	</fx:Script>
+</ms:BlockHtmlPage>	
+

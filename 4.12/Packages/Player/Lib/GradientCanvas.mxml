@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+		   width="100%" height="100%"
+	borderStyle="solid" borderColor="#000000">    
+    <fx:Script>
+        <![CDATA[
+        
+        import mx.events.ResizeEvent;
+        import mx.core.UIComponent;
+        import flash.geom.Matrix;
+        
+        protected var m_gradientBackground:Object;
+
+		public function set gradientBackground(i_gradientBackground:Object):void
+		{
+			m_gradientBackground = i_gradientBackground;
+			applyGradient();
+		}
+
+        public function applyGradient():void 
+        {
+            var m:Matrix = new Matrix();
+            var angleInRadians:Number = 0; //(m_gradientBackground.angle/180) * Math.PI;
+            var i:uint = 0;
+            var opacArr:Array;
+            var mpArr:Array;
+            // establish default arrays
+            if (!m_gradientBackground.colorArray.length) 
+            {
+                m_gradientBackground.colorArray = [0xFFFFFF, 0xFFFFFF];
+            }
+            if (!m_gradientBackground.opacityArray.length || m_gradientBackground.opacityArray.length != m_gradientBackground.colorArray.length) 
+            {
+                opacArr = new Array(m_gradientBackground.colorArray.length);
+                for (i=0; i<m_gradientBackground.colorArray.length; i++) 
+                {
+                    opacArr[i] = 1;
+                }
+            } 
+            else 
+            {
+                opacArr = m_gradientBackground.opacityArray;
+            }
+            if (!m_gradientBackground.midpointArray.length || m_gradientBackground.midpointArray.length != m_gradientBackground.colorArray.length) 
+            {
+                mpArr = new Array(m_gradientBackground.colorArray.length);
+                var evenWidth:Number = 255 / (m_gradientBackground.colorArray.length-1);
+                mpArr[0] = 0;
+                mpArr[m_gradientBackground.colorArray.length-1] = 255;
+                // loop from the second element to the second-to-last element to find the tween points
+                for (i=1; i<m_gradientBackground.colorArray.length-1; i++) 
+                {
+                    mpArr[i] = int(i * evenWidth);
+                }
+            } 
+            else 
+            {
+                mpArr = m_gradientBackground.midpointArray;
+            }
+            // create the gradient
+            m.createGradientBox(unscaledWidth, unscaledHeight, angleInRadians, m_gradientBackground.offsetX, m_gradientBackground.offsetY);
+            this.graphics.clear(); 
+            this.graphics.beginGradientFill(GradientType.LINEAR, m_gradientBackground.colorArray, opacArr ,mpArr, m);
+            var cornerRadius:Number = this.getStyle("cornerRadius") * 2;
+            if ( isNaN(cornerRadius) ) 
+            	cornerRadius = 0;
+            this.graphics.drawRoundRect(0,0,this.unscaledWidth,this.unscaledHeight,cornerRadius,cornerRadius);            
+            this.graphics.endFill();
+        }
+        
+        ]]>
+    </fx:Script>
+    
+</s:BorderContainer>

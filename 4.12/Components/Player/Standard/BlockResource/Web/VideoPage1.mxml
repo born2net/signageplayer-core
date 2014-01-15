@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"
+	label="{resourceManager.getString('player', 'video.title')}"
+	width="100%" height="400">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				resourcePicker.framework = m_framework;
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader==null || m_playerLoader.player==null)
+					return;
+				maintainAspectRatio.selected = EmbeddedResource(m_playerLoader.player).maintainAspectRatio;	
+				volume.value = VideoPlayer(m_playerLoader.player).volume;
+				autoRewind.selected = VideoPlayer(m_playerLoader.player).autoRewind;
+				backgroundAlpha.value = VideoPlayer(m_playerLoader.player).backgroundAlpha; 
+			}
+			
+			private function onAutoRewind():void
+			{
+				VideoPlayer(m_playerLoader.player).autoRewind = autoRewind.selected;	
+			}
+
+			private function onVolume():void
+			{
+				VideoPlayer(m_playerLoader.player).volume = volume.value;	
+			}
+			
+			private function onMaintainAspectRatio():void
+			{
+				EmbeddedResource(m_playerLoader.player).maintainAspectRatio = maintainAspectRatio.selected;	
+			}
+			
+			private function onBackgroundAlphaChanged(event:Event):void
+			{
+				VideoPlayer(m_playerLoader.player).backgroundAlpha = backgroundAlpha.value;
+			}
+			
+			private function onResourcePicker(event:Event):void
+			{
+				EmbeddedResource(m_playerLoader.player).hResource = resourcePicker.hResource;
+			}			
+		]]>
+	</fx:Script>
+	
+	<s:Form>
+		<s:FormItem label="Video">
+			<ms:ResourcePicker id="resourcePicker" swf="false" video="true"
+							   change="onResourcePicker(event)"/>		
+		</s:FormItem>
+		
+		<s:FormItem label="{resourceManager.getString('player', 'swf.maintainAspectRatio')}">
+			<s:CheckBox id="maintainAspectRatio" 
+						click="onMaintainAspectRatio()"/>
+		</s:FormItem>
+		<s:FormItem label="{resourceManager.getString('player', 'video.autoRewind')}">
+			<s:CheckBox id="autoRewind" 
+						click="onAutoRewind()"/>
+		</s:FormItem>
+		<s:FormItem label="{resourceManager.getString('player', 'video.volume')}">
+			<s:HSlider id="volume" width="96" 
+				minimum="0" maximum="1" stepSize="0.01"
+				change="onVolume()"/>
+		</s:FormItem>
+		
+		<s:FormItem label="{resourceManager.getString('customer', 'PlayerBackgroundPage.bgAlpha')}">
+			<s:HSlider id="backgroundAlpha" x="154" y="40" width="86"
+				minimum="0" maximum="1" stepSize="0.01"
+				change="onBackgroundAlphaChanged(event)"/>
+		</s:FormItem>
+	</s:Form>
+</ms:PlayerPage>	
+

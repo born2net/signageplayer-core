@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+	implements="IPage"
+	label="{resourceManager.getString('player', 'weatherItem.title')}"
+	width="100%" height="100%" xmlns:ViewStack="ViewStack.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import flash.text.Font;
+			
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.collections.XMLListCollection;
+			import mx.core.UIComponent;
+			
+			private var m_searchList:Array;   
+			private var m_searchIndex:int = -1;
+			private var m_treeSeacrhLabel:String = 'name';
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				comboForecast.dataProvider= new XMLListCollection(dayList);
+				
+				fontCtrl.addEventListener(FontCtrl.FONT_CHANGED, onFontChanged);
+			}
+
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				weatherCombo.dataProvider = new XMLListCollection( BlockItemWeatherPlayer(m_playerLoader.player).weatherList );
+				weatherCombo.validateNow();
+				var weatherStyleId:int = BlockItemWeatherPlayer(m_playerLoader.player).weatherStyleId;
+				
+				weatherCombo.selectedItem = XMLListCollection(weatherCombo.dataProvider).source.(@id==weatherStyleId)[0];
+				
+				
+				var day:int = BlockItemWeatherPlayer(m_playerLoader.player).day;
+				comboForecast.selectedIndex = day + 1; 
+				comboField.dataProvider = new XMLListCollection((day==-1) ? fieldCurrent : fieldOther);
+				comboField.validateNow();
+				var field:String = BlockItemWeatherPlayer(m_playerLoader.player).field;
+				for each(var xmlField:XML in comboField.dataProvider)
+				{
+					if (xmlField.@value==field)
+					{
+						comboField.selectedItem = xmlField;
+						break;
+					}
+				}
+				
+				
+				viewStack.selectedItem = (field!=WeatherField.IMAGE) ? fontContent : weatherForm;
+				
+				fontCtrl.fontItem = BlockItemWeatherPlayer(m_playerLoader.player).fontItem;
+			}
+			
+			private function onWeatherStyle(event:Event):void
+			{
+				var weatherStyleId:int = int(weatherCombo.selectedItem.@id);
+				BlockItemWeatherPlayer(m_playerLoader.player).weatherStyleId = weatherStyleId;
+			}
+			
+			private function onFieldChanged(event:Event):void
+			{ 
+				var field:String = comboField.selectedItem.@value;
+				BlockItemWeatherPlayer(m_playerLoader.player).field = field;
+				viewStack.selectedItem = (field!=WeatherField.IMAGE) ? fontContent : weatherForm; 
+			}
+     		
+			private function onForecastSelected():void
+			{
+				if ( comboForecast.selectedItem.@value == "-1" )
+				{
+					comboField.dataProvider = new XMLListCollection(fieldCurrent);
+				} 
+				else 
+				{
+					comboField.dataProvider = new XMLListCollection(fieldOther);
+				}
+				
+				BlockItemWeatherPlayer(m_playerLoader.player).day = XML(comboForecast.selectedItem).@value;
+			}
+			
+			private function onFontChanged(event:Event):void
+			{
+				BlockItemWeatherPlayer(m_playerLoader.player).fontItem = fontCtrl.fontItem;
+			}
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<fx:XMLList id="dayList">		
+				<Day 
+					label="{resourceManager.getString('player', 'weatherItem.current')}"   
+					value="-1"/>
+				<Day 
+					label="{resourceManager.getString('player', 'weatherItem.today')}"
+					value="0"/>
+				<Day 
+					label="{resourceManager.getString('player', 'weatherItem.tomorrow')}"
+					value="1"/>					
+				<Day 
+					label="{resourceManager.getString('player', 'weatherItem.in2days')}"
+					value="2"/>
+				<Day 
+					label="{resourceManager.getString('player', 'weatherItem.in3days')}"
+					value="3"/>
+				<Day 
+					label="{resourceManager.getString('player', 'weatherItem.in4days')}"
+					value="4"/>
+				<Day 
+					label="{resourceManager.getString('player', 'weatherItem.in5days')}"
+					value="5"/>
+		</fx:XMLList>
+	
+		<fx:XMLList id="fieldCurrent">		
+				<Day 
+					label="{resourceManager.getString('player', 'weatherItem.dayName')}"
+					value="{WeatherField.DAY_NAME}"/>
+				<Day 
+					label="{resourceManager.getString('player', 'weatherItem.condition')}"
+					value="{WeatherField.CONDITION}"/>
+				<Day 
+					label="{resourceManager.getString('player', 'weatherItem.temperature')}"
+					value="{WeatherField.TEMPERATURE}"/>								
+				<Day 
+					label="Image"
+					value="{WeatherField.IMAGE}"/>
+		</fx:XMLList>
+	
+		<fx:XMLList id="fieldOther">		
+				<Day 
+					label="{resourceManager.getString('player', 'weatherItem.dayName')}" 
+					value="{WeatherField.DAY_NAME}"/>
+				<Day 
+					label="{resourceManager.getString('player', 'weatherItem.condition')}"
+					value="{WeatherField.CONDITION}"/>
+				<Day 
+					label="{resourceManager.getString('player', 'weatherItem.high')}" 
+					value="{WeatherField.HIGH}"/>							
+				<Day 
+					label="{resourceManager.getString('player', 'weatherItem.low')}"
+					value="{WeatherField.LOW}"/>		
+				<Day 
+					label="Image"
+					value="{WeatherField.IMAGE}"/>
+		</fx:XMLList>
+	</fx:Declarations>
+	
+	<s:Form width="100%">
+		<s:FormItem width="100%"
+			label="{resourceManager.getString('player', 'weatherItem.forecast')}">
+			<s:DropDownList id="comboForecast"  
+					labelField="@label" 
+					change="onForecastSelected()"
+					width="100%"/>			
+		</s:FormItem>
+		<s:FormItem width="100%"
+			label="{resourceManager.getString('player', 'weatherItem.field')}">
+			<s:DropDownList id="comboField" width="100%"
+					labelField="@label"
+					change="onFieldChanged(event)"/>
+		</s:FormItem>
+	</s:Form>
+	<ViewStack:SparkViewStack id="viewStack" width="100%" height="100%" x="0" y="81">
+		<s:NavigatorContent id="fontContent" width="100%">
+			<s:layout>
+				<s:VerticalLayout paddingLeft="5" paddingRight="5" paddingTop="5"/>
+			</s:layout>
+			<ms:FontCtrl id="fontCtrl" width="100%"/>	
+		</s:NavigatorContent>
+		
+		<s:NavigatorContent id="weatherForm" width="100%">
+			<s:layout>
+				<s:VerticalLayout paddingLeft="5" paddingRight="5" paddingTop="5"/>
+			</s:layout>
+			<s:Form>
+				<s:FormItem label="Weather style">
+					<s:DropDownList id="weatherCombo" labelField="@name"
+								change="onWeatherStyle(event)" 
+								width="100%" />
+				</s:FormItem>	
+			</s:Form>
+		</s:NavigatorContent>
+	</ViewStack:SparkViewStack>
+</ms:PlayerPage>	
+

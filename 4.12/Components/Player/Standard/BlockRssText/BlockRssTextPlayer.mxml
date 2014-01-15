@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:BlockRssPlayer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:ms="*"
+				   width="100%" height="100%"
+				   resize="onResize()">
+	<fx:Script>
+		<![CDATA[
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.soap.WebService;
+		
+			private var m_styleService:IStyleService;
+			private var m_titleFontItem:IFontItem;
+			private var m_descriptionFontItem:IFontItem;	
+			private var m_speed:Number = 10;		
+			private var m_vertical:Boolean = true;
+			private var m_rtl:Boolean = false;
+			private var m_invalidateRss:Boolean = false;
+			
+			
+			private var m_faces:Object = new Object();
+			
+			
+			
+			public override function get propertyPages():Array
+			{ 
+				return [BlockRssTextPage];
+			}
+
+			public function get speed():Number
+			{
+				return m_speed;	
+			}
+
+			public function set speed(i_speed:Number):void
+			{
+				m_playerLoader.modified = true;
+				m_speed = i_speed;
+				if (cyclicScroller!=null)
+				{
+					cyclicScroller.speed = m_speed;
+				}
+			}
+			
+			public function get vertical():Boolean
+			{
+				return m_vertical;
+			}
+	
+			public function set vertical(i_vertical:Boolean):void
+			{
+				m_playerLoader.modified = true;
+				m_vertical = i_vertical;
+				invalidateRss();
+			}
+			
+			public function get rtl():Boolean
+			{
+				return m_rtl;
+			}
+	
+			public function set rtl(i_rtl:Boolean):void
+			{
+				m_playerLoader.modified = true;
+				m_rtl = i_rtl;
+				invalidateRss();
+			}
+			
+			public function set titleFontItem(i_titleFontItem:IFontItem):void
+			{
+				m_playerLoader.modified = true;
+				m_titleFontItem = i_titleFontItem;
+				invalidateFonts();				
+			}
+
+			public function get titleFontItem():IFontItem
+			{		
+				return m_titleFontItem;
+			}
+
+			public function set descriptionFontItem(i_descriptionFontItem:IFontItem):void
+			{
+				m_playerLoader.modified = true;
+				m_descriptionFontItem = i_descriptionFontItem;
+				invalidateFonts();				
+			}
+
+			public function get descriptionFontItem():IFontItem
+			{		
+				return m_descriptionFontItem;
+			}
+			
+			private function invalidateFonts():void
+			{
+				for(var i:int=0;i<cyclicScroller.numElements;i++)
+				{
+					var rssItemCtrl:RssItemCtrl = RssItemCtrl(cyclicScroller.getElementAt(i));
+					rssItemCtrl.invalidateText();
+				} 
+				cyclicScroller.invalidateChilds();
+			}
+
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Rss).length()>0)
+				{
+					if (XMLList(i_data.Rss.@speed).length()>0)
+					{
+						m_speed = Number(i_data.Rss.@speed);
+					}
+					if (XMLList(i_data.Rss.@vertical).length()>0)
+					{
+						m_vertical = (i_data.Rss.@vertical=="1");
+					}
+					if (XMLList(i_data.Rss.@rtl).length()>0)
+					{
+						m_rtl = (i_data.Rss.@rtl=="1");
+					}
+					if (XMLList(i_data.Rss.Title).length()>0)
+					{
+						m_titleFontItem.load(i_data.Rss.Title.Font[0]);
+					}
+					if (XMLList(i_data.Rss.Description).length()>0)
+					{
+						m_descriptionFontItem.load(i_data.Rss.Description.Font[0]);
+					}
+				}
+				invalidateRss();
+			}  
+			
+			public override function save():XML
+			{
+				var xmlRss:XML = super.save();
+				xmlRss.@speed = m_speed;
+				xmlRss.@vertical = m_vertical ? "1" : "0";
+				xmlRss.@rtl = m_rtl ? "1" : "0";
+				var xmlTitle:XML = <Title/>;
+				var xmlDescription:XML = <Description/>;
+				xmlRss.appendChild(xmlTitle);
+				xmlRss.appendChild(xmlDescription);
+				xmlTitle.appendChild( m_titleFontItem.save() );
+				xmlDescription.appendChild( m_descriptionFontItem.save() );
+				return xmlRss; 
+			}   
+			
+
+			public override function start():void
+			{
+				super.start();
+				cyclicScroller.start();
+			}
+
+
+			public override function stop():void
+			{
+				super.stop();
+				cyclicScroller.stop();
+			}
+			
+			public override function onFrame(i_time:Number):void
+			{
+				cyclicScroller.onFrame(i_time);
+			}
+
+
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_rssService = m_framework.ServiceBroker.QueryService("RssService") as IRssService;
+				
+				m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+				m_titleFontItem = m_styleService.createFontItem();
+				m_descriptionFontItem = m_styleService.createFontItem();
+			} 
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			protected override function invalidateRss():void
+			{
+				m_faces = new Object();
+				
+				m_faces[m_titleFontItem.fontFamily] = m_titleFontItem.fontFamily;
+				m_faces[m_descriptionFontItem.fontFamily] = m_descriptionFontItem.fontFamily;
+				if (m_styleService.fontsCompleted(m_faces))
+				{
+					m_invalidateRss = true;
+					invalidateProperties();
+				}
+				else
+				{
+					m_styleService.addEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+				}
+			}
+			
+			
+			private function onStyleComplete(event:ServiceStyleEvent):void
+			{
+				if (m_styleService.fontsCompleted(m_faces))
+				{
+					m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					m_invalidateRss = true;
+					invalidateProperties();
+				}
+			}
+
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				
+				height = NaN;
+				width = NaN;
+				
+				if (m_invalidateRss)
+				{
+					m_invalidateRss = false;
+					cyclicScroller.clearAll();
+					cyclicScroller.speed = m_speed;
+					cyclicScroller.vertical = m_vertical;
+					cyclicScroller.posDirection = m_rtl;
+					if (m_items!=null)
+					{
+						for each(var xmlItem:XML in m_items)
+						{ 
+							var rssItemCtrl:RssItemCtrl = new RssItemCtrl();
+							rssItemCtrl.rtl = m_rtl;
+							rssItemCtrl.blockRssTestPlayer = this;
+							rssItemCtrl.load(xmlItem);
+							cyclicScroller.addElement(rssItemCtrl);
+						} 
+					}
+				}
+			}
+			
+			private function onResize():void
+			{
+				validateNow();
+				cyclicScroller.validateNow();
+				cyclicScroller.setActualSize(width, height);
+				cyclicScroller.invalidateChilds();
+			}
+			 
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				/*
+				if (cyclicScroller.numElements>0)
+				{
+					cyclicScroller.invalidateChilds();
+				}
+				*/
+			}
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				if (m_styleService!=null)
+				{
+					m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					m_styleService = null;	
+				}
+			} 
+		]]> 
+	</fx:Script>
+<ms:layout>
+	<s:VerticalLayout/>
+</ms:layout>
+	
+	<ms:CyclicScroller id="cyclicScroller" width="100%" height="100%"/>
+</ms:BlockRssPlayer>	

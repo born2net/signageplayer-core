@@ -1,0 +1,477 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:ms="*" width="100%" height="54"
+				   label="Items" xmlns:Menu="Menu.*">
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			import mx.core.DragSource;
+			import mx.core.IFlexDisplayObject;
+			import mx.core.UIComponent;
+			import mx.events.DragEvent;
+			import mx.managers.DragManager;
+			
+			import spark.components.Group;
+			import spark.components.gridClasses.CellPosition;
+			import spark.components.gridClasses.IGridItemRenderer;
+			import spark.events.GridEvent;
+			
+			
+			private var m_framework:IFramework;
+			private var m_playerDataService:IPlayerDataService;
+			private var m_resourceService:IResourceService;
+			private var m_dataBaseManager:DataBaseManager;
+			private var m_stateManager:IStateManager;
+			
+[Bindable]	private var m_xmlListCollection:XMLListCollection;			
+			
+			[Bindable]  public var m_menuBarCollection:XMLListCollection;
+			private var m_xmlDelete:XML;
+			
+			
+			private var dropIndicator:DisplayObject;
+			private var dropIndex:int;
+
+			
+			
+			
+			public function init(i_xmlListCollection:XMLListCollection):void
+			{
+				m_xmlListCollection = i_xmlListCollection;
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				
+				m_framework = Global.getFramework(this);
+				m_playerDataService = m_framework.ServiceBroker.QueryService("PlayerDataService") as IPlayerDataService;
+				m_resourceService = m_framework.ServiceBroker.QueryService("ResourceService") as IResourceService;
+				m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;	
+				m_stateManager = m_framework.ServiceBroker.QueryService("StateManager") as IStateManager;
+
+				
+				initMenu();
+				
+				proofOfPlayColumn.visible = m_stateManager.privilegeAccess("AdLocal", "visible");
+				
+				collectionGrid.grid.addEventListener(DragEvent.DRAG_ENTER, rowDragEnterHandler);
+				
+			}			
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				updateButtons();
+			}
+			
+			private function initMenu():void
+			{
+				m_menuBarCollection = new XMLListCollection();
+				m_xmlDelete = <Command id="del" label="" toolTip="Delete" icon="deleteIcon" click="onDelete"/>;
+				m_menuBarCollection.addItem(m_xmlDelete);
+			}			
+			
+			
+			private function rowDragEnterHandler(event:DragEvent):void
+			{
+				var canAdd:Boolean = m_stateManager.canAddRecord(m_dataBaseManager.table_campaign_timeline_sequences);
+				if (canAdd==false)
+					return;
+				
+				
+				if (event.dragSource.hasFormat("itemsByIndex"))
+				{
+					collectionGrid.grid.addEventListener(DragEvent.DRAG_OVER, rowDragOverHandler);
+					collectionGrid.grid.addEventListener(DragEvent.DRAG_EXIT, rowDragExitHandler);
+					collectionGrid.grid.addEventListener(DragEvent.DRAG_DROP, rowDragDropHandler);
+				}
+				
+				DragManager.showFeedback(DragManager.COPY);
+				showRowDropFeedback(event);
+				DragManager.acceptDragDrop(collectionGrid.grid);
+			}
+			
+			private function rowDragOverHandler(event:DragEvent):void
+			{
+				var itemsArray:Array = null;
+				var xmlItem:XML = null;
+				if (event.dragSource.hasFormat("itemsByIndex")) 
+				{
+					var items:Vector.<Object>  = event.dragSource.dataForFormat('itemsByIndex') as Vector.<Object>;
+					var item:Object = items[0];
+					if (item is XML)
+					{
+						xmlItem = XML(item);
+						if (xmlItem.name()=="Resource" || xmlItem.name()=="Page")
+						{
+							DragManager.showFeedback(DragManager.COPY);
+							showRowDropFeedback(event);
+							DragManager.acceptDragDrop(collectionGrid.grid);
+							return;
+						}
+					}
+					else
+					{
+						if (item.name=="PlayerData")
+						{
+							DragManager.showFeedback(DragManager.COPY);
+							showRowDropFeedback(event);
+							DragManager.acceptDragDrop(collectionGrid.grid);
+							return;
+						}
+					}
+				}				
+				DragManager.showFeedback(DragManager.NONE);            	
+			}
+			
+			private function rowDragExitHandler(event:DragEvent):void
+			{
+				cleanUpRowDropIndicator();
+			}
+			
+			private function rowDragDropHandler(event:DragEvent):void
+			{
+				dropRow(event);
+			}
+
+			
+			private function showRowDropFeedback(event:DragEvent):void
+			{
+				var pt:Point = new Point(event.stageX, event.stageY);
+				pt = collectionGrid.grid.globalToLocal(pt);
+				var pos:CellPosition = collectionGrid.grid.getCellAt(pt.x, pt.y);
+				if (pos==null)
+					return; //???
+				var newDropIndex:int = pos.rowIndex;
+				if (newDropIndex != -1)
+				{
+					var renderer:IGridItemRenderer = collectionGrid.grid.getItemRendererAt(pos.rowIndex, pos.columnIndex);
+					if (!dropIndicator)
+					{
+						dropIndicator = new RowDropIndicator();
+						collectionGrid.grid.overlay.addDisplayObject(dropIndicator);
+					}
+					if (pt.y < renderer.y + renderer.height / 2)
+						dropIndicator.y = renderer.y - dropIndicator.height / 2; 
+					else
+					{
+						dropIndicator.y = renderer.y + renderer.height - dropIndicator.height / 2;
+						newDropIndex++;
+					}
+					dropIndex = newDropIndex;
+				}
+				else
+				{
+					cleanUpRowDropIndicator();
+				}
+			}
+			
+
+			private function cleanUpRowDropIndicator():void
+			{
+				if (dropIndicator)
+				{
+					dropIndex == -1;
+					collectionGrid.grid.overlay.removeDisplayObject(dropIndicator);
+					dropIndicator = null;
+				}
+			}
+
+			
+			private function startDragDrop(event:GridEvent):void
+			{
+				if (DragManager.isDragging)
+					return;
+				
+				if (event.rowIndex != -1)
+					startRowDragDrop(event);
+
+			}
+			
+			
+			private function startRowDragDrop(event:GridEvent):void
+			{
+				var newIndex:int = IGridItemRenderer(event.itemRenderer).rowIndex;
+				
+				var ds:DragSource = new DragSource();
+				ds.addHandler(copySelectedItemsForDragDrop, "itemsByIndex");
+				
+				// Calculate the index of the focus item within the vector
+				// of ordered items returned for the "itemsByIndex" format.
+				var caretIndex:int = 0;
+				var draggedIndices:Vector.<int> = collectionGrid.selectedIndices;
+				var count:int = draggedIndices.length;
+				for (var i:int = 0; i < count; i++)
+				{
+					if (newIndex > draggedIndices[i])
+						caretIndex++;
+				}
+				ds.addData(caretIndex, "caretIndex");
+				
+				var proxy:Group = new Group();
+				proxy.styleName = collectionGrid;
+				proxy.width = collectionGrid.grid.width;
+				DragManager.doDrag(collectionGrid, ds, event, proxy as IFlexDisplayObject, 0, -collectionGrid.columnHeaderGroup.height);
+				
+				const visibleColumnIndices:Vector.<int> = collectionGrid.grid.getVisibleColumnIndices();
+				count = visibleColumnIndices.length;
+				for (i = 0; i < count; i++)
+				{
+					var currentRenderer:IGridItemRenderer = collectionGrid.grid.getItemRendererAt(newIndex, visibleColumnIndices[i]);
+					var factory:IFactory = collectionGrid.columns.getItemAt(i).itemRenderer;
+					if (!factory)
+						factory = collectionGrid.itemRenderer;
+					var renderer:IGridItemRenderer = IGridItemRenderer(factory.newInstance());
+					renderer.visible = true;
+					renderer.column = currentRenderer.column;
+					renderer.rowIndex = currentRenderer.rowIndex;
+					renderer.label = currentRenderer.label;
+					renderer.x = currentRenderer.x;
+					renderer.y = currentRenderer.y;
+					renderer.width = currentRenderer.width;
+					renderer.height = currentRenderer.height;
+					renderer.prepare(false);
+					proxy.addElement(renderer);
+					renderer.owner = collectionGrid;
+				}
+				proxy.height = renderer.height;
+				
+				collectionGrid.addEventListener(DragEvent.DRAG_COMPLETE, rowDragCompleteHandler);				
+			}
+
+			private function copySelectedItemsForDragDrop():Vector.<Object>
+			{
+				// Copy the vector so that we don't modify the original
+				// since selectedIndices returns a reference.
+				var draggedIndices:Vector.<int> = collectionGrid.selectedIndices.slice(0, collectionGrid.selectedIndices.length);
+				var result:Vector.<Object> = new Vector.<Object>(draggedIndices.length);
+				
+				// Sort in the order of the data source
+				draggedIndices.sort(compareValues);
+				
+				// Copy the items
+				var count:int = draggedIndices.length;
+				for (var i:int = 0; i < count; i++)
+					result[i] = collectionGrid.dataProvider.getItemAt(draggedIndices[i]);  
+				return result;
+			}
+			
+			private function rowDragCompleteHandler(event:DragEvent):void
+			{
+				// Remove the dragged items only if they were drag moved to
+				// a different list. If the items were drag moved to this
+				// list, the reordering was already handles in the 
+				// DragEvent.DRAG_DROP listener.
+				if (event.action != DragManager.MOVE || 
+					event.relatedObject == collectionGrid)
+					return;
+				
+				// Clear the selection, but remember which items were moved
+				var movedIndices:Vector.<int> = collectionGrid.selectedIndices;
+				collectionGrid.selectedIndices = new Vector.<int>();
+				
+				// Remove the moved items
+				movedIndices.sort(compareValues);
+				var count:int = movedIndices.length;
+				for (var i:int = count - 1; i >= 0; i--)
+				{
+					collectionGrid.dataProvider.removeItemAt(movedIndices[i]);
+				}                
+			}
+
+			private function compareValues(a:int, b:int):int
+			{
+				return a - b;
+			} 
+			
+			
+			private function dropRow(event:DragEvent):void
+			{
+				var recCampaignTimelineSequence:Rec_campaign_timeline_sequence;
+				if (event.dragSource.hasFormat("itemsByIndex"))
+				{
+					var destIndex:int = dropIndex; // ??? Math.max((event.localY/sequenceGrid.rowHeight) - 1, 0);
+					var i:int;
+					var it:Object;
+					var items:Vector.<Object> = event.dragSource.dataForFormat('itemsByIndex') as Vector.<Object>;
+					if (items.length>0)
+					{
+						var itemsArray:Array = null;
+						
+						if (event.dragSource.hasFormat("itemsByIndex")) 
+						{
+							var items:Vector.<Object>  = event.dragSource.dataForFormat('itemsByIndex') as Vector.<Object>;
+							for each(var item:Object in items)
+							{
+								var xmlPage:XML = <Page/>
+								xmlPage.@page = "page" + (m_xmlListCollection.length+1).toString();
+								var xmlPlayer:XML;
+								
+								
+								if (item is XML)
+								{
+									var xmlItem:XML = XML(item);
+								
+									if (xmlItem.name()=="Resource")
+									{
+										xmlPage.@type = "resource";
+										
+										
+										var playerId:int = int(xmlItem.@player);
+										var hData:int = int(xmlItem.@hResource);
+										xmlPlayer = 
+											<Player player={playerId}>
+											  <Data>
+												<Resource hResource={hData}/>
+											  </Data>
+											</Player>;
+										var duration:Number = m_resourceService.getTotalTime(hData);
+										if (duration>0)
+										{
+											xmlPage.@duration = duration;
+										}
+										xmlPage.appendChild(xmlPlayer);
+										m_xmlListCollection.addItem(xmlPage);						
+									}
+									else if (xmlItem.name()=="Page")
+									{
+										var item:Object = items[0];
+										var sourceIndex:int = m_xmlListCollection.getItemIndex(item);
+										
+										if (sourceIndex==destIndex || destIndex>m_xmlListCollection.length)
+											return;
+										
+										var addIndex:int = (sourceIndex>destIndex) ? destIndex : destIndex-1;
+										m_xmlListCollection.removeItemAt( sourceIndex );
+										m_xmlListCollection.addItemAt(item, addIndex);
+									}
+								}
+								else
+								{
+									if (item.name=="PlayerData")
+									{
+										xmlPage.@type = "scene";
+										xmlPlayer = <Player/>;
+										xmlPlayer.@hDataSrc = item.handle;
+										xmlPage.appendChild(xmlPlayer);
+										m_xmlListCollection.addItem(xmlPage);
+									}
+								}
+							}
+						}
+						
+					}
+				}
+				
+				
+				cleanUpRowDropIndicator();
+			}
+
+
+			
+			private function onName(item:Object, ctrl:Object):String
+			{
+				var label:String = "";
+				var xmlPlayer:XML = item.Player[0];
+				switch(String(item.@type))
+				{
+					case "resource":
+						var xmlResource:XML = xmlPlayer.Data[0].Resource[0];
+						var hResource:int = xmlResource.@hResource;
+						label = m_resourceService.getNameFromHandle(hResource);
+						break;
+					
+					case "scene":
+						var hDataSrc:int = xmlPlayer.@hDataSrc;
+						label = m_playerDataService.getNameFromHandle(hDataSrc);
+						break;
+				}
+				return label;
+			}
+			
+			public function onDelete():void
+			{
+				var item:Object = collectionGrid.selectedItem;
+				if (item==null)
+					return;
+				
+				for each(item in collectionGrid.selectedItems)
+				{
+					if (XMLList(item.AdLocalContent).length()!=0)
+					{
+						var xmlAdLocalContent:XML = item.AdLocalContent[0];
+						var recAdLocalContent:Rec_ad_local_content = m_dataBaseManager.table_ad_local_contents.getRecord(xmlAdLocalContent.@handle);
+						if (recAdLocalContent!=null)
+						{
+							recAdLocalContent.enabled = false;
+						}
+					}
+					
+					var index:int = m_xmlListCollection.getItemIndex(item);
+					m_xmlListCollection.removeItemAt(index);
+				}
+				updateButtons();
+			}
+			
+			private function onItemSelected():void
+			{
+				updateButtons();
+			}
+			
+			private function updateButtons():void
+			{
+				m_xmlDelete.@enabled = (collectionGrid.selectedItem!=null);
+			}			
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+		<fx:Component className="ColumnDropIndicator">
+			<s:Group width="4">
+				<s:Rect width="4" height="20">
+					<s:fill>
+						<s:SolidColor color="0" />
+					</s:fill>
+				</s:Rect>
+			</s:Group>
+		</fx:Component>
+		<fx:Component className="RowDropIndicator">
+			<s:Group height="4">
+				<s:Rect width="20" height="4">
+					<s:fill>
+						<s:SolidColor color="0" />
+					</s:fill>
+				</s:Rect>
+			</s:Group>
+		</fx:Component>
+	</fx:Declarations>
+
+	
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+	
+	<Menu:SparkToolBar callbackObj="{this}" dataProvider="{m_menuBarCollection}" width="100%" height="22"/>
+	<s:DataGrid	id="collectionGrid" width="100%" height="100%"
+				dataProvider="{m_xmlListCollection}"
+
+				gridMouseDrag="startDragDrop(event)"
+				selectionMode="multipleRows"
+				editable="true"
+				click="onItemSelected()">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn dataField="@page" headerText="Page" width="50" editable="true"/>
+				<s:GridColumn dataField="@type" headerText="Type" width="50" editable="false"/>
+				<s:GridColumn labelFunction="onName" headerText="Name" width="50" editable="false"/>
+				<s:GridColumn dataField="@duration" headerText="duration" width="60" editable="true"/>
+				<s:GridColumn id="proofOfPlayColumn" headerText="proof of play" itemRenderer="ProofOfPlayItem" width="460" editable="false"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+	
+</s:NavigatorContent>

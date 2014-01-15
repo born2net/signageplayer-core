@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<flexLibProperties includeAllClasses="false" useMultiPlatformConfig="false" version="1">
+  <includeClasses>
+    <classEntry path="IPlayerDataService"/>
+    <classEntry path="IResourceService"/>
+    <classEntry path="IResourceServiceAir"/>
+    <classEntry path="ResourceEvent"/>
+    <classEntry path="IPlayerLoaderService"/>
+    <classEntry path="IPlayerTransitionService"/>
+    <classEntry path="IPlayerEventService"/>
+    <classEntry path="EventHandler"/>
+    <classEntry path="IEventHandleHost"/>
+  </includeClasses>
+  <includeResources/>
+  <namespaceManifests/>
+</flexLibProperties>

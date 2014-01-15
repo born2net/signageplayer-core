@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:GridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" 
+					clipAndEnableScrolling="true">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.CollectionEvent;
+			import mx.managers.CursorManager;
+			
+			import spark.components.DataGrid;
+			import spark.skins.spark.DefaultGridItemRenderer;
+			
+			
+			public override function prepare(hasBeenRecycled:Boolean):void 
+			{
+				//lblData.text = data[column.dataField]
+			}
+			
+			public override function set data(value:Object):void
+			{
+				super.data = value;
+				if (data==null)
+					return;
+				
+				var commandName:String = data.commandName;
+				for each(var command:Object in ArrayList(commandCombo.dataProvider).source)
+				{
+					if (command.name==commandName)
+					{
+						commandCombo.selectedItem = command;
+						break;
+					}
+				}
+			}
+			
+			private function onCommand():void
+			{
+				data.commandName = commandCombo.selectedItem.name;
+				if (commandCombo.selectedItem.name=="selectPage")
+				{
+					commandCombo.selectedItem.commandParams = null;
+				}
+				ArrayCollection(DataGrid(owner).dataProvider).dispatchEvent( new CollectionEvent(CollectionEvent.COLLECTION_CHANGE) );
+			}
+			
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:HorizontalLayout gap="0"/>
+	</s:layout>
+	
+	<s:DropDownList id="commandCombo"
+				change="onCommand()" width="120">
+		<s:dataProvider>
+			<s:ArrayList>
+				<fx:Object name="setParam" label="Set param"/>
+				<fx:Object name="addParam" label="Add param"/>
+				<fx:Object name="decParam" label="Dec param"/>
+			</s:ArrayList>
+		</s:dataProvider>
+	</s:DropDownList>
+</s:GridItemRenderer>

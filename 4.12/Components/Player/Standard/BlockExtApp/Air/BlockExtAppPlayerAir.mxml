@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:BlockExtAppPlayer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					  xmlns:s="library://ns.adobe.com/flex/spark" 
+					  xmlns:mx="library://ns.adobe.com/flex/mx" 
+					  xmlns:ms="*"
+	implements="IExtAppPlayer">
+	<fx:Script>
+		<![CDATA[
+			import mx.core.Window;
+			private var m_extAppService:IExtAppService;
+			private var m_resourceService:IResourceService;
+			private var m_appId:String = null;
+			private var m_timer:Timer = null;
+			private var m_found:Boolean = false;
+			private var m_cachingMacro:Boolean = false;
+			private var m_hResource:int = -1;
+
+
+			public override function start():void
+			{
+				super.start();
+				if (m_extAppService!=null)
+				{
+					m_extAppService.show(m_appId);
+				}				
+			}
+
+			public override function stop():void
+			{
+				super.stop();
+				if (m_extAppService!=null)
+				{
+					m_extAppService.hide(m_appId);
+				}
+			}
+			
+			
+			public override function initModule():void
+			{
+				super.initModule();
+				m_extAppService = m_framework.ServiceBroker.QueryService("WatchDogService") as IExtAppService
+				m_resourceService = m_framework.ServiceBroker.QueryService("ResourceService") as IResourceService
+				m_appId = new Date().time.toString();
+			} 
+		
+			public override function get propertyPages():Array
+			{
+				return [BlockExtAppPageAir];
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+		
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_extAppService==null)
+					return;
+					
+				if (IWatchDogService(m_extAppService).watchdogConnection==false)
+				{
+					message.setStyle("color", "red");
+					message.text = "Warning: SignageController not running!";
+				}	
+					
+				if (m_invalidateApplication)
+				{
+					m_invalidateApplication = false;
+					var cmdLine:String = getExtractCmdLine();
+					if (m_cachingMacro==false)
+					{
+						m_extAppService.excecApp(m_appId, m_appName, cmdLine);
+						if (m_timer==null)
+						{
+							m_timer = new Timer(1000, 15);
+							m_timer.addEventListener(TimerEvent.TIMER, onUpdateAgain);
+							m_timer.addEventListener(TimerEvent.TIMER_COMPLETE, onUpdateComplete);
+							m_timer.start();
+						}
+					}
+				}
+			}
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (m_appId==null || width==0 || height==0)
+					return;
+				trace("onResize w=" + width + " h=" + height);
+				
+				if (m_appName!=null && m_extAppService!=null)
+				{
+					var point:Point = localToGlobal(new Point());
+					m_extAppService.updateAppRect(m_appId, point.x, point.y, width, height, onUpdateAppRect);
+				}
+			}
+			
+			private function onUpdateAgain(event:TimerEvent):void
+			{
+				invalidateDisplayList();
+			}
+			
+			private function onUpdateComplete(event:TimerEvent):void
+			{
+				if (m_timer!=null)
+				{
+					m_timer.removeEventListener(TimerEvent.TIMER, onUpdateAgain);
+					m_timer.removeEventListener(TimerEvent.TIMER_COMPLETE, onUpdateComplete);
+					m_timer = null;
+				}
+				
+				
+				// Ugly that ExtApp need to know about specific App. Neet to be more generic  (???)
+				if (m_appName.search("AVer MediaCenter.exe")!=-1)
+				{
+					if (m_appName!=null && m_extAppService!=null)
+					{
+						var point:Point = localToGlobal(new Point());
+						m_extAppService.sendMouseClick(m_appId, width/2, height/2, false);
+					    
+						var timer:Timer = new Timer(2000, 1);
+						timer.addEventListener(TimerEvent.TIMER_COMPLETE, onHDReady);
+						timer.start();
+						
+						
+					}
+				}
+			}
+			
+			
+			private function onHDReady(event:Event):void
+			{
+				Timer(event.target).removeEventListener(TimerEvent.TIMER_COMPLETE, onHDReady);
+				m_extAppService.sendMouseClick(m_appId, width/2, height/2, true);
+				m_extAppService.sendKey(m_appId, 0x20); // Send Spacebar key to hide AVerMedia toolbar
+				
+				var timer:Timer = new Timer(1000, 1);
+				timer.addEventListener(TimerEvent.TIMER_COMPLETE, onHDReady2);
+				timer.start();
+				
+				
+			}
+			
+			
+			private function onHDReady2(event:Event):void
+			{
+				Timer(event.target).removeEventListener(TimerEvent.TIMER_COMPLETE, onHDReady2);
+				IWatchDogService(m_extAppService).setCursorPos(0, 0);
+			}			
+			
+
+			private function onUpdateAppRect(i_result:Object):void
+			{
+				//Alert.show ("onUpdateAppRect "+(i_result==0 ? "false" : "true"));
+				if (m_extAppService==null)
+					return;
+
+				if (i_result==1)
+				{
+				}		
+			}
+			
+			private function getExtractCmdLine():String
+			{
+				var extractCmdLine:String;
+				var pattern:RegExp = /(\$File[)([0-9]+)(])/;
+				var i1:int = m_cmdLine.search(pattern);
+				if (i1!=-1)
+				{
+					var i2:int = m_cmdLine.indexOf("]", i1);
+					if (i2>i1+6)
+					{ 
+						var resourceId:int = int(m_cmdLine.substring(i1+6, i2));
+						m_hResource = m_dataBaseManager.table_resources.getHandle(resourceId);
+						var filePath:String = m_resourceService.getPathFromHandle(m_hResource);
+						var file:File = new File(filePath);
+						if (file.exists)
+						{
+							extractCmdLine = m_cmdLine.substring(0, i1) + '"' + file.nativePath + '"' + m_cmdLine.substring(i2+1)
+						}
+						else
+						{
+							m_framework.EventBroker.addEventListener( ResourceEvent.EVENT_RESOURCE_DOWNLOADED, onResourceDownloaded );
+							m_cachingMacro = true;
+						}
+						//Alert.show (extractCmdLine);
+					}	 
+				}
+				else
+				{
+					return m_cmdLine;	
+				}
+				
+				return extractCmdLine;
+			}
+			
+			private function onResourceDownloaded(event:ResourceEvent):void
+			{
+				if (m_hResource==event.hResource)
+				{
+					m_framework.EventBroker.removeEventListener( ResourceEvent.EVENT_RESOURCE_DOWNLOADED, onResourceDownloaded );
+					m_cachingMacro = false;
+					m_invalidateApplication = true;
+					invalidateProperties();
+				}
+			}
+			
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				if (m_extAppService!=null)
+				{
+					m_extAppService.killApp(m_appId);
+					m_extAppService = null;
+					m_appId = null;
+				}
+				if (m_timer!=null)
+				{
+					m_timer.removeEventListener(TimerEvent.TIMER, onUpdateAgain);
+					m_timer.removeEventListener(TimerEvent.TIMER_COMPLETE, onUpdateComplete);
+					m_timer = null;
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Label id="message" text="External App" fontSize="18" fontWeight="bold" 
+		verticalCenter="0" horizontalCenter="0"/>
+</ms:BlockExtAppPlayer>

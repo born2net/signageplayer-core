@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:EmbeddedResource xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					 xmlns:s="library://ns.adobe.com/flex/spark" 
+					 xmlns:mx="library://ns.adobe.com/flex/mx" 
+					 xmlns:ms="*"
+	width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[ 
+			import org.osmf.events.TimeEvent;
+			import org.osmf.layout.ScaleMode;
+			 
+			protected var m_autoRewind:Boolean = true; 
+			protected var m_invalidateVolume:Boolean =  true;
+			protected var m_invalidateAutoRewind:Boolean = true;
+			protected var m_invalidateBackgroundAlpha:Boolean = true;
+			protected var m_volume:Number = 1;
+			protected var m_seek:Number = 0;
+			protected var m_backgroundAlpha:Number = 1;
+			
+			
+			
+			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);   
+				
+				
+				if (XMLList(i_data.Resource.Video.@autoRewind).length()>0)
+				{
+					m_autoRewind = (i_data.Resource.Video.@autoRewind=="1");
+					m_invalidateAutoRewind = true;
+				}
+				if (XMLList(i_data.Resource.Video.@volume).length()>0)
+				{
+					m_volume = Number(i_data.Resource.Video.@volume);
+					m_invalidateVolume = true;
+				}
+				if (XMLList(i_data.Resource.Video.@backgroundAlpha).length()>0)
+				{
+					m_backgroundAlpha = Number(i_data.Resource.Video.@backgroundAlpha);
+					m_invalidateBackgroundAlpha = true;
+				}
+				invalidateProperties();			 	
+			} 
+			
+			public override function save():XML
+			{
+				var xmlResource:XML = super.save();
+				var xmlVideo:XML = <Video/>;
+				xmlResource.appendChild(xmlVideo);
+				xmlVideo.@autoRewind = m_autoRewind ? "1" : "0";
+				xmlVideo.@volume = m_volume;
+				xmlVideo.@backgroundAlpha = m_backgroundAlpha;
+				
+				return xmlResource;
+			}
+			
+			public override function get propertyPages():Array
+			{
+				return [VideoPage1];
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				videoDisplay.addEventListener(org.osmf.events.TimeEvent.COMPLETE, onPlayHeadEnd);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateVolume)
+				{
+					m_invalidateVolume = false;
+					videoDisplay.volume = m_volume;
+				}
+				if (m_invalidateAutoRewind)
+				{
+					m_invalidateAutoRewind =  false;
+					videoDisplay.autoRewind = m_autoRewind;
+				}
+				if (m_invalidateBackgroundAlpha)
+				{
+					m_invalidateBackgroundAlpha = false;
+					videoDisplay.setStyle("backgroundAlpha", m_backgroundAlpha);
+				}
+				
+				videoDisplay.scaleMode = m_maintainAspectRatio ? ScaleMode.LETTERBOX : ScaleMode.STRETCH;
+			}
+
+			protected function onPlayHeadEnd(event:org.osmf.events.TimeEvent):void
+			{
+				if (m_keepPlaying)
+				{
+					if (m_autoRewind)
+					{		
+						videoDisplay.seek(0);
+						videoDisplay.play();
+					}
+					else
+					{
+						m_keepPlaying = false;
+					}
+				}
+				else
+				{
+					dispatchEvent( new PlayerCompleteEvent(PlayerCompleteEvent.PLAYER_COMPLETE, this) );
+				}
+			} 
+			
+			
+			public override function start():void
+			{
+				super.start();
+				if (videoDisplay!=null) 
+				{
+					try
+					{
+						videoDisplay.seek(0);
+						videoDisplay.play();
+					}
+					catch(error:Error)
+					{
+						// Ignore
+						trace("Error: videoDisplay.play()");
+					}
+					
+					//???!!! videoDisplay.playheadTime = m_seek;
+					m_keepPlaying = true;
+				}
+			}
+			
+			public override function pause():void
+			{
+				videoDisplay.pause();
+			}
+			
+			public override function stop():void
+			{
+				try
+				{
+					videoDisplay.stop();
+				}
+				catch(error:Error)
+				{
+					trace("Error: videoDisplay.stop()");
+				}
+			}
+			
+			public override function get seek():Number
+			{
+				//???!!! return videoDisplay.playheadTime;
+				return 0;
+			}
+			
+			public override function set seek(i_seek:Number):void
+			{
+				m_seek = i_seek;
+			}
+			
+			public override function set source(i_source:String):void
+			{
+				super.source = i_source;
+				
+				videoDisplay.source = m_source;
+			}
+			
+			public function set autoRewind(i_autoRewind:Boolean):void
+			{
+				m_playerLoader.modified = true;
+				m_autoRewind = i_autoRewind;
+				invalidateProperties();
+			}
+
+			public function get autoRewind():Boolean
+			{
+				return m_autoRewind;
+			}
+			
+			
+			public function set volume(i_volume:Number):void
+			{
+				m_playerLoader.modified = true;
+				m_volume = i_volume;
+				m_invalidateVolume = true;
+				invalidateProperties();
+			}
+
+			public function get volume():Number
+			{
+				return m_volume;
+			}
+
+
+			public function set backgroundAlpha(i_backgroundAlpha:Number):void
+			{
+				m_playerLoader.modified = true;
+				m_backgroundAlpha = i_backgroundAlpha;
+				m_invalidateBackgroundAlpha = true;
+				invalidateProperties();
+			}
+
+			public function get backgroundAlpha():Number
+			{
+				return m_backgroundAlpha;
+			}
+
+		    override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+		    {
+		        super.updateDisplayList(unscaledWidth, unscaledHeight);
+		        if (videoDisplay!=null)
+		        {
+					videoDisplay.setActualSize(unscaledWidth, unscaledHeight);
+		        }
+		    }
+		    
+		    protected override function onDispose():void
+		    {
+		    	super.onDispose();
+		    	try
+		    	{
+					videoDisplay.videoObject.clear();
+					videoDisplay.source = null;
+		    	}
+		    	catch(e:Error)
+		    	{
+		    		
+		    	}
+		    			
+				videoDisplay.removeEventListener(org.osmf.events.TimeEvent.COMPLETE, onPlayHeadEnd);
+		    }
+		]]>
+		
+	</fx:Script>	 
+
+	
+	<s:VideoDisplay id="videoDisplay" width="100%" height="100%" autoPlay="true" />
+</ms:EmbeddedResource>

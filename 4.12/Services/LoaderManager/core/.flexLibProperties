@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<flexLibProperties includeAllClasses="false" useMultiPlatformConfig="false" version="1">
+  <includeClasses>
+    <classEntry path="LoadProgress"/>
+    <classEntry path="LoaderManager"/>
+    <classEntry path="TableRequest"/>
+    <classEntry path="Transaction"/>
+    <classEntry path="TransactionRequest"/>
+    <classEntry path="TransactionSubmit"/>
+  </includeClasses>
+  <includeResources/>
+  <namespaceManifests/>
+</flexLibProperties>

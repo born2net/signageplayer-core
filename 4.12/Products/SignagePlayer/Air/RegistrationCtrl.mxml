@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:ms="*"
+	width="416" height="318"
+	clipAndEnableScrolling="true">
+	<fx:Script>
+		<![CDATA[
+			import flash.desktop.NativeApplication;
+			
+			import mx.collections.XMLListCollection;
+			import mx.core.UIComponent;
+			
+			public static const REGISTERED_EVENT:String = "registered_event";
+			private var m_framework:IFramework;
+			private var m_debugLog:IDebugLog;
+			private var m_loaderManager:ILoaderManager; 
+			protected var m_dataBaseManager:DataBaseManager;
+			private var m_watchDogService:IWatchDogService;
+			
+			private var m_hBranchStation:int = -1;
+
+[Bindable]  private var m_xmlListCollection:XMLListCollection;			
+
+			public function init(i_framework:IFramework):void
+			{
+				m_framework = i_framework;
+				campaignBoardPicker.framework=m_framework;
+				m_debugLog = m_framework.ServiceBroker.QueryService("DebugLog") as IDebugLog;
+				m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+				m_loaderManager = m_framework.ServiceBroker.QueryService("LoaderManager") as ILoaderManager;
+				m_watchDogService = m_framework.ServiceBroker.QueryService("WatchDogService") as IWatchDogService;
+			}			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				currentState = "State_stationForm"
+				stationModeGroup.selectedValue = 1; // Test
+			}
+			
+			private function onNext():void
+			{
+				currentState = "State_stationMode"
+			}
+			
+			private function onRegister():void
+			{
+				if (stationName.text==null || stationName.text=="")
+				{
+					AlertEx.showOk(
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						"Please enter station name", "onRegister");
+					return;
+				}
+					
+				enabled = false;
+				
+				var businessDomain:String = m_framework.StateBroker.GetState("businessDomain") as String;
+				var businessId:int = int(m_framework.StateBroker.GetState("businessId"));
+				m_loaderManager.selectDomainBusiness(businessDomain, businessId);
+				
+								 
+				var recBranchStation:Rec_branch_station = m_dataBaseManager.table_branch_stations.createRecord()as Rec_branch_station;
+				m_dataBaseManager.table_branch_stations.addRecord(recBranchStation);
+				recBranchStation.campaign_board_id = -1;
+				recBranchStation.station_name = stationName.text;
+				recBranchStation.campaign_board_id = campaignBoardPicker.hCampaignBoard;
+				recBranchStation.location_lat = -1;
+				recBranchStation.location_long = -1;
+				recBranchStation.station_mode = int(stationModeGroup.selectedValue);
+				
+				var environment:String = m_framework.StateBroker.GetState("environment") as String;
+				recBranchStation.transition_enabled = (environment=="mobile") ? false : true;
+				
+				if (m_watchDogService!=null)
+				{
+					m_watchDogService.setStationMode(recBranchStation.station_mode);
+				}
+				
+				m_hBranchStation = recBranchStation.branch_station_id;
+				
+				
+				m_loaderManager.submit(onSubmited);				
+			}
+			
+			public function onSubmited(i_result:Boolean, i_messageTitle:String=null, i_messageText:String=null):void
+			{
+				enabled = true;
+				if (i_result==false)
+				{
+					AlertEx.showOk(
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						i_messageText, i_messageTitle);
+					m_debugLog.addWarning(i_messageTitle + "\n" + i_messageText);
+					return;
+				}
+				try
+				{
+					var recBranchStation:Rec_branch_station = m_dataBaseManager.table_branch_stations.getRecord(m_hBranchStation);
+					//AlertEx.showOk(UIComponent(m_framework.StateBroker.GetState("topWindow")), "recBranchStation.native_id="+recBranchStation.native_id, "onSubmited");
+					m_framework.StateBroker.SetState(this, "branchStationId", recBranchStation.native_id);
+					if (recBranchStation.native_id!=-1)
+					{
+						m_framework.EventBroker.dispatchEvent( new Event(REGISTERED_EVENT) );
+					}
+					else
+					{
+						AlertEx.showOk(this, "Registration failed.\nPossible causes include licencing restrictions and access control.\nPlease contact your Admin.\n", "oops", onOk);
+					}
+				}
+				catch(e:Error)
+				{
+					AlertEx.showOk(
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						"onSubmited\n"+e.message, "onSubmited");
+				}
+			}
+			
+			private function onOk():void
+			{
+				NativeApplication.nativeApplication.exit(0);
+			}
+			
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:RadioButtonGroup id="stationModeGroup"/>
+	</fx:Declarations>
+		
+	<s:states>
+		<s:State name="State_stationForm"/>
+		<s:State name="State_stationMode"/>
+	</s:states>	
+	
+	
+	<s:VGroup includeIn="State_stationForm" top="10" bottom="10" left="10" right="10">
+		<s:Form width="100%">
+			<s:FormItem width="100%">
+				<ms:TextInputStr id="stationName" text="MyStation" width="100%"/>
+			</s:FormItem>
+			<s:Spacer height="30"/>
+			<s:FormItem width="100%">
+				<ms:CampaignBoardPicker id="campaignBoardPicker" width="100%"/>		
+			</s:FormItem>
+		</s:Form>
+		<s:Spacer height="100%"/>
+		<s:Group width="100%">
+			<s:Button id="btnNext" label="Next >>" click="onNext()" right="0"/>	
+		</s:Group>
+	</s:VGroup>
+	
+	<s:VGroup includeIn="State_stationMode"  top="10" bottom="10" left="10" right="10"
+			  gap="10">
+		<s:RadioButton x="20" y="50" groupName="stationModeGroup" value="1"
+			label="Test station mode"/>
+	    <s:Label paddingLeft="20"
+			width="100%"
+	    	text="Keep current running applications and opened windows"/>
+	    <s:RadioButton groupName="stationModeGroup" value="0"
+	    	label="Real station mode"/>
+	    <s:Label width="100%"
+	    	text="Close all running applications and hide all opened windows"/>
+		<s:Spacer height="100%"/>
+		<s:Group width="100%">
+			<s:Button id="btnRegister" label="Register" click="onRegister()" right="0"/>
+		</s:Group>
+	</s:VGroup>
+
+</s:Group>

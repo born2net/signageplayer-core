@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+	implements="IProviderItem">
+	 
+	<fx:Script>  
+		<![CDATA[
+			private var m_cachingService:ICachingService;
+			private var m_styleService:IStyleService;
+			private var m_fieldName:String = "title";
+			private var m_fieldType:String = "text";
+			private var m_urlBase:String = "";
+			private var m_xmlItemProvider:IXmlItemProvider;
+			
+			private var m_fontItem:IFontItem;
+			private var m_faces:Object = new Object();
+			private var m_invalidateItem:Boolean = false;
+			private var m_cachingItem:ICachingItem = null;
+			
+			
+			
+			/************************************/
+			/* implements IProviderItem			*/
+			/************************************/	
+			public function setDataProvider(i_dataProvider:IDataProvider, i_providerItem:String=null):void
+			{
+				m_xmlItemProvider = i_dataProvider as IXmlItemProvider;
+				invalidateItem();
+			}
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.XmlItem).length()>0)
+				{
+					m_fieldName = i_data.XmlItem.@fieldName;
+					m_fieldType = i_data.XmlItem.@fieldType;
+					
+					if (m_fieldType=="text")
+					{
+						m_fontItem.load(i_data.XmlItem.Font[0]);
+					}
+					else
+					{
+						m_urlBase = i_data.XmlItem.@urlBase;
+					}
+				}
+				
+				invalidateItem(); 
+			}
+			
+			public override function save():XML
+			{
+				var xmlXmlItem:XML = <XmlItem fieldName={m_fieldName} fieldType={fieldType}/>;
+				if (m_fieldType=="text")
+				{  
+					xmlXmlItem.appendChild( m_fontItem.save() );
+				}
+				else
+				{
+					xmlXmlItem.@urlBase = m_urlBase;
+				}
+				return xmlXmlItem;
+			}   
+			
+			public override function start():void
+			{
+				super.start();
+				invalidateItem();
+			}
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockXmlItemPage];
+			}
+			
+			 
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_cachingService = m_framework.ServiceBroker.QueryService("CachingService") as ICachingService;
+				m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+				m_fontItem = m_styleService.createFontItem();
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			public function get fieldName():String
+			{
+				return m_fieldName;
+			}			
+			
+			public function set fieldName(i_fieldName:String):void
+			{
+				m_playerLoader.modified = true; 
+				m_fieldName = i_fieldName;
+				invalidateItem();
+			}		
+
+
+			public function get fieldType():String
+			{
+				return m_fieldType;
+			}			
+			
+			public function set fieldType(i_fieldType:String):void
+			{
+				m_playerLoader.modified = true;
+				m_fieldType = i_fieldType;
+				invalidateItem();
+			}		
+			
+			
+			public function get urlBase():String
+			{
+				return m_urlBase;
+			}			
+			
+			public function set urlBase(i_urlBase:String):void
+			{
+				m_playerLoader.modified = true;
+				m_urlBase = i_urlBase;
+				invalidateItem();
+			}		
+			
+			
+			
+			public function set fontItem(i_fontItem:IFontItem):void
+			{
+				m_playerLoader.modified = true;
+				m_fontItem = i_fontItem;
+				invalidateItem();				
+			}
+
+			public function get fontItem():IFontItem
+			{		
+				return m_fontItem;
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateItem)
+				{
+					m_invalidateItem = false;
+					if (m_cachingItem!=null)
+					{
+						m_cachingItem.removeEventListener(Event.COMPLETE, onCachingItemComplete);
+						m_cachingItem.removeEventListener(IOErrorEvent.IO_ERROR, onCachingItemFail);
+						m_cachingItem = null;
+					}
+
+					
+					var text:String = null;
+				
+					if (m_xmlItemProvider==null)
+					{
+						text = m_fieldType;
+					}
+					else
+					{	
+						var value:String = m_xmlItemProvider.getItemValue(m_fieldName);
+						if (value!=null)
+						{
+							if (m_fieldType=="text")
+							{
+								text = value;
+							}
+							else
+							{
+								if (value!=null && value!="")
+								{
+									resourceViewer.visible  = true;
+									var resUrl:String = m_urlBase + value;
+									
+									var fileName:String = m_cachingService.generateFileName(resUrl);
+									m_cachingItem = m_cachingService.getCachingItem("Caching", fileName);
+									m_cachingItem.addEventListener(Event.COMPLETE, onCachingItemComplete);
+									m_cachingItem.addEventListener(IOErrorEvent.IO_ERROR, onCachingItemFail);
+									m_cachingItem.url = resUrl;
+									m_cachingItem.expireDuration = 60 * 60 * 24 * 3;  // 3 days
+									if (isNaN(m_cachingItem.lastDownload) || m_cachingItem.lastDownload>60) // download new file if it's older then 1 min
+									{
+										m_cachingItem.cache(true);
+									} 			
+
+									try
+									{
+										if (m_cachingItem.cached)
+										{
+											resourceViewer.setResource(m_cachingItem.source, m_cachingItem.type, false, false);
+										}
+									}
+									catch(e:Error)
+									{
+										
+									}
+								}
+							}
+						}
+					}
+				}	
+				
+				if (text!=null)
+				{
+					label.visible = true;
+					resourceViewer.visible  = false;
+					resourceViewer.clear();
+					m_fontItem.applyStyles(label);
+					label.text = text;
+				}
+				else
+				{
+					label.visible = false;
+					resourceViewer.visible  = true;
+				}
+				
+			}
+			
+			private function onCachingItemComplete(i_event:Event):void
+			{
+				if (m_cachingItem==null)
+					return;
+				m_cachingItem.removeEventListener(Event.COMPLETE, onCachingItemComplete);
+				m_cachingItem.removeEventListener(IOErrorEvent.IO_ERROR, onCachingItemFail);
+				
+				try
+				{
+					resourceViewer.setResource(m_cachingItem.source, m_cachingItem.type, false, false);
+				}
+				catch(e:Error)
+				{
+					
+				}
+			}
+			
+			private function onCachingItemFail(i_event:Event):void
+			{
+				if (m_cachingItem==null)
+					return;
+				
+				m_cachingItem.removeEventListener(Event.COMPLETE, onCachingItemComplete);
+				m_cachingItem.removeEventListener(IOErrorEvent.IO_ERROR, onCachingItemFail);
+			}
+			
+			
+			private function loadResource():void
+			{
+				
+			}
+			
+			private function invalidateItem():void
+			{
+				if (m_fieldType=="resource")
+				{
+					m_invalidateItem = true;
+					invalidateProperties();
+				}
+				else
+				{
+					m_faces = new Object();
+					var face:String = m_fontItem.fontFamily;
+					m_faces[face] = face;
+					if (m_styleService.fontsCompleted(m_faces))
+					{
+						m_invalidateItem = true;
+						invalidateProperties();
+					}
+					else
+					{
+						m_styleService.addEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					}
+				}
+			}
+			
+			private function onStyleComplete(event:ServiceStyleEvent):void
+			{
+				if (m_styleService.fontsCompleted(m_faces))
+				{
+					m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					m_invalidateItem = true;
+					invalidateItem();
+				}
+			}
+			
+			
+			
+			protected override function onDispose():void
+			{
+				super.onDispose(); 
+				resourceViewer.clear();
+				m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+				if (m_cachingItem!=null)
+				{
+					m_cachingItem.removeEventListener(Event.COMPLETE, onCachingItemComplete);
+					m_cachingItem.removeEventListener(IOErrorEvent.IO_ERROR, onCachingItemFail);
+					m_cachingItem = null;
+				}
+			}
+			
+			
+		]]>
+	</fx:Script>	
+
+	<ms:ResourceViewer id="resourceViewer" 
+					   top="0" bottom="0" left="0" right="0" maintainAspectRatio="false" 
+					   showProgressBar="false"/>
+	<s:RichText id="label" visible="false" 
+				top="0" bottom="0" left="0" right="0"/>
+</ms:PlayerModule>	

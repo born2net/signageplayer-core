@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+	implements="IProviderItem">
+	 
+	<fx:Script>  
+		<![CDATA[
+			import flashx.textLayout.conversion.TextConverter;
+			
+			import spark.utils.TextFlowUtil;
+			private var m_styleService:IStyleService;
+			private var m_field:String = "title";
+			private var m_customRssProvider:ICustomRssProvider;
+			
+			private var m_fontItem:IFontItem;
+			private var m_faces:Object = new Object();
+			private var m_invalidateItem:Boolean = false;
+			
+			/************************************/
+			/* implements IProviderItem			*/
+			/************************************/	
+			public function setDataProvider(i_dataProvider:IDataProvider, i_providerItem:String=null):void
+			{
+				m_customRssProvider = i_dataProvider as ICustomRssProvider;
+				invalidateItem();
+			}
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.RssItem).length()>0)
+				{
+					m_field = i_data.RssItem.@field;
+					
+				}
+				if (XMLList(i_data.RssItem.Font).length()>0)
+				{
+					m_fontItem.load(i_data.RssItem.Font[0]);
+				}
+				
+				invalidateItem(); 
+			}
+			
+			public override function save():XML
+			{
+				var xmlRssItem:XML = <RssItem field={m_field} />;
+				if (m_field!="resource")
+				{
+					xmlRssItem.appendChild( m_fontItem.save() );
+				}
+				return xmlRssItem;
+			}   
+			
+			public override function start():void
+			{
+				super.start();
+				invalidateItem();
+			}
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockCustomRssItemPage];
+			}
+			
+			 
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+				m_fontItem = m_styleService.createFontItem();
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			public function get field():String
+			{
+				return m_field;
+			}			
+			
+			public function set field(i_field:String):void
+			{
+				m_playerLoader.modified = true;
+				m_field = i_field;
+				invalidateItem();
+			}		
+			
+			public function set fontItem(i_fontItem:IFontItem):void
+			{
+				m_playerLoader.modified = true;
+				m_fontItem = i_fontItem;
+				invalidateItem();				
+			}
+
+			public function get fontItem():IFontItem
+			{		
+				return m_fontItem;
+			}
+
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateItem)
+				{
+					m_invalidateItem = false;
+					
+					var text:String = null;
+				
+					if (m_customRssProvider==null)
+					{
+						text = m_field;
+						showBlockInfo(null);
+					}
+					else
+					{
+						var rssItem:IRssItem = m_customRssProvider.getRssItem();
+						if (rssItem!=null)
+						{
+							if (m_field=="resource")
+							{
+								var resUrl:String = rssItem.getMediaPath();
+								var resType:String = "swf"; //???
+								resourceViewer.setResource(resUrl, resType, false, false);
+							}
+							else
+							{
+								if (rssItem.xml!=null)
+								{
+									text = rssItem.xml[m_field];
+								}
+							}
+						}
+							
+					}
+				}	
+				
+				if (text!=null)
+				{
+					label.visible = true;
+					resourceViewer.visible  = false;
+					resourceViewer.clear();
+					m_fontItem.applyStyles(label);
+					label.textFlow = TextConverter.importToFlow(text, TextConverter.TEXT_FIELD_HTML_FORMAT);
+				}
+				else
+				{
+					label.visible = false;
+					resourceViewer.visible  = true;
+				}
+				
+			}
+			
+			private function invalidateItem():void
+			{
+				if (m_field=="resource")
+				{
+					m_invalidateItem = true;
+					invalidateProperties();
+				}
+				else
+				{
+					m_faces = new Object();
+					var face:String = m_fontItem.fontFamily;
+					m_faces[face] = face;
+					if (m_styleService.fontsCompleted(m_faces))
+					{
+						m_invalidateItem = true;
+						invalidateProperties();
+					}
+					else
+					{
+						m_styleService.addEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					}
+				}
+			}
+
+			
+			private function onStyleComplete(event:ServiceStyleEvent):void
+			{
+				if (m_styleService.fontsCompleted(m_faces))
+				{
+					m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					m_invalidateItem = true;
+					invalidateItem();
+				}
+			}
+			
+			
+			protected override function onDispose():void
+			{
+				super.onDispose(); 
+				resourceViewer.clear();
+				m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+			}
+			
+		]]>
+	</fx:Script>	
+
+    <ms:ResourceViewer id="resourceViewer" 
+    	top="0" bottom="0" left="0" right="0" maintainAspectRatio="false" />
+	<s:RichText id="label" visible="false" 
+		top="0" bottom="0" left="0" right="0"/>
+</ms:PlayerModule>	

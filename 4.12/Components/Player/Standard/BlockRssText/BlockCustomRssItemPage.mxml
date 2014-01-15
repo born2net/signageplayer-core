@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"
+	width="100%" height="300"
+	label="{resourceManager.getString('player', 'catalogItem.title')}">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				comboField.dataProvider = new XMLListCollection(fieldList);
+				fontCtrl.addEventListener(FontCtrl.FONT_CHANGED, onFontChanged);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader==null || m_playerLoader.player==null)
+					return;
+				
+				for each(var xmlField:XML in comboField.dataProvider)
+				{
+					if (BlockCustomRssItemPlayer(m_playerLoader.player).field==xmlField.@value)
+					{
+						comboField.selectedItem = xmlField;
+						break;
+					}
+				} 
+				
+				fontCtrl.visible = (BlockCustomRssItemPlayer(m_playerLoader.player).field!="resource");
+				fontCtrl.fontItem = BlockCustomRssItemPlayer(m_playerLoader.player).fontItem;
+			}
+			
+			private function onFieldChanged(event:Event):void
+			{
+				if (m_playerLoader!=null && m_playerLoader.player!=null)
+				{
+					var field:String = comboField.selectedItem.@value;
+					BlockCustomRssItemPlayer(m_playerLoader.player).field = field;
+					fontCtrl.visible = (BlockCustomRssItemPlayer(m_playerLoader.player).field!="resource");
+				}
+			}
+			
+			
+			private function onFontChanged(event:Event):void
+			{
+				if (m_playerLoader!=null && m_playerLoader.player!=null)
+				{
+					BlockCustomRssItemPlayer(m_playerLoader.player).fontItem = fontCtrl.fontItem;
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<fx:XMLList id="fieldList">		
+			<Field 
+				label="Title"
+				value="title"/>
+			<Field 
+				label="Description"
+				value="description"/>
+			<Field 
+				label="Resource"
+				value="resource"/>
+		</fx:XMLList>
+	</fx:Declarations>
+	
+	<ms:layout>
+		<s:VerticalLayout/>
+	</ms:layout>
+	<s:Form width="100%">
+		<s:FormItem width="100%"
+			label="field">
+			<s:DropDownList id="comboField"
+					width="100%"
+					labelField="@label" 
+					change="onFieldChanged(event)"/>
+		</s:FormItem>
+		<s:FormItem label="Font:"/>
+				
+	</s:Form>
+	<ms:FontCtrl id="fontCtrl" width="100%"/>
+</ms:PlayerPage>

@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+	implements="IProviderItem">
+	 
+	<fx:Script>  
+		<![CDATA[
+			private var m_styleService:IStyleService;
+			private var m_field:String = FacebookField.FRIEND_NAME;
+			
+			private var m_facebookProvider:IFacebookProvider;
+			
+			private var m_fontItem:IFontItem;
+			private var m_faces:Object = new Object();
+			private var m_invalidateItem:Boolean = false;
+			
+			
+			/************************************/
+			/* implements IProviderItem			*/
+			/************************************/	
+			public function setDataProvider(i_dataProvider:IDataProvider, i_providerItem:String=null):void
+			{
+				m_facebookProvider = i_dataProvider as IFacebookProvider;
+				invalidateItem();
+			}
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.FacebookItem).length()>0)
+				{
+					m_field = i_data.FacebookItem.@field;
+					if (XMLList(i_data.FacebookItem.Font).length()>0)
+					{
+						m_fontItem.load(i_data.FacebookItem.Font[0]);
+					}
+				}
+				
+				invalidateItem();
+			}
+			
+			public override function save():XML
+			{
+				var xmlFacebookItem:XML = <FacebookItem field={m_field} />;
+				xmlFacebookItem.appendChild( m_fontItem.save() );
+				return xmlFacebookItem;
+			}   
+			
+			public override function start():void
+			{
+				super.start();
+				invalidateItem();
+			}
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockFacebookItemPage];
+			}
+			
+			 
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+				m_fontItem = m_styleService.createFontItem();
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			public function get field():String
+			{
+				return m_field;
+			}			
+			
+			public function set field(i_field:String):void
+			{
+				m_playerLoader.modified = true;
+				m_field = i_field;
+				invalidateItem();
+			}		
+
+
+			
+			public function set fontItem(i_fontItem:IFontItem):void
+			{
+				m_playerLoader.modified = true;
+				m_fontItem = i_fontItem;
+				invalidateItem();				
+			}
+
+			public function get fontItem():IFontItem
+			{		
+				return m_fontItem;
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateItem)
+				{
+					m_invalidateItem = false;
+				
+					var text:String = null;
+					
+					if (m_facebookProvider==null)
+					{
+						var blockInfo:String = null;
+						resourceViewer.clear();
+						switch(m_field)
+						{
+							case FacebookField.FRIEND_NAME:
+								text = "name";
+								break;
+	
+							case FacebookField.FRIEND_SEX:
+								text = "sex";
+								break;
+							
+							case FacebookField.FRIEND_IMAGE:
+								text = "photo";
+								break;
+	
+							
+							case FacebookField.ALBUM_PHOTO_CREATED:
+								text = "photo created";
+								break;
+							
+							case FacebookField.ALBUM_PHOTO_CAPTION:
+								text = "photo caption";
+								break;
+							
+							case FacebookField.ALBUM_BIG_PHOTO:
+								text = "photo big";
+								break;
+	
+							case FacebookField.ALBUM_SMALL_PHOTO:
+								text = "photo small";
+								break;
+							
+							
+							
+							case FacebookField.EVENT_NAME:
+								text = "event name";
+								break;
+							
+							case FacebookField.EVENT_LOCATION:
+								text = "event location";
+								break;
+							
+							case FacebookField.EVENT_START_TIME:
+								text = "event start";
+								break;
+	
+							case FacebookField.EVENT_IMAGE:
+								text = "event image";
+								break;
+							
+						}
+						showBlockInfo(blockInfo);
+					}
+					else
+					{	
+						var friendProvider:IFacebookFriendProvider = (m_facebookProvider.providerType=="friends") ? (m_facebookProvider as IFacebookFriendProvider) : null;
+						var albumProvider:IFacebookAlbumProvider = (m_facebookProvider.providerType=="albums") ? (m_facebookProvider as IFacebookAlbumProvider) : null;
+						var eventProvider:IFacebookEventProvider = (m_facebookProvider.providerType=="events") ? (m_facebookProvider as IFacebookEventProvider) : null;
+						
+						switch(m_field)
+						{				
+							case FacebookField.FRIEND_NAME:
+								text = (friendProvider!=null) ? friendProvider.friendName : "N/A";
+								break;
+								
+							case FacebookField.FRIEND_SEX:
+								text = (friendProvider!=null) ? friendProvider.friendSex : "N/A";
+								break;
+							
+							case FacebookField.FRIEND_IMAGE:
+								if (friendProvider!=null)
+								{
+									var resUrl:String = friendProvider.friendImage;
+									var resType:String = "swf";
+									resourceViewer.setResource(resUrl, resType, false, false);
+									text = null;
+								}
+								else
+								{
+									
+									text = "N/A";
+								}
+								break;	
+							
+							
+							case FacebookField.ALBUM_PHOTO_CREATED:
+								text = (albumProvider!=null) ? albumProvider.photoCreated : "N/A";
+								break;
+							
+							case FacebookField.ALBUM_PHOTO_CAPTION:
+								text = (albumProvider!=null) ? albumProvider.photoCaption : "N/A";
+								break;
+							
+							case FacebookField.ALBUM_BIG_PHOTO:
+								if (albumProvider!=null)
+								{
+									resourceViewer.setResource(albumProvider.bigPhoto, "swf", false, false);
+									text = null;
+								}
+								else
+								{
+									text = "N/A";
+								}
+								break;
+							
+							case FacebookField.ALBUM_SMALL_PHOTO:
+								if (albumProvider!=null)
+								{
+									resourceViewer.setResource(albumProvider.smallPhoto, "swf", false, false);
+									text = null;
+								}
+								else
+								{
+									text = "N/A";
+								}
+								break;
+							
+							
+							
+							case FacebookField.EVENT_NAME:
+								text = (eventProvider!=null) ? eventProvider.eventName : "N/A";
+								break;
+	
+							case FacebookField.EVENT_LOCATION:
+								text = (eventProvider!=null) ? eventProvider.eventLocation : "N/A";
+								break;
+	
+							case FacebookField.EVENT_START_TIME:
+								text = (eventProvider!=null) ? eventProvider.startTime : "N/A";
+								break;
+	
+							case FacebookField.EVENT_IMAGE:
+								if (eventProvider!=null)
+								{
+									text = null;
+								}
+								else
+								{
+									text = "N/A";
+								}
+								break;
+							
+						}
+					}
+					
+					if (text!=null)
+					{
+						label.visible = true;
+						resourceViewer.visible  = false;
+						resourceViewer.clear();
+						m_fontItem.applyStyles(label);
+						label.text = text;
+					}
+					else
+					{
+						label.visible = false;
+						resourceViewer.visible  = true;
+					}
+				}
+			}
+			
+			private function invalidateItem():void
+			{
+				if (m_field==FacebookField.ALBUM_BIG_PHOTO || 
+					m_field==FacebookField.ALBUM_SMALL_PHOTO || 
+					m_field==FacebookField.FRIEND_IMAGE ||
+					m_field==FacebookField.EVENT_IMAGE)
+				{
+					m_invalidateItem = true;
+					invalidateProperties();
+				}
+				else
+				{
+					m_faces = new Object();
+					var face:String = m_fontItem.fontFamily;
+					m_faces[face] = face;
+					if (m_styleService.fontsCompleted(m_faces))
+					{
+						m_invalidateItem = true;
+						invalidateProperties();
+					}
+					else
+					{
+						m_styleService.addEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					}
+				}
+			}
+
+			private function onStyleComplete(event:ServiceStyleEvent):void
+			{
+				if (m_styleService.fontsCompleted(m_faces))
+				{
+					m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					m_invalidateItem = true;
+					invalidateItem();
+				}
+			}
+			
+			
+			protected override function onDispose():void
+			{
+				super.onDispose(); 
+				resourceViewer.clear();
+				m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+			}
+			
+		]]>
+	</fx:Script>	
+
+    <ms:ResourceViewer id="resourceViewer" 
+    	top="0" bottom="0" left="0" right="0" maintainAspectRatio="false" />
+	<s:RichText id="label" visible="false" 
+		top="0" bottom="0" left="0" right="0"/>
+</ms:PlayerModule>	

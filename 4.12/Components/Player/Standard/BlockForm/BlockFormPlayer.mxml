@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*">
+	 
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.collections.XMLListCollection;
+			import mx.core.IVisualElement;
+			import mx.events.CollectionEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.validators.EmailValidator;
+			
+			import spark.components.FormItem;
+			import spark.components.NavigatorContent;
+			import spark.components.TextInput;
+			import spark.layouts.HorizontalLayout;
+			import spark.layouts.TileLayout;
+			import spark.layouts.VerticalLayout;
+			import spark.primitives.supportClasses.FilledElement;
+			 
+			import mx.core.UIComponent;
+			
+			
+			private var m_styleService:IStyleService;
+			
+			private var m_collection:XMLListCollection;
+			private var m_fontItem:IFontItem;
+			private var m_faces:Object = new Object();
+			private var m_invalidateFont:Boolean = false;
+			private var m_invalidateList:Boolean = false;
+			
+			private var m_formItems:Object;
+			private var m_commandParams:XML;
+			
+			
+			
+			public function get collection():XMLListCollection
+			{
+				return m_collection;
+			}
+			
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Form).length()>0)
+				{ 
+					if (XMLList(i_data.Form.Font).length()>0)
+					{
+						m_fontItem.load(i_data.Form.Font[0]);
+					}
+					var xmlList:XML = i_data.Form.List[0];
+					m_collection = new XMLListCollection(xmlList.*);
+				}
+				else
+				{
+					m_collection = new XMLListCollection();
+				}
+				m_collection.addEventListener(CollectionEvent.COLLECTION_CHANGE, onChange);
+				m_invalidateFont = true;
+				m_invalidateList = true;
+				invalidateProperties();
+			}
+		
+			public override function get propertyPages():Array
+			{
+				return [BlockFormPage];
+			}
+			
+			
+			public override function save():XML
+			{ 
+				var xmlForm:XML = <Form/>;
+				var xmlList:XML = <List/>;
+				xmlForm.appendChild(xmlList);
+				xmlForm.appendChild( m_fontItem.save() );
+				xmlList.appendChild(m_collection.source.copy());
+				return xmlForm; 
+			}   
+			
+			public function set fontItem(i_fontItem:IFontItem):void
+			{
+				m_playerLoader.modified = true;
+				m_fontItem = i_fontItem;
+				invalidateText();
+			}
+			
+			public function get fontItem():IFontItem
+			{		
+				return m_fontItem;
+			}
+			
+			private function invalidateText():void
+			{
+				m_faces = new Object();
+				var face:String = m_fontItem.fontFamily;
+				m_faces[face] = face;
+				if (m_styleService.fontsCompleted(m_faces))
+				{
+					m_invalidateFont = true;
+					invalidateProperties();
+				}
+				else
+				{
+					m_styleService.addEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+				}
+			}
+			
+			private function onStyleComplete(event:ServiceStyleEvent):void
+			{
+				if (m_styleService.fontsCompleted(m_faces))
+				{
+					m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					m_invalidateFont = true;
+					invalidateProperties();
+				}
+			}			
+			
+			public override function onCommand(i_eventHandler:IEventHandler, i_eventParam:Object):void
+			{
+				if (i_eventHandler.commandName=="post")
+				{
+					m_commandParams = i_eventHandler.commandParams;
+					var _vars:URLVariables = new URLVariables(); 
+					for each(var xmlItem:XML in m_collection.source)
+					{
+						var param:String = xmlItem.@name;
+						var textInput:TextInput  = m_formItems[param] as TextInput;
+						if (textInput!=null && textInput.text!="")
+						{
+							if (xmlItem.@type=="Email")
+							{
+								var emailValidator:EmailValidator = new EmailValidator();
+								var vre:ValidationResultEvent = emailValidator.validate(textInput.text, true);
+								if (vre.type=="invalid")
+								{
+									AlertEx.showOk(
+										UIComponent(m_framework.StateBroker.GetState("topWindow")),
+										vre.message, "Submit");
+									return;
+								}
+							}
+							
+							
+							
+							_vars[param] = textInput.text;
+						}
+						else
+						{
+							if (xmlItem.@required=="1")
+							{
+								AlertEx.showOk(
+									UIComponent(m_framework.StateBroker.GetState("topWindow")),
+									xmlItem.@label + " is required", "Submit");
+								return;
+							}
+						}
+					}
+					
+					
+					var url:String = i_eventHandler.commandParams.Post.@url;
+					var loader:URLLoader = new URLLoader();
+					loader.dataFormat = URLLoaderDataFormat.TEXT;
+					loader.addEventListener(Event.COMPLETE, onCallCompleted);
+					loader.addEventListener(IOErrorEvent.IO_ERROR, onError);
+					
+					var request:String = url
+					
+					var urlRequest:URLRequest = new URLRequest(request);
+					urlRequest.method = URLRequestMethod.POST;
+					urlRequest.data = _vars; 
+					loader.load(urlRequest);
+					enabled = false;
+				}				
+			}	
+			
+			
+			private function onCallCompleted(event:Event):void
+			{
+				enabled = true;
+				var loader:URLLoader = URLLoader(event.target);
+				loader.removeEventListener(Event.COMPLETE, onCallCompleted);
+				loader.removeEventListener(IOErrorEvent.IO_ERROR, onError);		
+				
+				var ret:String = event.currentTarget.data;
+				var text:String = XML(m_commandParams.Post.Response[0]).toString();
+				if (ret.indexOf(text)!=-1)
+				{
+					m_playerLoader.sendEvent(m_playerLoader.playerName, "click", null);
+				}
+				
+			}
+			
+			private function onError(event:IOErrorEvent):void
+			{
+				enabled = true;
+				var loader:URLLoader = URLLoader(event.target);
+				loader.removeEventListener(Event.COMPLETE, onCallCompleted);
+				loader.removeEventListener(IOErrorEvent.IO_ERROR, onError);				
+			
+			}
+			
+			
+			
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+				
+				m_fontItem = m_styleService.createFontItem();	
+			} 
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateFont)
+				{
+					m_invalidateFont = false;
+					m_fontItem.applyStyles(form);
+				}
+				
+				if (m_invalidateList)
+				{
+					m_invalidateList=false;
+					
+					
+					Sprite(m_playerLoader).mouseEnabled=true;
+					Sprite(m_playerLoader).mouseChildren=true;								
+					
+					
+					form.removeAllElements();
+					m_formItems = new Object();
+					
+					for each(var xmlItem:XML in m_collection.source)
+					{
+						var textInput:TextInput = new TextInput();
+						m_formItems[xmlItem.@name] = textInput;
+						textInput.text = xmlItem.@defaultValue;
+						if (xmlItem.@type!="Hidden")
+						{
+							var required:Boolean = (xmlItem.@required=="1");
+							var formItem:FormItem = new FormItem();
+							formItem.label = (required ? "*" : "") + xmlItem.@label;
+							formItem.addElement( textInput );
+							form.addElement(formItem);
+						}
+					}
+				}
+			}
+			
+			
+			private function onChange(event:CollectionEvent):void
+			{
+				m_playerLoader.modified = true;
+				m_invalidateList = true;
+				invalidateProperties();				
+			}
+			
+			
+			protected override function onDispose():void
+			{
+				m_collection.removeEventListener(CollectionEvent.COLLECTION_CHANGE, onChange);
+				m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+				super.onDispose();
+			}
+		]]>
+	</fx:Script>	
+	
+	<s:Form id="form"/>
+</ms:PlayerModule>	

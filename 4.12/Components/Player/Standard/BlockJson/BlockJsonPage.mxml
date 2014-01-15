@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:Accordion="Accordion.*"
+			   xmlns:ms="*"
+			   label="Xml" width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				scenePickerCtrl.framework = m_framework;
+				scenePickerCtrl.addEventListener(Event.CHANGE, onSceneChanged);
+				eventsCtrl.editor = m_playerLoader;
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				scenePickerCtrl.hPlayerData = BlockJsonPlayer(m_playerLoader.player).hPlayerData;
+				url.text = BlockJsonPlayer(m_playerLoader.player).url;
+				
+				itemsPath.text = BlockJsonPlayer(m_playerLoader.player).itemsPath;
+				enableSlideShow.selected = intervalStepper.enabled= BlockJsonPlayer(m_playerLoader.player).slideShow;
+				intervalStepper.value = BlockJsonPlayer(m_playerLoader.player).itemInterval;
+				
+				eventsCtrl.editor = m_playerLoader;
+			}
+			
+
+     		private function onSceneChanged(event:Event):void
+     		{
+				BlockJsonPlayer(m_playerLoader.player).hPlayerData = scenePickerCtrl.hPlayerData
+     		}
+     		
+	        
+	        private function onIntervalStepper():void
+	        {
+				BlockJsonPlayer(m_playerLoader.player).itemInterval = intervalStepper.value;
+	        }
+			
+			private function onUrl():void
+			{
+				BlockJsonPlayer(m_playerLoader.player).url = url.text;
+			}
+			
+			
+			private function onItemsPath():void
+			{
+				BlockJsonPlayer(m_playerLoader.player).itemsPath = itemsPath.text;
+			}			
+			
+			private function onSlideShow():void
+			{
+				BlockJsonPlayer(m_playerLoader.player).slideShow = intervalStepper.enabled = enableSlideShow.selected;
+			}
+		]]>
+	</fx:Script>
+	
+	
+	<Accordion:SparkAccordion width="100%" height="100%">
+		<s:NavigatorContent label="General" width="100%" height="100%">
+			<s:Form width="100%" height="100%">
+				<s:FormItem label="{resourceManager.getString('player', 'ScenePickerCtrl.scene')}"  width="100%">
+					<ms:ScenePicker id="scenePickerCtrl" width="100%"/>
+				</s:FormItem>		
+				<s:FormItem label="Url">
+					<s:TextInput id="url"
+								 enter="onUrl()" focusOut="onUrl()"/>
+				</s:FormItem>
+				<s:FormItem label="Items path">
+					<s:TextInput id="itemsPath" change="onItemsPath()"/>
+				</s:FormItem>
+				
+					
+				<s:FormItem label="SlideShow">
+					<s:CheckBox id="enableSlideShow" click="onSlideShow()"/>	
+				</s:FormItem>
+				
+				<s:FormItem width="100%"
+							label="Interval">
+					<ms:NumericStepperEx id="intervalStepper" minimum="2" maximum="999"
+									  change="onIntervalStepper()"/>
+				</s:FormItem>		
+			</s:Form>
+		</s:NavigatorContent>
+		<ms:JsonEventsCtrl id="eventsCtrl" width="100%" height="100%"/>
+	</Accordion:SparkAccordion>
+</ms:PlayerPage>

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:BlockExtAppPlayer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					  xmlns:s="library://ns.adobe.com/flex/spark" 
+					  xmlns:mx="library://ns.adobe.com/flex/mx" 
+					  xmlns:ms="*"
+	width="342" height="298">
+
+	<fx:Script>
+		<![CDATA[
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				stage.addEventListener(FullScreenEvent.FULL_SCREEN, fullScreenRedraw);
+			}
+			
+			private function fullScreenRedraw(event:FullScreenEvent):void 
+			{
+				updateBlockInfo();
+			}
+			
+			private function updateBlockInfo():void
+			{
+				if (stage.displayState == StageDisplayState.FULL_SCREEN)
+				{
+					showBlockInfo("[This feature works only on real Stations]");
+				}
+				else
+				{
+					showBlockInfo(null);
+				}
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+			}
+
+			protected override function onDispose():void
+			{
+			}
+		]]>
+	</fx:Script>
+	<s:Label text="Web"/>
+</ms:BlockExtAppPlayer>

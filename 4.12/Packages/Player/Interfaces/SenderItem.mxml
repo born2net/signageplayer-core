@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:GridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" clipAndEnableScrolling="true">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.core.DragSource;
+			import mx.core.IFlexDisplayObject;
+			import mx.core.IVisualElement;
+			import mx.core.IVisualElementContainer;
+			import mx.events.CollectionEvent;
+			import mx.events.DragEvent;
+			import mx.managers.CursorManager;
+			import mx.managers.DragManager;
+			
+			import spark.components.BorderContainer;
+			import spark.components.DataGrid;
+			import spark.components.Image;
+			[Embed (source="/assets/targetIcon.png" )]
+			public static const targetIcon:Class;
+			
+			private var m_cursorID:Number;
+			private var m_curSelection:BorderContainer;
+			private var m_curPlayerLoader:IPlayerLoader;
+			
+			
+			override public function prepare(hasBeenRecycled:Boolean):void 
+			{
+			//	lblData.text = data[column.dataField]
+			}
+			
+			public override function set data(value:Object):void
+			{
+				super.data = value;
+				if (data==null)
+					return;
+				
+				fromPlayer.text = data.senderName;
+			}
+			
+			
+			private function startTraget(event:MouseEvent):void
+			{
+				m_cursorID = CursorManager.setCursor(targetIcon, 0, -8, -8);
+				btn.setStyle("icon", null);
+				stage.addEventListener(MouseEvent.MOUSE_MOVE, onTargetMove);
+				stage.addEventListener(MouseEvent.MOUSE_UP, onTargetFinish);
+					
+				
+			}
+			
+			private function onTargetMove(event:MouseEvent):void
+			{
+				if (event.target is IVisualElementContainer && IVisualElementContainer(event.target).numElements>0)
+				{
+					var element:IVisualElement = IVisualElementContainer(event.target).getElementAt(0);
+					if (element is IPlayerLoader)
+					{
+						if (element!=m_curPlayerLoader)
+						{
+							if (m_curSelection!=null)
+							{
+								IVisualElementContainer(m_curPlayerLoader).removeElement(m_curSelection);
+								m_curSelection = null;
+								m_curPlayerLoader = null;
+							}
+							m_curPlayerLoader = IPlayerLoader(element);
+							
+							if (m_curPlayerLoader.interactive)
+							{
+								data.fromPlayer = fromPlayer.text = IPlayerLoader(element).playerName;
+								
+								m_curSelection = new BorderContainer();
+								m_curSelection.setStyle("borderColor", 0x000000 ); 
+								m_curSelection.setStyle("borderStyle", "solid");
+								m_curSelection.setStyle("borderThickness", "3");
+								m_curSelection.alpha = 0.2;
+								
+								//m_curSelection.mouseEnabled=false;
+								//m_curSelection.mouseChildren=false;								
+								m_curSelection.width = element.width;
+								m_curSelection.height = element.height;
+								IVisualElementContainer(m_curPlayerLoader).addElement(m_curSelection);
+							}
+						}
+						
+					}
+				}
+				
+				if (CursorManager.currentCursorID != m_cursorID)
+				{
+					CursorManager.removeCursor(m_cursorID); 
+					m_cursorID = CursorManager.setCursor(targetIcon, 0, -8, -8);
+				} 
+			}
+			
+			private function onTargetFinish(event:MouseEvent):void
+			{
+				if (m_curSelection!=null)
+				{
+					IVisualElementContainer(m_curPlayerLoader).removeElement(m_curSelection);
+					m_curSelection = null;
+					m_curPlayerLoader = null;
+				}				
+				if (stage!=null)
+				{
+					stage.removeEventListener(MouseEvent.MOUSE_MOVE, onTargetMove);
+					stage.removeEventListener(MouseEvent.MOUSE_UP, onTargetFinish);
+				}
+				CursorManager.removeCursor(m_cursorID);   
+				btn.setStyle("icon", targetIcon);
+				
+				ArrayCollection(DataGrid(owner).dataProvider).dispatchEvent( new CollectionEvent(CollectionEvent.COLLECTION_CHANGE) );
+			}
+			
+			
+			private function onFromPlayer():void
+			{
+				data.senderName = fromPlayer.text;
+				ArrayCollection(DataGrid(owner).dataProvider).dispatchEvent( new CollectionEvent(CollectionEvent.COLLECTION_CHANGE) );
+			}
+		]]>
+	</fx:Script>
+		
+	<s:TextInput id="fromPlayer" left="0" right="30"
+				 enter="onFromPlayer()" focusOut="onFromPlayer()"/>
+	<s:Button id="btn" icon="{targetIcon}" right="0" width="30" mouseDown="startTraget(event)"/>
+</s:GridItemRenderer>

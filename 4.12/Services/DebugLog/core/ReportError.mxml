@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   title="Oops, that's embarrassing, what just happened…"
+			   xmlns:Controls="Controls.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import flash.net.navigateToURL;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.ObjectUtil;
+			
+			private var m_framework:IFramework;
+			
+			
+			private var m_errorMessage:String;
+			private var m_trace:ArrayCollection;
+			private var m_params:Object;
+			
+			public static function Create(i_framework:IFramework, i_errorMessage:String, i_trace:ArrayCollection, i_params:Object):ReportError
+			{
+				var reportError:ReportError = ReportError(PopUpManager.createPopUp(UIComponent(i_framework.StateBroker.GetState("topWindow")), ReportError, true));
+				PopUpManager.centerPopUp(reportError);
+				
+				reportError.init(i_framework, i_errorMessage, i_trace, i_params);
+				return reportError;
+			}
+			
+			private function init(i_framework:IFramework, i_errorMessage:String, i_trace:ArrayCollection, i_params:Object):void
+			{
+				m_framework = i_framework;
+				m_errorMessage = i_errorMessage;
+				m_trace = i_trace;
+				m_params = i_params;
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();	
+				
+				var css:CSSStyleDeclaration = styleManager.getStyleDeclaration(".icons" );
+				image.source = css.getStyle("tinybugIcon");
+
+				
+				info.text = "It seems that you ran into a bug and we really need your help to squash it.\n\n" +
+					"If you know how to reproduce this bug please let us know in the dialogue below. And it would be even better if you could record your screen using the free Video Screen Recorder [Jing], so we can follow your steps and crash this bug forever....\n\n" +
+					"Your support is appreciated!";				
+				
+			}
+			
+			private function onCancel():void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			
+			public static function sendEmail(i_framework:IFramework, i_errorMessage:String, i_trace:ArrayCollection, i_params:Object, i_comments:String, i_email:String):void
+			{
+				var version:String = i_framework.StateBroker.GetState("version") as String;
+				var businessId:int = int(i_framework.StateBroker.GetState("businessId"));
+				
+				var info:String = "";
+				for each(var step:String in i_trace)
+				{
+					info += step + "\n\n";
+				}
+				
+				
+				var params:String  = "";
+				for(var param:String in i_params)
+				{
+					params += param + "=" + i_params[param] + "\n";
+				}
+			
+				var msg:String = 
+					"version=" + version + "\n" +
+					"os=" + Capabilities.os + "\n" +
+					"runtime=" + Capabilities.version + "\n" +
+					"businessId=" + businessId.toString() + "\n" +
+					"debug=" + Capabilities.isDebugger.toString() + "\n" +
+					params + "\n" +
+					i_comments + "\n" +
+					i_email + "\n\n" +
+					i_errorMessage + "\n\n" + 
+					info; 
+				
+				
+				
+				var request:String = "http://www.dynawebs.net/cgi_bin/bugreport.cgi";
+				var loader:URLLoader = new URLLoader();
+				loader.addEventListener(Event.COMPLETE, onCallCompleted);
+				loader.addEventListener(IOErrorEvent.IO_ERROR, onError);
+				
+				var _vars:URLVariables = new URLVariables(); 
+				_vars["msg"] = msg;
+				var urlRequest:URLRequest = new URLRequest(request);
+				urlRequest.method = URLRequestMethod.POST;
+				urlRequest.data = _vars; 
+				loader.load(urlRequest);
+			}
+			
+			
+			private function onSend():void
+			{
+				sendEmail(m_framework, m_errorMessage, m_trace, m_params, comments.text, email.text);
+				
+				PopUpManager.removePopUp(this);
+			}	
+			
+			public static function onCallCompleted(event:Event):void
+			{
+			}
+			
+			public static function onError(event:IOErrorEvent):void
+			{
+			}
+			
+			private function onGetJing():void
+			{
+				navigateToURL( new URLRequest("http://www.techsmith.com/jing.html") );
+			}
+		]]>
+	</fx:Script>
+	
+	
+	
+	<fx:Declarations>
+	</fx:Declarations>
+	
+	<s:layout>
+		<s:VerticalLayout paddingLeft="10" paddingRight="10" paddingTop="10" paddingBottom="10" gap="10"/>
+	</s:layout>
+	<s:HGroup>
+		<s:TextArea id="info" width="500" height="140" editable="false" fontSize="14" borderVisible="false"/>
+		<s:Image id="image"/>
+	</s:HGroup>
+	<Controls:LinkButton label="Get Jing, the free screen video recorder"
+						 click="onGetJing()"
+						 color="blue"/>
+	<s:Spacer height="10"/>
+	<!--
+	<s:Label x="10" y="106" text="Error details:" includeInLayout="false"/>
+	<s:TextArea id="errorMessage" width="100%" height="80" editable="false"  includeInLayout="false"
+				fontSize="14"/>
+	-->
+	
+	<s:HGroup width="100%">
+		<s:Label text="Contact email:" paddingTop="4"/>
+		<s:TextInput id="email" width="100%"/>
+	</s:HGroup>
+	
+	<s:Label text="Your comments:"/>
+	<s:TextArea id="comments" width="100%" height="60" tabIndex="0"/>
+
+	<s:HGroup width="100%" height="30">
+		<s:Spacer width="100%"/>
+		<s:Button label="Send your comments" click="onSend()"/>
+		<s:Button label="Cancel" click="onCancel()"/>
+	</s:HGroup>
+</s:TitleWindow>

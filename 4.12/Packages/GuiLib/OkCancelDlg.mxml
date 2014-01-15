@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx" 
+				xmlns:ms="*">
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			private var m_dlg:IDialog;
+			private var m_buttons:Object = new Object();
+			
+			public static function CreateDlg(i_parent:Sprite, i_title:String, i_dlg:IDialog, i_width:Number=NaN, i_height:Number=NaN):OkCancelDlg
+			{
+            	var okCancelDlg:OkCancelDlg = OkCancelDlg(PopUpManager.createPopUp(i_parent, OkCancelDlg, true));
+            	okCancelDlg.title = i_title; 
+            	okCancelDlg.m_dlg = i_dlg;
+				if (isNaN(i_width)==false)
+				{
+					okCancelDlg.width = i_width;
+					okCancelDlg.x = (okCancelDlg.parent.width-i_width)/2;
+				}
+				if (isNaN(i_height)==false)
+				{
+					okCancelDlg.height = i_height;
+					okCancelDlg.y = (okCancelDlg.parent.height-i_height)/2;
+				}
+				
+            	i_dlg.setOkCancelDlg(okCancelDlg);
+            	okCancelDlg.container.addElement(UIComponent(i_dlg)); 
+            	return okCancelDlg;
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			protected override function measure():void
+			{
+				super.measure();
+				x = (parent.width-measuredWidth)/2;
+				y = (parent.height-measuredHeight)/2;
+			}
+			
+			public function addButton(i_name:String, i_label:String):void
+			{
+				var button:Button = new Button();
+				button.name = i_name;
+				button.label = i_label;
+				button.addEventListener(MouseEvent.CLICK, onButtonClick);
+				buttons.addElementAt(button, 0);
+				m_buttons[i_name] = button;
+			}
+			
+			public function getButton(i_name:String):Button
+			{
+				return m_buttons[i_name];
+			}
+			
+			public function get dialog():IDialog
+			{
+				return m_dlg;
+			}
+			
+			private function onOk():void
+			{
+				enabled = false;
+				m_dlg.onOk();
+			}
+
+			private function onCancel():void
+			{
+				enabled = false;
+				m_dlg.onCancel();
+			}
+			
+			private function onButtonClick(event:MouseEvent):void
+			{
+				var buttonName:String = event.target.name;
+				m_dlg.onButton(buttonName);
+			}
+			
+			public function close(i_ok:Boolean = false):void
+			{
+				if (i_ok)
+					dispatchEvent( new Event("event_dialog_ok") );
+				else
+					dispatchEvent( new Event("event_dialog_cancel") );
+					
+				for each(var button:Button in m_buttons)
+				{
+					button.removeEventListener(MouseEvent.CLICK, onButtonClick);
+				}
+				m_buttons = null;
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<s:Group id="container" width="100%" height="100%"/>
+	<s:HGroup id="buttons" width="100%" paddingRight="5" paddingBottom="5" paddingLeft="5">
+		<s:Spacer width="100%"/>
+		<s:Button id="btnOK" 
+			label="{resourceManager.getString('controls', 'okLabel')}" 
+			click="onOk()"/>
+		<s:Button id="btnCancel" 
+			label="{resourceManager.getString('controls', 'cancelLabel')}"
+			click="onCancel()"/>
+	</s:HGroup>	
+</s:TitleWindow>
+
+ 

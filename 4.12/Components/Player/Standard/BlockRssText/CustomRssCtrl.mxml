@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:ms="*">
+	<fx:Script>
+		<![CDATA[
+		
+			private var m_framework:IFramework;
+			private var m_playerLoader:IPlayerLoader;
+			//??? private var m_dataBaseManager:DataBaseManager;
+			
+			public function init(i_framework:IFramework, i_playerLoader:IPlayerLoader):void
+			{
+				m_framework = i_framework;
+				m_playerLoader = i_playerLoader;
+				//??? m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+			}
+		
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				scenePickerCtrl.framework = m_framework;
+				scenePickerCtrl.addEventListener(Event.CHANGE, onSceneChanged);
+			}
+
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				var hPlayerData:int = BlockCustomRssPlayer(m_playerLoader.player).hPlayerData;
+				/*???
+				var sceneText:String = resourceManager.getString('player', 'weather.sceneText')
+				if (hPlayerData!=-1)
+				{
+					var recPlayerData:Rec_player_data = m_dataBaseManager.table_player_data.getRecord(hPlayerData);
+					if (recPlayerData!=null)
+					{
+						var xmlPlayer:XML = new XML(recPlayerData.player_data_value);
+						sceneText = xmlPlayer.@label;
+					}
+					
+				}
+				*/
+				rssLink.text = BlockCustomRssPlayer(m_playerLoader.player).rssUrl;
+				
+				scenePickerCtrl.hPlayerData = hPlayerData;
+				intervalStepper.value = BlockCustomRssPlayer(m_playerLoader.player).itemInterval;
+			}
+			
+
+     		private function onSceneChanged(event:Event):void
+     		{
+     			BlockCustomRssPlayer(m_playerLoader.player).hPlayerData = scenePickerCtrl.hPlayerData
+     		}
+     		
+	        private function onIntervalStepper():void
+	        {
+	        	BlockCustomRssPlayer(m_playerLoader.player).itemInterval = intervalStepper.value;
+	        }
+	        
+			private function onTextInput(event:Event):void
+			{
+				BlockCustomRssPlayer(m_playerLoader.player).rssUrl = rssLink.text;
+			}
+			
+		]]>
+	</fx:Script>
+
+	<s:Form width="100%" y="30">
+		<s:FormItem label="{resourceManager.getString('player', 'ScenePickerCtrl.scene')}"  width="100%">
+			<ms:ScenePicker id="scenePickerCtrl" width="100%"/>
+		</s:FormItem>	
+		
+		<s:FormItem width="100%" id="formUrl"
+			label="Url">
+			<s:TextInput id="rssLink" width="100%"/>
+		</s:FormItem>
+		<s:FormItem width="100%"
+			label="Interval">
+			<s:HGroup>
+				<ms:NumericStepperEx id="intervalStepper" minimum="2" maximum="999"
+					change="onIntervalStepper()"/>
+				<s:Label text="(seconds)"/>	
+			</s:HGroup>					
+		</s:FormItem>
+	</s:Form>
+</s:VGroup>

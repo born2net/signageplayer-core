@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  gap="0">
+	<fx:Script>
+		<![CDATA[
+			import spark.components.Button;
+			
+			private var m_ref:int;
+			private var m_oldHeight:int;
+			
+			public override function set mxmlContent(value:Array):void
+			{
+				super.mxmlContent = value;
+				var count:int = value.length - 1;
+				for(var i:int=0;i<count;i++)
+				{
+					var divider:Button = new Button();
+					divider.height = 3;
+					divider.percentWidth = 100;
+					addElementAt(divider, 1+i*2);
+					divider.addEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
+				}
+			}	
+			
+			private function onMouseDown(event:MouseEvent):void
+			{
+				stage.addEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+				stage.addEventListener(MouseEvent.MOUSE_UP, onMouseUp);
+				m_ref = event.stageY;
+				m_oldHeight = getElementAt(0).height;
+			}
+			
+			private function onMouseMove(event:MouseEvent):void
+			{
+				var delta:int = event.stageY - m_ref;
+				getElementAt(0).height = m_oldHeight + delta;
+			}
+			
+			private function onMouseUp(event:MouseEvent):void
+			{
+				stage.removeEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+				stage.removeEventListener(MouseEvent.MOUSE_UP, onMouseUp);				
+			}			
+		]]>
+	</fx:Script>
+</s:VGroup>

@@ -1,0 +1,510 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerEffectPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					 xmlns:s="library://ns.adobe.com/flex/spark" 
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 xmlns:ms="*"
+					 skinClass="ScrollerSkin" width="100%" height="100%"
+					 implements="IPage"
+					 label="Pos/Size">
+	
+	<!--
+	label="{resourceManager.getString('customer', 'PlayerLayoutPage.title')}"
+	-->
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.events.ItemClickEvent;
+			
+			import spark.layouts.BasicLayout;
+			import spark.layouts.HorizontalLayout;
+			import spark.layouts.TileLayout;
+			import spark.layouts.supportClasses.LayoutBase;
+			
+			public function set editor(i_editor:IEditor):void
+			{
+				playerLoader = PlayerLoader(i_editor);
+				invalidateProperties();
+			}
+			
+			public function get editor():IEditor
+			{
+				return playerLoader;
+			}
+			
+			protected override function get playerEffect():PlayerEffect
+			{
+				return m_playerLoader.playerPosAndSize;
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_playerActiveCtrl.showOffButton = false;
+			}
+
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader==null)
+					return; 
+				if (playerEffect==null) //???
+					return;
+				
+				if (propCtrl==null)
+					return;
+				
+				
+				player_rotation.value = Number(playerEffect.getProperty("rotation"));
+				player_x.text = playerEffect.getPropertyAsString("x");
+				player_y.text = playerEffect.getPropertyAsString("y");
+				player_width.text = playerEffect.getPropertyAsString("width");
+				player_height.text = playerEffect.getPropertyAsString("height");
+				
+				if (playerEffect.count==1 && !(m_playerLoader.player is IPlayerOutline))
+				{
+					constrains.height = 260;
+					constrains.visible = true;
+					text_x1.text = playerEffect.getPropertyAsString("left");
+					text_x2.text = playerEffect.getPropertyAsString("horizontalCenter");
+					text_x3.text = playerEffect.getPropertyAsString("right");
+					text_y1.text = playerEffect.getPropertyAsString("top");
+					text_y2.text = playerEffect.getPropertyAsString("verticalCenter");
+					text_y3.text = playerEffect.getPropertyAsString("bottom");
+				}
+				else
+				{
+					constrains.height = 0;
+					constrains.visible = false;
+				}
+			}
+			
+			
+			protected override function updateButtons():void
+			{
+				super.updateButtons();
+				if (propCtrl==null)
+					return;
+				propCtrl.enabled = (m_playerActiveCtrl.propType.selectedValue!="Off");
+				if (playerEffect==null)
+					return;
+				var x1:Object = playerEffect.getProperty("left");
+				var x2:Object = playerEffect.getProperty("horizontalCenter");
+				var x3:Object = playerEffect.getProperty("right");
+				var y1:Object = playerEffect.getProperty("top");
+				var y2:Object = playerEffect.getProperty("verticalCenter");
+				var y3:Object = playerEffect.getProperty("bottom");
+				
+				check_x1.selected = text_x1.visible = (x1!=null);
+				check_x2.selected = text_x2.visible = (x2!=null);
+				check_x3.selected = text_x3.visible = (x3!=null);
+				check_y1.selected = text_y1.visible = (y1!=null);
+				check_y2.selected = text_y2.visible = (y2!=null);
+				check_y3.selected = text_y3.visible = (y3!=null);
+				
+				if (x1!=null || x2!=null || x3!=null)
+				{
+					player_x.text = "";
+					player_x.editable = false;
+				}
+				else
+				{
+					player_x.editable = true;
+				}
+				if (y1!=null || y2!=null || y3!=null)
+				{
+					player_y.text = "";
+					player_y.editable = false;
+				}
+				else
+				{
+					player_y.editable = true;
+				}
+				if (x1!=null && x3!=null)
+				{
+					player_width.text = "";
+					player_width.editable = false;
+				}
+				else
+				{
+					player_width.editable = true;
+				}
+				if (y1!=null && y3!=null)
+				{
+					player_height.text = "";
+					player_height.editable = false;
+				}
+				else
+				{
+					player_height.editable = true;
+				}
+			}
+			
+		
+			private function onStyleChanged(event:Event):void
+			{
+				m_playerLoader.modified = true;
+				var textInput:TextInput = TextInput(event.currentTarget); 
+				var styleProp:String = textInput.name;
+				playerEffect.setProperty(styleProp, Number(textInput.text));
+			}
+			
+			protected override function createPlayerEffect(i_enabled:Boolean):void
+			{
+				m_playerLoader.createPlayerPosAndSize(i_enabled);
+			}
+			
+			protected override function createPoint1():void
+			{
+				var data:Object = new Object();
+				data.rotation = m_playerLoader.component.rotation;
+				data.x = m_playerLoader.component.x;
+				data.y = m_playerLoader.component.y;
+				data.width = m_playerLoader.component.width;
+				data.height = m_playerLoader.component.height;
+				playerEffect.insert(null, data);
+			}		
+
+			protected override function createPoint2():void
+			{
+				var data:Object = new Object();
+				data.rotation = m_playerLoader.component.rotation;
+				data.x = m_playerLoader.component.x + 10;
+				data.y = m_playerLoader.component.y + 10;
+				data.width = m_playerLoader.component.width;
+				data.height = m_playerLoader.component.height;
+				var playerAction:PlayerAction =  new PlayerAction();
+				playerAction.delay = 0;
+				playerAction.duration = 2000;
+				playerEffect.insert(playerAction, data);
+				playerEffect.index = 0;
+			}		
+			
+			private function onRotationChanged():void
+			{
+				m_playerLoader.modified = true;
+				playerEffect.setProperty("rotation", Number(player_rotation.value));
+			}
+			
+			private function onLoactionChanged():void
+			{
+				m_playerLoader.modified = true;
+				playerEffect.setProperty("x", Number(player_x.text));
+				playerEffect.setProperty("y", Number(player_y.text));
+			}
+			
+			
+			private function getNumber(i_textInput:TextInput, i_min:Number, i_max:Number):Number
+			{
+				var num:Number = Math.max(0, Math.min(4096, Number(i_textInput.text)));
+				i_textInput.text = num.toString();
+				return num;
+			}
+			
+			private function onSizeChanged():void
+			{
+				m_playerLoader.modified = true;
+				
+				playerEffect.setProperty("width", getNumber(player_width, 0, 4096));
+				playerEffect.setProperty("height", getNumber(player_height, 0, 4096));
+			}
+
+			private function getX():Number
+			{
+				var x:Number = 0;
+				var parentLayout:DisplayObject = m_playerLoader.component.parent;
+				var x1:Object = playerEffect.getProperty("left");
+				var x2:Object = playerEffect.getProperty("horizontalCenter");
+				var x3:Object = playerEffect.getProperty("right");
+				if (x2!=null)
+				{
+					x = x2 + (parentLayout.width - Number(playerEffect.getProperty("width")))/2; 	
+				}
+				else if (x1!=null)
+				{
+					x = Number(x1);
+				}
+				else if (x3!=null)
+				{
+					x = parentLayout.width - Number(x3) - Number(playerEffect.getProperty("width"));
+				}
+				else
+				{
+					x = Number(playerEffect.getProperty("x"));
+				}
+				
+				return x;
+			}
+
+			private function getY():Number
+			{
+				var y:Number = 0;
+				var parentLayout:DisplayObject = m_playerLoader.component.parent;
+				var y1:Object = playerEffect.getProperty("top");
+				var y2:Object = playerEffect.getProperty("verticalCenter");
+				var y3:Object = playerEffect.getProperty("bottom");
+				if (y2!=null)
+				{
+					y = y2 + (parentLayout.height - Number(playerEffect.getProperty("height")))/2; 	
+				}
+				else if (y1!=null)
+				{
+					y = Number(y1);
+				}
+				else if (y3!=null)
+				{
+					y = parentLayout.height - Number(y3) - Number(playerEffect.getProperty("height"));
+				}
+				else
+				{
+					y = Number(playerEffect.getProperty("y"));
+				}
+				
+				return y;
+			}
+
+			private function getWidth():Number
+			{
+				var parentLayout:DisplayObject = m_playerLoader.component.parent;
+				var x1:Object = playerEffect.getProperty("left");
+				var x3:Object = playerEffect.getProperty("right");
+				if (x1!=null && x3!=null)
+				{
+					return parentLayout.width - Number(x3) - Number(x1);
+				}
+				else
+				{
+					return Number(playerEffect.getProperty("width"));
+				}
+			}
+
+			private function getHeight():Number
+			{
+				var parentLayout:DisplayObject = m_playerLoader.component.parent;
+				var y1:Object = playerEffect.getProperty("top");
+				var y3:Object = playerEffect.getProperty("bottom");
+				if (y1!=null && y3!=null)
+				{
+					return parentLayout.height - Number(y3) - Number(y1);
+				}
+				else
+				{
+					return Number(playerEffect.getProperty("height"));
+				}
+			}
+			
+			
+			private function onCheckChange(event:Event):void
+			{
+				m_playerLoader.modified = true;
+				var parentLayout:DisplayObject = m_playerLoader.component.parent;
+				if (event.target==check_x1)
+				{
+					if (check_x1.selected)
+					{
+						playerEffect.setProperty("left", getX());
+						playerEffect.setProperty("horizontalCenter", null)
+						text_x1.text = playerEffect.getPropertyAsString("left");
+					}
+					else
+					{
+						playerEffect.setProperty("width", getWidth());
+						playerEffect.setProperty("x", getX());
+						playerEffect.setProperty("left", null)
+						player_x.text = playerEffect.getPropertyAsString("x");
+						player_width.text = playerEffect.getPropertyAsString("width");
+					}
+				}
+				else if (event.target==check_x2)
+				{
+					if (check_x2.selected)
+					{
+						playerEffect.setProperty("width", getWidth());
+						playerEffect.setProperty("horizontalCenter", getX() - (parentLayout.width-getWidth())/2);
+						playerEffect.setProperty("left", null)
+						playerEffect.setProperty("right", null)
+						text_x2.text = playerEffect.getPropertyAsString("horizontalCenter");
+						player_width.text = playerEffect.getPropertyAsString("width");
+					}
+					else
+					{
+						playerEffect.setProperty("x", getX());
+						playerEffect.setProperty("horizontalCenter", null)
+						player_x.text = playerEffect.getPropertyAsString("x")
+					}
+				}
+				else if (event.target==check_x3)
+				{
+					if (check_x3.selected)
+					{
+						playerEffect.setProperty("right", parentLayout.width - getX() - getWidth());
+						playerEffect.setProperty("horizontalCenter", null)
+						text_x3.text = playerEffect.getPropertyAsString("right");
+					}
+					else
+					{
+						playerEffect.setProperty("width", getWidth());
+						playerEffect.setProperty("x", getX());
+						playerEffect.setProperty("right", null)
+						player_x.text = playerEffect.getPropertyAsString("x");
+						player_width.text = playerEffect.getPropertyAsString("width")
+					}
+				}
+				
+				///////////////////////////////////////
+				
+				if (event.target==check_y1)
+				{
+					if (check_y1.selected)
+					{
+						playerEffect.setProperty("top", getY());
+						playerEffect.setProperty("verticalCenter", null)
+						text_y1.text = playerEffect.getPropertyAsString("top");
+					}
+					else
+					{
+						playerEffect.setProperty("height", getHeight());
+						playerEffect.setProperty("y", getY());
+						playerEffect.setProperty("top", null)
+						player_y.text = playerEffect.getPropertyAsString("y");
+						player_height.text = playerEffect.getPropertyAsString("height");
+					}
+				}
+				else if (event.target==check_y2)
+				{
+					if (check_y2.selected)
+					{
+						playerEffect.setProperty("height", getHeight());
+						playerEffect.setProperty("verticalCenter", getY() - (parentLayout.height-getHeight())/2);
+						playerEffect.setProperty("top", null)
+						playerEffect.setProperty("bottom", null)
+						text_y2.text = playerEffect.getPropertyAsString("verticalCenter");
+						player_height.text = playerEffect.getPropertyAsString("height");
+					}
+					else
+					{
+						playerEffect.setProperty("y", getY());
+						playerEffect.setProperty("verticalCenter", null)
+						player_y.text = playerEffect.getPropertyAsString("y")
+					}
+				}
+				else if (event.target==check_y3)
+				{
+					if (check_y3.selected)
+					{
+						playerEffect.setProperty("bottom", parentLayout.height - getY() - getHeight());
+						playerEffect.setProperty("verticalCenter", null)
+						text_y3.text = playerEffect.getPropertyAsString("bottom");
+					}
+					else
+					{
+						playerEffect.setProperty("height", getHeight());
+						playerEffect.setProperty("y", getY());
+						playerEffect.setProperty("bottom", null)
+						player_y.text = playerEffect.getPropertyAsString("y");
+						player_height.text = playerEffect.getPropertyAsString("height")
+					}
+				}
+				
+				
+				updateButtons();
+			}
+			
+			
+			private function onTextChanged(event:Event):void
+			{
+				m_playerLoader.modified = true;
+				if (event.currentTarget==text_x1)
+				{
+					playerEffect.setProperty("left", Number(text_x1.text));
+				}
+				else if (event.currentTarget==text_x2)
+				{
+					playerEffect.setProperty("horizontalCenter", Number(text_x2.text));
+				}
+				else if (event.currentTarget==text_x3)
+				{
+					playerEffect.setProperty("right", Number(text_x3.text));
+				}
+				else if (event.currentTarget==text_y1)
+				{
+					playerEffect.setProperty("top", Number(text_y1.text));
+				}
+				else if (event.currentTarget==text_y2)
+				{
+					playerEffect.setProperty("verticalCenter", Number(text_y2.text));
+				}
+				else if (event.currentTarget==text_y3)
+				{
+					playerEffect.setProperty("bottom", Number(text_y3.text));
+				}
+			}
+			
+			
+			
+		]]>
+	</fx:Script>
+	
+	
+	<ms:layout>
+		<s:VerticalLayout/>
+	</ms:layout>
+	
+	<s:VGroup id="propCtrl">
+		<s:HGroup paddingLeft="10">
+			<s:Label 
+				text="{resourceManager.getString('customer', 'PlayerLayoutPage.rotation')}"/>
+	
+			<s:HSlider id="player_rotation" 
+						width="184"
+						minimum="0" maximum="360" snapInterval="1"
+						change="onRotationChanged()"/>
+	
+		</s:HGroup>
+		<s:HGroup gap="10">
+			<s:Form width="140">
+				<s:FormItem
+					label="{resourceManager.getString('customer', 'PlayerLayoutPage.width')}">
+					<s:TextInput  width="63" id="player_width" focusOut="onSizeChanged()" enter="onSizeChanged()"/>
+				</s:FormItem>
+				<s:FormItem
+					label="{resourceManager.getString('customer', 'PlayerLayoutPage.x')}">
+					<s:TextInput width="63" id="player_x" focusOut="onLoactionChanged()" enter="onLoactionChanged()"/>
+				</s:FormItem>
+			</s:Form>
+			<s:Form width="140">
+				<s:FormItem
+					label="{resourceManager.getString('customer', 'PlayerLayoutPage.height')}">
+					<s:TextInput width="63" id="player_height" focusOut="onSizeChanged()" enter="onSizeChanged()"/>
+				</s:FormItem>
+				<s:FormItem
+					label="{resourceManager.getString('customer', 'PlayerLayoutPage.y')}">
+					<s:TextInput width="63" id="player_y" focusOut="onLoactionChanged()" enter="onLoactionChanged()"/>
+				</s:FormItem>
+			</s:Form>
+		</s:HGroup>
+
+		<s:Group id="constrains" width="243" height="260">
+			<s:TextInput y="230" width="40" x="32" id="text_x1" focusOut="onTextChanged(event)" enter="onTextChanged(event)"/>
+			<s:TextInput x="93" y="230" width="40" id="text_x2" focusOut="onTextChanged(event)" enter="onTextChanged(event)"/>
+			<s:TextInput x="152" y="230" width="40" id="text_x3" focusOut="onTextChanged(event)" enter="onTextChanged(event)"/>
+			<s:TextInput x="200" y="189" width="40" id="text_y3" focusOut="onTextChanged(event)" enter="onTextChanged(event)"/>
+			<s:TextInput x="200" y="131" width="40" id="text_y2" focusOut="onTextChanged(event)" enter="onTextChanged(event)"/>
+			<s:TextInput x="200" y="74" width="40" id="text_y1" focusOut="onTextChanged(event)" enter="onTextChanged(event)"/>
+		
+			<s:Label x="10" y="10" 
+				text="{resourceManager.getString('customer', 'PlayerLayoutPage.constrains')}"/>
+			<s:CheckBox x="38" y="36" id="check_x1" change="onCheckChange(event)"/>
+			<s:CheckBox y="36" width="14" x="93" id="check_x2" change="onCheckChange(event)"/>
+			<s:CheckBox x="152" y="36" id="check_x3" change="onCheckChange(event)"/>
+			<s:CheckBox x="10" y="76" id="check_y1" change="onCheckChange(event)"/>
+			<s:CheckBox x="10" y="133" id="check_y2" change="onCheckChange(event)"/>
+			<s:CheckBox x="10" y="191" id="check_y3" change="onCheckChange(event)"/>
+			<s:BorderContainer
+				borderColor="black" borderStyle="solid" height="160" y="62" width="160" x="32">
+				<s:Image width="54" height="50" y="10" x="10"/>
+			</s:BorderContainer>
+		</s:Group> 
+		
+	</s:VGroup>
+
+</ms:PlayerEffectPage>

@@ -1,0 +1,622 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+	implements="IRssWeatherProvider">
+	
+	<fx:Script>
+		<![CDATA[
+			import flash.events.Event;
+			import flash.events.IOErrorEvent;
+			import flash.events.SecurityErrorEvent;
+			import flash.net.URLLoader;
+			import flash.net.URLRequest;
+			import flash.net.URLRequestMethod;
+			
+			import mx.collections.XMLListCollection;
+			import mx.core.IUIComponent;
+			import mx.core.IVisualElement;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			
+			//??? private var m_dataBaseManager:DataBaseManager;
+			private var m_styleService:IStyleService;
+			private var m_playerLoaderService:IPlayerLoaderService;
+			
+			private var m_sceneloader:IPlayerLoader;
+			
+			private var m_rssService:IRssService;
+			private var m_usaRequest:IRssRequest;
+			private var m_yahooRequest:IRssRequest;
+			private var m_loadingUsa:Boolean = false;
+			private var m_loadingYahoo:Boolean = false;
+			private var m_firstStart:Boolean = true;
+			
+			private var m_hPlayerData:int = -1;
+			//???private var m_playerDataId:int = -1;
+
+			private var m_units:String 			= "f";			
+			private var m_location:String 		= "";
+			private var m_search:String;
+			private var m_usa:Boolean 			= false;
+			
+			private var m_timerRSSReload:Timer;	
+			private var m_yahooLoader:URLLoader;		
+			private var m_usaLoader:URLLoader;
+			private const RSS_SLEEP:int 				= 18000000;	// Update RSS Weather
+
+			private var m_currentDate:Date;
+			private var m_currentCondition:String;
+			private var m_currentImage:String;
+			private var m_currentTemp:Number;
+			private var m_forecastList:Array;
+
+			private static const DAYS:Array = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Weather).length()>0)
+				{
+					m_location = i_data.Weather.@location;
+					m_usa = (i_data.Weather.@usa=="1");
+					m_units = String(i_data.Weather.@units);
+					m_search = String(i_data.Weather.@search);
+					m_hPlayerData = i_data.Weather.Player.@hDataSrc;
+					//???m_playerDataId = i_data.Weather.Player.@src;
+					loadRSS();
+					invalidateProperties();
+				}
+			}
+			
+			public override function save():XML
+			{
+				//???var recPlayerData:Rec_player_data = m_dataBaseManager.table_player_data.getRecord(m_hPlayerData);
+				//???m_playerDataId = (recPlayerData!=null) ? recPlayerData.native_id : -1;
+				//??? src={m_playerDataId}
+				var xmlWeather:XML = <Weather>
+										<Player hDataSrc={m_hPlayerData}  />
+									</Weather>;
+				xmlWeather.@location = m_location;
+				xmlWeather.@usa = m_usa ? "1" : "0";
+				xmlWeather.@units = m_units;
+				xmlWeather.@search = m_search;
+				return xmlWeather; 
+			}   
+			
+			public override function start():void
+			{
+				super.start();
+				if (m_firstStart)
+				{
+					m_firstStart = false;
+					return;
+				}	
+				loadRSS();			
+			}
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockRssWeatherPage];
+			}
+
+
+			public function get hPlayerData():int
+			{
+				return m_hPlayerData;
+			}
+			
+			public function set hPlayerData(i_hPlayerData:int):void
+			{
+				m_playerLoader.modified = true;
+				m_hPlayerData = i_hPlayerData;
+				//???var recPlayerData:Rec_player_data = m_dataBaseManager.table_player_data.getRecord(m_hPlayerData);
+				//???m_playerDataId = recPlayerData.native_id;
+				invalidateProperties();
+			}
+			
+
+			/************************************/
+			/* Implement IRssWeatherProvider    */
+			/************************************/
+
+			public function getCurTemp():String
+			{
+				return (m_currentTemp.toString()!="NaN") ? formatTemperature(m_currentTemp) : "";
+			}
+			public function getCurCondition():String
+			{
+				return m_currentCondition;
+			}
+			public function getCurImage(i_weatherStyleId:int):Class
+			{
+				var css:CSSStyleDeclaration = m_styleService.getWeatherCSS(i_weatherStyleId);
+				return (css!=null) ? css.getStyle(m_currentImage) : null;
+			}
+			public function getDayName(i_offset:int):String
+			{
+				if (m_currentDate!=null)
+				{	
+					if (i_offset==-1)
+					{
+						return DAYS[ m_currentDate.day ];
+					}
+					else
+					{
+						if (m_forecastList!=null && m_forecastList[i_offset]!=null)
+						{
+							return DAYS[ (m_currentDate.day + i_offset) % 7 ];
+						}
+					}
+				}
+				return "";	
+			}
+			public function getDayCondition(i_offset:int):String
+			{
+				return (m_forecastList!=null && m_forecastList[i_offset]!=null) ? m_forecastList[i_offset].condition : "";
+			}			
+			public function getDayHigh(i_offset:int):String
+			{
+				return (m_forecastList!=null && m_forecastList[i_offset]!=null) ? formatTemperature(m_forecastList[i_offset].high) : "";
+			}
+			public function getDayLow(i_offset:int):String
+			{
+				return (m_forecastList!=null && m_forecastList[i_offset]!=null) ? formatTemperature(m_forecastList[i_offset].low) : "";	
+			}
+			public function getDayImage(i_offset:int, i_weatherStyleId:int):Class
+			{
+				if (m_forecastList==null || m_forecastList[i_offset]==null)
+					return null;
+				var symble:String = m_forecastList[i_offset].image;				
+				var css:CSSStyleDeclaration = m_styleService.getWeatherCSS(i_weatherStyleId);
+				return (css!=null) ? css.getStyle(symble) : null;
+			}
+			 
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_sceneloader = m_playerLoaderService.createPlayerLoader();
+				m_sceneloader.percentWidth = 100;
+				m_sceneloader.percentHeight = 100;
+				addElement(IVisualElement(m_sceneloader));
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_hPlayerData==-1)
+				{
+					showBlockInfo("[No scene assigned]");
+					return;
+				}
+				showBlockInfo(null);
+				var xmlPlayer:XML = <Player />;
+				xmlPlayer.@hDataSrc = m_hPlayerData;
+				//???xmlPlayer.@src = m_playerDataId;
+				
+				m_sceneloader.setDataProvider(this);
+				
+				m_sceneloader.load(xmlPlayer);
+			}
+			
+			///////////////////////////////
+			public override function initModule():void
+			{
+				super.initModule();
+				//??? m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+				m_rssService = m_framework.ServiceBroker.QueryService("RssService") as IRssService;
+				m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+				m_playerLoaderService = m_framework.ServiceBroker.QueryService("PlayerLoaderService") as IPlayerLoaderService;
+				m_styleService.addEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+				
+				
+				m_timerRSSReload = new Timer(RSS_SLEEP,0);
+				m_timerRSSReload.addEventListener(TimerEvent.TIMER,loadRSS);	
+			}
+			
+			private function onStyleComplete(event:ServiceStyleEvent):void
+			{
+				invalidateProperties();
+			}
+			
+			public function get usa():Boolean
+			{
+				return m_usa;
+			}
+			
+			public function get location():String
+			{
+				return m_location;
+			}
+			
+			public function get search():String
+			{
+				return m_search;
+			}
+
+			public function set search(i_search:String):void
+			{
+				m_search = i_search;
+			}
+			
+			public function set yahooCode(i_yahooCode:String):void
+			{
+				m_playerLoader.modified = true;
+				m_location = i_yahooCode;
+				m_usa = false;
+				loadRSS();		
+			}
+
+			public function setUsaZipCode(i_zipCode:String):void
+			{
+				m_playerLoader.modified = true;
+				m_location = i_zipCode;
+				m_usa = true;
+				loadRSS();	
+			}
+			
+			public function set units(i_units:String):void
+			{
+				m_playerLoader.modified = true;
+				m_units = i_units;
+				invalidateProperties();	
+			}
+
+
+			public function get units():String
+			{		
+				return m_units;
+			}
+
+			public function loadRSS(event:TimerEvent = null):void
+			{
+				m_loadingYahoo = true;
+				m_loadingUsa = m_usa;
+				 
+				loadYahoo();
+				if (m_usa)				
+				{
+					loadUsa();
+				} 
+			}
+			
+			// Yahoo
+			
+			private function loadYahoo():void
+			{
+				if (m_yahooRequest!=null)
+					return;
+				var rssURL:String = "http://weather.yahooapis.com/forecastrss?p="+m_location+"&u=f";	
+				m_yahooRequest = m_rssService.createRssRequest(rssURL, 30, 60 * 12 * 7);
+				m_yahooRequest.addEventListener(RssEvent.RSS_RESULT, onYahooDataLoad);
+				m_yahooRequest.request();
+			}
+			
+			private function onYahooDataLoad(event:RssEvent):void
+			{		
+				m_loadingYahoo = false;
+				m_yahooRequest = null;
+				var yahooRequest:IRssRequest = event.rssRequest;
+				yahooRequest.removeEventListener(RssEvent.RSS_RESULT, onYahooDataLoad);
+				if (yahooRequest.result==null)
+					return;
+				var xmlRss:XML = new XML( yahooRequest.result );
+				parseCurrentWeather(xmlRss);
+				if (m_usa==false)
+				{
+					parseYahooForcastWeather(xmlRss);
+				}
+				refreshScene();
+			}
+			
+			private function parseCurrentWeather(xmlData:XML):void
+			{
+				var dcNamespace:Namespace = new Namespace("yweather", "http://xml.weather.yahoo.com/ns/rss/1.0");
+				var qualifiedName:QName = new QName(dcNamespace, "condition");
+				var decendantList:XMLList = xmlData.descendants(qualifiedName);
+				var xmlCurrent:XML = decendantList[0];
+				if (xmlCurrent==null)
+				{
+					return;
+				}
+					
+				var lTime:Array = String(xmlCurrent.@date).split(" ");
+				var sTime:String = lTime[1] + " " + lTime[2] + " " + lTime[3];
+				m_currentDate = new Date();
+				m_currentDate.time = Date.parse(sTime);
+				
+            	m_currentCondition 	= String(xmlCurrent.@text);
+            	m_currentTemp 		= Number(xmlCurrent.@temp);
+				m_currentImage 		= getImageFromYahoo(xmlCurrent.@code);
+			}
+
+			public function parseYahooForcastWeather(xmlData:XML):void
+	        {
+	        	var dcNamespace:Namespace = new Namespace("yweather", "http://xml.weather.yahoo.com/ns/rss/1.0");
+	        	var qualifiedName:QName = new QName(dcNamespace, "forecast")
+	            var decendantList:XMLList = xmlData.descendants(qualifiedName);	            
+	            m_forecastList =  new Array();
+	            for each (var element:XML in decendantList)
+	            {
+	            	var weather:Object = new Object(); 
+	            	weather.condition 	= String(element.@text);
+	            	weather.code 		= int(element.@code);
+	            	weather.high 		= Number(element.@high);
+	            	weather.low  		= Number(element.@low);
+					weather.image 		= getImageFromYahoo(element.@code);
+	            	m_forecastList.push(weather);
+	            }  
+	        }
+			
+
+			// Usa
+			private function loadUsa():void
+			{
+				if (m_usaRequest!=null)
+					return;
+
+				var current:Date = new Date();
+				var formatter:DateFormatter = new DateFormatter();
+				formatter.formatString = "YYYY-MM-DD";					
+				var rssURL:String = "http://www.weather.gov/forecasts/xml/SOAP_server/ndfdSOAPclientByDay.php?whichClient=NDFDgenByDayMultiZipCode&resolutionSub=&centerPointLat=&centerPointLon=&distanceLat=&distanceLon=&resolutionSquare=&citiesLevel=&format=24+hourly&numDays=7&Submit=Submit&startDate="
+					+formatter.format(current)+"&zipCodeList="+m_location;
+
+				m_usaRequest = m_rssService.createRssRequest(rssURL, 30, 60 * 12 * 7);
+				m_usaRequest.addEventListener(RssEvent.RSS_RESULT, onUsaDataLoad);
+				m_usaRequest.request();
+			}
+			
+			private function onUsaDataLoad(event:RssEvent):void
+			{		
+				m_loadingUsa = false;
+				m_usaRequest = null;
+				var usaRequest:IRssRequest = event.rssRequest;
+				usaRequest.removeEventListener(RssEvent.RSS_RESULT, onUsaDataLoad);
+				if (usaRequest.result==null)
+					return;
+					
+				var xmlRSS:XML = new XML(StrExt.ReplaceStr('-','_', usaRequest.result));
+				parseUsaForcatsWeather(xmlRSS);
+				
+				refreshScene();
+			}
+			
+			private function parseUsaForcatsWeather(i_xmlRSS:XML):void
+			{	
+				if (XMLList(i_xmlRSS.data.parameters).length()==0)
+					return;
+
+				m_forecastList =  new Array();			
+				
+				var highList:XMLList = i_xmlRSS.data.parameters.temperature[0].value.*;
+				var lowList:XMLList = i_xmlRSS.data.parameters.temperature[1].value.*;
+				var iconList:XMLList = i_xmlRSS.data.parameters.conditions_icon.icon_link.*; 
+				var conditionList:XMLList = i_xmlRSS.data.parameters.weather.weather_conditions.@weather_summary;
+				for(var day:int=0; day<6; day++)
+				{
+					var weather:Object =  new Object();
+					weather.high = Number(highList[day]);
+					weather.low = Number(lowList[day]);
+					weather.icon = String(iconList[day]);
+					weather.condition = String(conditionList[day]);
+					weather.image = getImageFromUsa(iconList[day]);
+					m_forecastList.push(weather);
+				}
+				if (m_sceneloader.player!=null)
+				{
+					m_sceneloader.start();
+				}
+			}
+			
+
+			private function formatTemperature(i_temperature:Number):String
+			{
+				var temp:Number = (m_units=="f") ? i_temperature : int((i_temperature-32)*(5/9));
+				return temp.toString() + "º";
+			}			
+			
+			private function getDayLabel(n:int):String
+			{
+				if ( n == 0 ) 
+					return "Today";
+				var current:Date = new Date();
+				current.date+=n;
+				var formatter:DateFormatter = new DateFormatter();
+				formatter.formatString = "EEEE";
+				return formatter.format(current);	
+			}
+
+			private function getImageFromUsa(type:String):String
+			{
+				type = StrExt.ReplaceStr("0","",type);
+				type = StrExt.ReplaceStr("1","",type);
+				type = StrExt.ReplaceStr("2","",type);
+				type = StrExt.ReplaceStr("3","",type);
+				type = StrExt.ReplaceStr("4","",type);
+				type = StrExt.ReplaceStr("5","",type);
+				type = StrExt.ReplaceStr("6","",type);
+				type = StrExt.ReplaceStr("7","",type);
+				type = StrExt.ReplaceStr("8","",type);
+				type = StrExt.ReplaceStr("9","",type);
+				
+				var filePath:Array	= type.split("/")
+				var fileName:String	= filePath[filePath.length-1]
+				var symbol:String = null;
+				switch ( fileName )
+				{
+					case "bkn.jpg":				{ symbol = "bkn"; break; } // mostlycloudyday;
+					case "blizzard.jpg":		{ symbol = "blizzard"; break; } // blustery Vectorwindy
+					case "br.jpg":				{ symbol = "br"; break; } // evening partly cloudy night
+					case "cold.jpg":			{ symbol = "cold"; break; } // cold
+					case "du.jpg":				{ symbol = "dusty"; break; } // Vectordust
+					case "dust.jpg":			{ symbol = "verydusty"; break; } // dust Vectordust
+					case "few.jpg":				{ symbol = "fairday"; break; } // fairday
+					case "fg.jpg":				{ symbol = "foggy" ; break; } // foggy
+					case "sctfg.jpg":			{ symbol = "sctfg" ; break; } // partly foggy					
+					case "fu.jpg":				{ symbol = "fu"; break; } // mostly cloudy day					
+					case "fzra.jpg":			{ symbol = "fzra"; break; } // icy blowing snow
+					case "hazy.jpg":			{ symbol = "hazy"; break; } // hazy
+					case "hi_bkn.jpg":			{ symbol = "hibkn"; break; } // cloudy					
+					case "hi_few.jpg":			{ symbol = "hifew"; break; } // partly cloudy day					
+					case "hi_nbkn.jpg":			{ symbol = "hinbkn"; break;} // Partly Cloudy night					
+					case "hi_nfew.jpg":			{ symbol = "hinfew"; break; } // a bit cloudy night
+					case "hi_nsct.jpg":			{ symbol = "hinsct"; break; } // night high and scattered					
+					case "hi_nshwrs.jpg":		{ symbol = "hinshwrs"; break; } // night showers					
+					case "hi_nskc.jpg":			{ symbol = "hinskc"; break; } // clear night					
+					case "hi_ntsra.jpg":		{ symbol = "hintsra"; break; } // night storm					
+					case "hi_sct.jpg":			{ symbol = "hisct"; break} // high scattered clouds					
+					case "hi_shwrs.jpg":		{ symbol = "hishwrs"; break;} // high showers					
+					case "hi_skc.jpg":			{ symbol = "hiskc"; break; } // clear sky					
+					case "hi_tsra.jpg":			{ symbol = "hitsra"; break; } // isolated thunder storms					
+					case "hot.jpg":	 			{ symbol = "hot"; break; } // hot
+					case "ip.jpg":				{ symbol = "ip"; break; } // hail
+					case "mist.jpg":			{ symbol = "mist"; break; } // mist
+					case "mix.jpg":				{ symbol = "mix"; break; } // mixed rain and snow					
+					case "nbkn.jpg":			{ symbol = "nbkn"; break;} // black night
+					case "nfew.jpg":			{ symbol = "nbkn"; break;} // almost clear night					
+					case "nfg.jpg":				{ symbol = "nfg"; break;} // night fog					
+					case "nmix.jpg":			{ symbol = "nmix"; break; } // night rain snow mix
+					case "novc.jpg":	 		{ symbol = "novc"; break; } // night overcast
+					case "nra.jpg":				{ symbol = "nra"; break; } // night rain					
+					case "nraip.jpg":			{ symbol = "nraip"; break; } // freezing drizzle					
+					case "nrasn.jpg":			{ symbol = "nrasn"; break; } // night rain and snow					
+					case "nsct.jpg":			{ symbol = "hinsct"; break; } // fair night
+					case "nscttsra.jpg":		{ symbol = "nscttsra"; break; } // night thunder storm
+					case "nskc.jpg":			{ symbol = "hinskc"; break;} // high clear sky					
+					case "nsn.jpg":				{ symbol = "nsn"; break; } // night snow
+					case "nsvrtsra.jpg":		{ symbol = "nsvrtsra"; break; } // night tornadeo					
+					case "ntsra.jpg":			{ symbol = "ntsra"; break; } // severe thunder storms					
+					case "nwind.jpg":			{ symbol = "nwind"; break; } // night wind					
+					case "ovc.jpg":				{ symbol = "ovc"; break; } // overcast
+					case "pcloudy.jpg":			{ symbol = "pcloudy"; break; } // partly cloudy					
+					case "ra.jpg":				{ symbol = "ra"; break; } // mixed rain and hail
+					case "raip.jpg":			{ symbol = "ra"; break; } // mixed rain and hail
+					case "rasn.jpg":			{ symbol = "rasn"; break; } // rain and snow
+					case "sct.jpg":				{ symbol = "sct"; break; } // sun high clouds
+					case "scttsra.jpg":			{ symbol = "sct"; break; } // scattered clouds and rain					
+					case "shra.jpg":			{ symbol = "shra"; break; } // scattered showers
+					case "skc.jpg":				{ symbol = "skc"; break; } // sky sunny										
+					case "smoke.jpg":			{ symbol = "smoke"; break; } // smoke
+					case "sn.jpg":				{ symbol = "sn"; break; } // snow					
+					case "tcu.jpg":				{ symbol = "tcu"; break; } // clouds					
+					case "tsra.jpg":			{ symbol = "tsra"; break; } // thunder storms and rain
+					case "wind.jpg":			{ symbol = "wind"; break; } // wind
+				}
+				
+				//var cssStyleDeclaration:CSSStyleDeclaration = StyleManager.getStyleDeclaration(".weatherStyles");
+				//return (cssStyleDeclaration!=null) ? cssStyleDeclaration.getStyle(symbol) : null;
+				return symbol;
+			}
+			 
+			private function getImageFromYahoo(type:int):String
+			{
+				var symbol:String = null;
+				switch (type)
+				{					
+					case 0:		{ symbol = "blizzard"; break; } // hurrican
+					case 1:		{ symbol = "ywind"; break; } // windy					
+					case 2:		{ symbol = "ywind"; break; } // windy					
+					case 3:		{ symbol = "hitsra"; break; } // severe thunder storms
+					case 4:		{ symbol = "ntsra"; break; } // thunder storms and rain
+					case 5:		{ symbol = "mix"; break; } // mixed rain and snow
+					case 6:		{ symbol = "ra"; break; } // mixed rain and sleet
+					case 7:		{ symbol = "mix" ; break; } // mixed snow and sleet					
+					case 8:		{ symbol = "yicy"; break; } // icy rain					
+					case 9:		{ symbol = "ydrizzle"; break; } // drizzle					
+					case 10:	{ symbol = "yfreezerain"; break; } // freezing drizzle					
+					case 11:	{ symbol = "hishwrs"; break; } // high showers					
+					case 12:	{ symbol = "nraip"; break; } // freezing dreezle
+					case 13:	{ symbol = "ysnowflower"; break; } // snow flurries					
+					case 14:	{ symbol = "ysnowflower"; break; } // snow
+					case 15:	{ symbol = "fzra"; break; } // blowing snow
+					case 16:	{ symbol = "fzra"; break; } // blowing snow					
+					case 17:	{ symbol = "ip"; break; } // hail					
+					case 18:	{ symbol = "ip"; break; } // sleet					
+					case 19:	{ symbol = "dusty"; break; } // dust
+					case 20:	{ symbol = "foggy"; break; } // vectorfoggy
+					case 21:	{ symbol = "hazy"; break; } // hazy
+					case 22:	{ symbol = "smoke"; break; } // smoke
+					case 23:	{ symbol = "blizzard"; break; } // blustery
+					case 24:	{ symbol = "ywind2"; break; } // windy
+					case 25:	{ symbol = "cold"; break; } // cold
+					case 26:	{ symbol = "bkn"; break; } // cloudy
+					case 27:	{ symbol = "hinbkn"; break; } // mostly cloudy night
+					case 28:	{ symbol = "bkn"; break; }; // mostly cloudy day
+					case 29:	{ symbol = "hinfew" ; break; } // a bit cloudy night
+					case 30:	{ symbol = "fu"; break; } // partly cloudy day
+					case 31:	{ symbol = "br" ; break; }; // fair night Vectorfairnight
+					case 32:	{ symbol = "hiskc"; break; } // sunny
+					case 33:	{ symbol = "br" ; break; }; // fairnight Vectorfairnight
+					case 34:	{ symbol = "fairday" ; break; } // fair sday
+					case 35:	{ symbol = "ra"; break; } // mixed rain and hail
+					case 36:	{ symbol = "hot"; break; } // hot
+					case 37:	{ symbol = "hitsra"; break; } // scattered thunder storms
+					case 38:	{ symbol = "hitsra"; break; } // scattered thunder storms
+					case 39:	{ symbol = "hitsra"; break; } // scattered thunder storms
+					case 40:	{ symbol = "shra"; break; } // scattered showers
+					case 41:	{ symbol = "sn"; break; } // heavy snow
+					case 42:	{ symbol = "scttsra"; break; } // scattered snow showers
+					case 43:	{ symbol = "rasn"; break; } // heavy snow
+					case 44:	{ symbol = "hibkn" ; break; } // partly cloudy
+					case 45:	{ symbol = "hinshwrs"; break; } // night rain
+					case 46:	{ symbol = "nsn"; break; } // night snow
+					case 47:	{ symbol = "ynightthun"; break } // night thunder showers
+				}
+				
+				//var cssStyleDeclaration:CSSStyleDeclaration = StyleManager.getStyleDeclaration(".weatherStyles");
+				//return (cssStyleDeclaration!=null) ? cssStyleDeclaration.getStyle(symbol) : null;
+				return symbol;
+			}
+			
+			private function refreshScene():void
+			{
+				if (m_loadingYahoo || m_loadingUsa)
+					return;
+				m_sceneloader.start();
+			}
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				if (m_styleService!=null) 
+				{
+					m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					m_styleService = null;
+				}
+				if ( m_timerRSSReload )
+				{					
+					m_timerRSSReload.stop();
+					m_timerRSSReload.removeEventListener(TimerEvent.TIMER,loadRSS);
+					m_timerRSSReload = null;
+				}
+				m_sceneloader.clear();
+				if (m_usaRequest!=null)
+				{
+					m_usaRequest.removeEventListener(RssEvent.RSS_RESULT, onYahooDataLoad);
+					m_usaRequest = null;
+				}
+				if (m_yahooRequest!=null)
+				{
+					m_yahooRequest.removeEventListener(RssEvent.RSS_RESULT, onUsaDataLoad);
+					m_yahooRequest = null;
+				}
+			}
+			
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				IUIComponent(m_sceneloader).width = width;
+				IUIComponent(m_sceneloader).height = height;
+			}
+		]]>
+	</fx:Script>	
+
+</ms:PlayerModule>	

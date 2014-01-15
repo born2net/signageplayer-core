@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerEffectPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					 xmlns:s="library://ns.adobe.com/flex/spark" 
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 xmlns:ms="*" xmlns:ColorPicker="ColorPicker.*">
+
+	<fx:Script>
+		<![CDATA[
+			import mx.events.ItemClickEvent;
+			
+			public override function get effectName():String
+			{
+				return resourceManager.getString('customer', 'PlayerShadowPage.title');
+			}
+			
+			protected override function get playerEffect():PlayerEffect
+			{
+				return m_playerLoader.playerShadow;
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader==null)
+					return;
+				if (playerEffect==null)
+					return;
+				shadowBlurX.value = Number(playerEffect.getProperty("blurX"));
+				shadowBlurY.value = Number(playerEffect.getProperty("blurY"));
+				shadowStrength.value = Number(playerEffect.getProperty("strength"));
+				shadowAngle.value = Number(playerEffect.getProperty("angle"));
+				shadowDistance.value = Number(playerEffect.getProperty("distance"));
+				shadowAlpha.value = Number(playerEffect.getProperty("alpha"));
+				shadowColor.selectedColor = uint(playerEffect.getProperty("color"));
+			}
+			
+			
+			protected override function updateButtons():void
+			{
+				super.updateButtons();
+				propCtrl.enabled = (m_playerActiveCtrl.propType.selectedValue!="Off");
+			}
+			
+			private function onColorChanged(event:Event):void
+			{
+				m_playerLoader.modified = true;
+				playerEffect.setProperty("color", shadowColor.selectedColor);
+			}
+			
+			protected override function createPlayerEffect(i_enabled:Boolean):void
+			{
+				m_playerLoader.createPlayerShadow(i_enabled);
+			}
+			
+			protected override function createPoint1():void
+			{
+				var data:Object = new Object();
+				data.blurX = 0;
+				data.blurY = 0;
+				data.angle = 0;
+				data.distance = 0;
+				data.strength = 0;
+				data.alpha = 1;
+				data.color = 0x808080;
+				playerEffect.insert(null, data);
+			}		
+
+			protected override function createPoint2():void
+			{
+				var data:Object = new Object();
+				data.blurX = 1;
+				data.blurY = 1;
+				data.strength = 10;
+				data.angle = 10;
+				data.distance = 10;
+				data.alpha = 1;
+				data.color = 0x808080;
+				var playerAction:PlayerAction =  new PlayerAction();
+				playerAction.delay = 0;
+				playerAction.duration = 2000;
+				playerEffect.insert(playerAction, data);
+				
+				playerEffect.index = 0;
+			}		
+			
+		]]>
+	</fx:Script>
+	<s:BorderContainer id="propCtrl" width="100%" height="100%">
+		<s:Form>
+			<s:FormItem
+				label="{resourceManager.getString('customer', 'effect.blurX')}">
+				<ms:NumericStepperEx id="shadowBlurX" name="blurX" 
+					value="1" minimum="0" maximum="255" stepSize="1"
+					change="onNumericStepperChanged(event)" 
+					width="70"/>
+			</s:FormItem>
+			<s:FormItem
+				label="{resourceManager.getString('customer', 'effect.blurY')}">
+				<ms:NumericStepperEx id="shadowBlurY" name="blurY"
+					value="1" minimum="0" maximum="255" stepSize="1"
+					change="onNumericStepperChanged(event)" 
+					width="70"/>
+			</s:FormItem>
+			<s:FormItem
+				label="{resourceManager.getString('customer', 'effect.strength')}">
+				<ms:NumericStepperEx id="shadowStrength" name="strength" 
+					value="1" minimum="0" maximum="255" stepSize="1"
+					change="onNumericStepperChanged(event)" 
+					width="70"/>
+			</s:FormItem>
+			<s:FormItem
+				label="{resourceManager.getString('customer', 'effect.angle')}">
+				<ms:NumericStepperEx id="shadowAngle" name="angle"
+					value="0" minimum="0" maximum="360" stepSize="1"
+					change="onNumericStepperChanged(event)" 
+					width="70"/>
+			</s:FormItem>
+			<s:FormItem 
+				label="{resourceManager.getString('customer', 'effect.distance')}">
+				<ms:NumericStepperEx id="shadowDistance" name="distance"
+					minimum="0" value="0" maximum="255" stepSize="1"
+					change="onNumericStepperChanged(event)" 
+					width="70"/>
+			</s:FormItem>
+			<s:FormItem
+				label="Alpha">
+				<ms:NumericStepperEx id="shadowAlpha" name="alpha" 
+					value="1" minimum="0" maximum="1" stepSize="0.01"
+					change="onNumericStepperChanged(event)" 
+					width="70"/>
+			</s:FormItem>
+			<s:FormItem
+				label="color">
+				<ColorPicker:SparkColorPicker id="shadowColor" name="color"
+					change="onColorChanged(event)"
+					width="70"/>
+			</s:FormItem>
+		</s:Form>
+	</s:BorderContainer>
+</ms:PlayerEffectPage>

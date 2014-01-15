@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 height="24">
+	
+	<fx:Script>
+		<![CDATA[
+			import flash.events.MouseEvent;
+			
+			//M??? import mx.events.NumericStepperEvent;
+			import spark.components.NumericStepper;
+			
+			
+			private var _timeValue:Object;
+			private var _focusArea:TextInput;
+			private var _currentStepValue:Number;
+			
+			private var m_minTime:Number = 0;
+			private var m_time:Number = 0;
+			
+			
+			[Bindable] private var maxHour:Number;
+			[Bindable] private var minHour:Number;
+			[Bindable] public var hour:Number = 0;
+			[Bindable] public var minute:Number = 0;
+			[Bindable] public var second:Number = 0;
+			[Bindable] public var showSeconds:Boolean = true;
+			
+			
+			public function get minTime():Number
+			{
+				return m_minTime;	
+			}
+			
+			public function set minTime(i_minTime:Number):void
+			{
+				m_minTime = i_minTime;
+			}
+			
+			public function setTime(i_seconeds:Number):void
+			{
+				if (i_seconeds>86400)
+				{
+					i_seconeds = 86400;
+				}
+				else if (i_seconeds<m_minTime)
+				{
+					i_seconeds=m_minTime;	
+				}
+				var x:Number = i_seconeds;
+				var t:Number = int(x/60);
+				second = int(x-t*60);
+				x = t; 
+				hour = int(t/60);
+				minute = int(x-hour*60);
+				
+				invalidateProperties();
+			}
+			
+			public function getTime():Number
+			{
+				return hour * 3600 + minute * 60 + second;
+			}
+			
+			public function get timeValue():Object
+			{
+				var tmpTime:Object = new Object();
+				tmpTime.hour = this.hour;
+				tmpTime.minute = this.minute;
+				tmpTime.second = this.second;
+				return tmpTime;
+			}
+			
+			public function set timeValue(value:Object):void
+			{
+				this._timeValue = value;
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				currentState = showSeconds ? "SecondState" : "Normal";	
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				
+				hourText.text = ((hour < 10) ? "0" : "") + String(hour);
+				minuteText.text = ((minute < 10) ? "0" : "") + String(minute);
+				if (showSeconds)
+				{
+					secondText.text = ((second< 10) ? "0" : "") + String(second);
+				}
+				
+				if(_focusArea==null) 
+				{
+					if (showSeconds)
+					{
+						_focusArea = secondText;
+					}
+					else
+					{
+						_focusArea = minuteText;
+					}
+				}
+				_currentStepValue = Number(_focusArea.text);
+				timeStepper.value = _currentStepValue;
+			} 
+			
+			
+			private function onTextFocus(event:Event):void
+			{
+				_focusArea = event.currentTarget as TextInput;
+				_focusArea.selectAll();
+				_currentStepValue = Number(_focusArea.text);
+				timeStepper.value = _currentStepValue;
+			}
+			
+			private function changeStepValue(event:Event):void
+			{
+				var h:Number = hour;
+				var m:Number = minute;
+				var s:Number = second;
+				if(_focusArea == hourText)
+				{
+					h = NumericStepper(event.target).value;
+				}
+				else if (_focusArea == minuteText)
+				{
+					m = NumericStepper(event.target).value;
+				}
+				else if(_focusArea == secondText)
+				{
+					s = NumericStepper(event.target).value;
+				}
+				
+				setTime(h*3600+m*60+s);                
+				
+				validateNow();
+				
+				_focusArea.setFocus();
+				
+				dispatchNewTime();
+			}
+			
+			
+			private function updateSteperValue():void
+			{
+				if(_focusArea == hourText)
+				{
+					timeStepper.value = hour;
+				}
+				else if (_focusArea == minuteText)
+				{
+					timeStepper.value = minute;
+				}
+				else if(_focusArea == secondText)
+				{
+					timeStepper.value = second;
+				}
+			}
+			
+			private function setValues(event:Event):void
+			{
+				if(event.currentTarget == hourText)
+				{
+					if(hourValidator.validate(Number(event.currentTarget.text))) 
+						timeStepper.value = Number(event.currentTarget.text);
+				}
+				if(event.currentTarget == minuteText)
+				{
+					if(minuteValidator.validate(Number(event.currentTarget.text))) 
+						timeStepper.value = Number(event.currentTarget.text);
+				}
+				if(event.currentTarget == secondText)
+				{
+					if(secondValidator.validate(Number(event.currentTarget.text))) 
+						timeStepper.value = Number(event.currentTarget.text);
+				}
+			}
+			
+			private function textFocusOut(event:Event):void
+			{
+				_focusArea.selectRange(0, 2);
+				
+				if(event.currentTarget == hourText) 
+					hour = Number(event.currentTarget.text);
+				if(event.currentTarget == minuteText) 
+					minute = Number(timeStepper.value);
+				if(event.currentTarget == secondText) 
+					second = Number(timeStepper.value);
+				
+				setTime(hour*3600+minute*60+second);
+				dispatchNewTime();
+			}
+			
+			private function dispatchNewTime():void
+			{
+				var newTime:Number = getTime();
+				if (m_time!=newTime)
+				{
+					m_time = newTime;
+					dispatchEvent( new TimeEvent(this, newTime) );
+				}
+			}
+			
+			
+			private function formatText(value:String, theField:String):String
+			{
+				if(_focusArea) 
+					_focusArea.selectRange(0, 2);
+				return (value.length < 2) ? ("0" + value) : value;
+			}
+			
+			private function keyHandler(event:KeyboardEvent):void
+			{
+				if(event.keyCode == 39 || event.keyCode == 38) 
+				{
+					if(_focusArea == hourText)
+					{
+						_currentStepValue++;
+						var tmpMaxValue:Number = maxHour;
+						if(_currentStepValue > tmpMaxValue)
+						{
+							_currentStepValue = 0;
+						}
+						
+					}
+					else if(_focusArea == minuteText || _focusArea == secondText )
+					{
+						_currentStepValue++;
+						if(_currentStepValue > 59)
+						{
+							_currentStepValue = 0;
+						}
+						
+					}
+					timeStepper.value = _currentStepValue;
+					//M??? timeStepper.dispatchEvent(new NumericStepperEvent("change"));
+					_focusArea.selectRange(0, 2);
+				}
+				if(event.keyCode == 37 || event.keyCode == 40) 
+				{
+					if(_focusArea == hourText)
+					{
+						_currentStepValue--;
+						var tmpMinValue:Number = 0;
+						if(_currentStepValue < tmpMinValue)
+						{
+							_currentStepValue = 23;
+						}
+					}
+					else if(_focusArea == minuteText || _focusArea == secondText )
+					{
+						_currentStepValue--;
+						if(_currentStepValue < 0)
+						{
+							_currentStepValue = 59;
+						}
+					}
+					timeStepper.value = _currentStepValue;
+					//M??? timeStepper.dispatchEvent(new NumericStepperEvent("change"));
+					_focusArea.selectRange(0, 2);
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	
+	
+	<fx:Declarations>
+		<mx:NumberValidator id="hourValidator" source="{hourText}" exceedsMaxError="" lowerThanMinError="" integerError=""
+							property="text" maxValue="{maxHour}" minValue="{minHour}"
+							trigger="{hourText}" triggerEvent="change" invalid="hourText.text = String(maxHour); hourText.errorString = &apos;&apos;;" />
+		<mx:NumberValidator id="minuteValidator" source="{minuteText}" exceedsMaxError="" lowerThanMinError="" integerError=""
+							property="text" maxValue="59" minValue="0" 
+							trigger="{minuteText}" triggerEvent="change" invalid="minuteText.text = &apos;59&apos;" allowNegative="false"  />
+		<mx:NumberValidator id="secondValidator" source="{secondText}" exceedsMaxError="" lowerThanMinError="" integerError=""
+							property="text" maxValue="59" minValue="0" 
+							trigger="{secondText}" triggerEvent="change" invalid="secondText.text = &apos;59&apos;" allowNegative="false"  />
+	</fx:Declarations>
+	
+
+	<s:states>
+		<s:State name="Normal"/>
+		<s:State name="SecondState"/>
+	</s:states>
+	
+	<s:layout>
+		<s:HorizontalLayout gap="0"/>
+	</s:layout>
+
+	<s:TextInput id="hourText" width="20" borderVisible="false"
+				  maxChars="2"
+				  text="{formatText(String(hour), &apos;hourText&apos;)}" 
+				  keyDown="keyHandler(event)" 
+				  mouseUp="onTextFocus(event)" mouseDown="onTextFocus(event)" focusIn="onTextFocus(event)" 
+				  focusOut="textFocusOut(event)" change="setValues(event)"
+				  errorString=""/>
+	
+	<s:Label text=":" width="6" paddingTop="5" paddingLeft="1"/>
+	
+	<s:TextInput id="minuteText" width="20" borderVisible="false"
+				  maxChars="2"
+				  text="{formatText(String(minute), &apos;minuteText&apos;)}" 
+				  keyDown="keyHandler(event)" mouseUp="onTextFocus(event)" mouseDown="onTextFocus(event)"
+				  focusOut="textFocusOut(event)" focusIn="onTextFocus(event)" change="setValues(event)"
+				  />
+	
+	<s:Label text=":" width="6" paddingTop="5" paddingLeft="1"
+			 includeIn="SecondState"/>
+	
+	<s:TextInput id="secondText" width="20" borderVisible="false"
+				  maxChars="2"
+				  includeIn="SecondState"
+				  text="{formatText(String(second), &apos;secondText&apos;)}"
+				  keyDown="keyHandler(event)" mouseUp="onTextFocus(event)" mouseDown="onTextFocus(event)" 
+				  focusOut="textFocusOut(event)" focusIn="onTextFocus(event)" change="setValues(event)" />
+	
+	<s:NumericStepper id="timeStepper" width="20" textAlign="right" 
+					  maximum="99" minimum="-99"
+					  change="changeStepValue(event)" color="{this.getStyle(&apos;backgroundColor&apos;)}"
+					  click="_focusArea.setFocus();" focusEnabled="false"/>
+
+</s:BorderContainer>

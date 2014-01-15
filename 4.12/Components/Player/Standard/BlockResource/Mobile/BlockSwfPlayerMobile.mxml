@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:BlockSwfPlayer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:ms="*"
+				   width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			  
+			private var m_stageWebView:StageWebView;
+			
+			
+			protected override function loadSource():void
+			{
+				var useHtmlContainer:Boolean = m_resourceService.useHtmlContainer(m_hResource);
+				if (useHtmlContainer)
+				{
+					if (m_stageWebView==null)
+					{
+						m_stageWebView = new StageWebView();
+						m_stageWebView.stage = this.stage;
+						m_stageWebView.viewPort = new Rectangle( 0, 0, width, height );
+					}
+					if (m_source!=null)
+					{
+						var fPath:String = new File(new File(m_source).nativePath).url;
+						m_stageWebView.loadURL(fPath);
+					}
+				}
+				else
+				{
+					super.loadSource();
+				}
+			}	
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (m_stageWebView!=null && unscaledWidth>0)
+				{
+					var point:Point = localToGlobal(new Point(0,0) );
+					m_stageWebView.viewPort = new Rectangle(point.x, point.y, unscaledWidth, unscaledHeight);
+				}
+			}			
+		]]>
+	</fx:Script>
+	
+</ms:BlockSwfPlayer>

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ms="*"
+					title="Signage Player"
+					preinitialize="onPreinitialize()"
+					close="onClose()"
+					backgroundColor="0"
+					showStatusBar="false">
+  
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace ms "*";
+		@namespace Controls "Controls.*";
+		Controls|ItemSelector
+		{
+			skinClass: ClassReference("DropDownSelectorSkin");
+		}
+	</fx:Style>	
+	
+	
+	<fx:Script>   
+		<![CDATA[
+        				
+			private function onPreinitialize():void
+			{
+				NativeApplication.nativeApplication.addEventListener(BrowserInvokeEvent.BROWSER_INVOKE,onBrowserInvoke);
+				
+				var screen:Screen;
+				var screensRect:Rectangle = new Rectangle();
+				for each(screen in Screen.screens)
+				{
+					screensRect.top = Math.min(screensRect.top, screen.bounds.top);
+					screensRect.bottom = Math.max(screensRect.bottom, screen.bounds.bottom);
+					screensRect.left = Math.min(screensRect.left, screen.bounds.left);
+					screensRect.right = Math.max(screensRect.right, screen.bounds.right);
+				}
+				
+				nativeWindow.x = 0;
+				nativeWindow.y = 0;
+				nativeWindow.width = screensRect.width;
+				nativeWindow.height = screensRect.height;
+				width = screensRect.width;
+				height = screensRect.height;
+			}
+			
+			private function onBrowserInvoke(e:BrowserInvokeEvent):void 
+			{
+				if (e.arguments.length>0)
+				{
+					ERI.decrypt(e.arguments[0]);
+				}
+			} 		
+	
+			
+			
+			private function onClose():void
+			{
+				try
+				{
+					if (nativeApplication!=null)
+					{ 
+						nativeApplication.removeEventListener(BrowserInvokeEvent.BROWSER_INVOKE,onBrowserInvoke);
+					}
+					signagePlayer.dispose();
+				}
+				catch(error:Error)
+				{
+					
+				}
+			}
+				
+         ]]> 
+    </fx:Script>
+	
+	
+	<ms:SignagePlayerDesktop id="signagePlayer" width="100%" height="100%"/>
+</s:WindowedApplication>

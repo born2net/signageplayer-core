@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:GroupEx xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:ms="*"
+				   clipAndEnableScrolling="true"
+				   width="100%" height="100%">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			private var m_vertical:Boolean = true;
+			private var m_posDirection:Boolean = false;
+			private var m_totalPixels:Number = 0;
+			private var m_pixelsPerSecond:Number = 10;
+			private var m_currentPixel:int = 0;
+			
+			public function get speed():Number
+			{
+				return m_pixelsPerSecond;	
+			}
+			
+			public function set speed(i_speed:Number):void
+			{
+				m_pixelsPerSecond = i_speed;
+			}
+			
+			public function invalidateChilds():void
+			{
+				m_totalPixels = 0; 
+				
+				for(var i:int=0; i<numElements; i++)
+				{
+					var child:UIComponent = UIComponent(getElementAt(i));
+					if (m_vertical)
+					{
+						child.y = m_totalPixels;
+						child.height = child.height;
+						trace("i="+i.toString() + "   h="+ child.height.toString());
+						m_totalPixels+=child.height;
+					}
+					else 
+					{
+						child.x = m_totalPixels;
+						child.width = child.width;
+						m_totalPixels+=child.width;
+					}
+				}
+
+			}
+			
+			public function clearAll():void
+			{
+				removeAllElements();
+				m_totalPixels = 0;
+			}
+			
+			public function get vertical():Boolean
+			{
+				return m_vertical;
+			}
+			
+			public function set vertical(i_vertical:Boolean):void
+			{
+				m_vertical = i_vertical;
+			}
+			
+			public function get posDirection():Boolean
+			{
+				return m_posDirection;
+			}
+			
+			public function set posDirection(i_posDirection:Boolean):void
+			{
+				m_posDirection = i_posDirection;
+			}
+			
+			public function start():void
+			{
+			}
+			
+			
+			public function stop():void
+			{
+			}
+			
+			public function onFrame(i_time:Number):void
+			{
+				if (numElements==0)  
+					return;
+				
+				var pixel:int = m_posDirection ? 
+					(int(i_time*m_pixelsPerSecond/1000) % m_totalPixels) :
+					m_totalPixels - (int(i_time*m_pixelsPerSecond/1000) % m_totalPixels) - 1;
+				
+				if (m_currentPixel==pixel)
+					return;
+				m_currentPixel=pixel;
+				
+				var min:Number;
+				var max:Number;
+				var displayObject:UIComponent;	
+				var index:int = numElements-1;
+				while(index>=0 && pixel>0)
+				{
+					displayObject = UIComponent(getElementAt(index));
+					if (vertical)
+					{
+						pixel -= displayObject.height;
+						min = -displayObject.height;
+						max = height;
+						if ( (displayObject.y>min && displayObject.y<max) || 
+							(pixel>min && pixel<max) )
+						{
+							displayObject.y = pixel;
+						}
+					}
+					else
+					{
+						pixel -= displayObject.width;
+						min = -displayObject.width;
+						max = width;
+						if ( (displayObject.x>min && displayObject.x<max) || 
+							(pixel>min && pixel<max) )
+						{
+							displayObject.x = pixel;
+						}
+					}
+					index--;
+				}
+				pixel = m_currentPixel;
+				
+				for(var i:int =0; i<=index; i++)
+				{
+					displayObject = UIComponent(getElementAt(i));
+					if (vertical)
+					{
+						min = -displayObject.height;
+						max = height;
+						if ( (displayObject.y>min && displayObject.y<max) || 
+							(pixel>min && pixel<max) )
+						{
+							displayObject.y = pixel;
+						}
+						pixel += displayObject.height;
+					}
+					else 
+					{
+						min = -displayObject.width;
+						max = width;
+						if ( (displayObject.x>min && displayObject.x<max) || 
+							(pixel>min && pixel<max) )
+						{
+							displayObject.x = pixel;
+						}
+						pixel += displayObject.width;
+					}
+				}
+				
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+			}
+			
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				clearAll();
+			}	
+		]]>
+	</fx:Script>
+	
+	
+	<ms:layout> 
+		<s:BasicLayout/>
+	</ms:layout>
+	
+</ms:GroupEx>

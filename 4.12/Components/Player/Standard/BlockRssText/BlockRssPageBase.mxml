@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+	label="{resourceManager.getString('player', 'rss.title')}"
+	width="100%" xmlns:ViewStack="ViewStack.*"
+	skinClass="ScrollerSkin" xmlns:Menu="Menu.*">  
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.collections.XMLListCollection;
+			import mx.core.UIComponent;
+			import mx.events.CollectionEvent;
+			import mx.events.FlexEvent;
+			
+			import spark.events.IndexChangeEvent;
+			
+[Bindable]  protected var m_xmlListCollection:XMLListCollection;
+
+[Bindable]  public var m_menuBarCollection:XMLListCollection;
+			private var m_xmlAdd:XML;
+			private var m_xmlDelete:XML;
+			
+			protected var m_invalidateCombo:Boolean = false;
+			
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_framework = Global.getFramework(this);
+				var masterServerUrl:String = String(m_framework.StateBroker.GetState("MasterServerUrl"));
+				var urlLoader:URLLoader = new URLLoader();
+				urlLoader.addEventListener(Event.COMPLETE, onLoadRssXml);
+				urlLoader.load(new URLRequest(masterServerUrl+"Rss/RssText.xml"));
+				
+				initMenu();
+			}
+			
+			private function initMenu():void
+			{
+				m_menuBarCollection = new XMLListCollection();
+				m_xmlAdd = <Command id="addCampaign" label="" toolTip="Add" icon="addIcon" click="onAddItem"/>;
+				m_xmlDelete = <Command id="del" label="" toolTip="Delete" icon="deleteIcon" click="onDeleteItem"/>;
+				m_menuBarCollection.addItem(m_xmlAdd);
+				m_menuBarCollection.addItem(m_xmlDelete);
+			}			
+			
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				if (m_xmlListCollection==null)
+					return;
+					
+				
+				if (m_invalidateCombo)
+				{
+					m_invalidateCombo = false;
+					rssCombo.validateNow();
+				}
+				
+				
+				rssCombo.selectedIndex = 1;
+				
+				if (BlockRssPlayer(m_playerLoader.player).embeddedRssCollection==null)
+				{
+					minRefreshTime.value = BlockRssPlayer(m_playerLoader.player).minRefreshTime;
+					rssLink.text = BlockRssPlayer(m_playerLoader.player).rssUrl;
+					for each(var xmlRss:XML in m_xmlListCollection.source)
+					{
+						if (xmlRss.@url==BlockRssPlayer(m_playerLoader.player).rssUrl)
+						{
+							rssCombo.selectedItem = xmlRss;
+							break;
+						}
+					}
+				}
+				else
+				{
+					rssCombo.selectedIndex = 0;
+				}
+				updateButtons();
+				
+			}
+			
+			
+			private function onLoadRssXml(event:Event):void
+			{
+				var xmlRssText:XML = new XML(event.target.data);
+				m_xmlListCollection = new XMLListCollection(xmlRssText.*);
+				var xmlEmbeddedRss:XML = <Rss label="[Embedded RSS]" />
+				var xmlCustomUrl:XML = <Rss label="[Custom url]" />
+				m_xmlListCollection.addItemAt(xmlEmbeddedRss, 0);
+				m_xmlListCollection.addItemAt(xmlCustomUrl, 1);
+				m_invalidateCombo = true;
+				invalidateProperties();
+			}
+			  
+			private function onSelectRssNews(event:IndexChangeEvent):void
+			{
+				if (rssCombo.selectedIndex==0) // Embedded Rss
+				{
+					BlockRssPlayer(m_playerLoader.player).embeddedRssCollection = new XMLListCollection();
+				}
+				else
+				{
+					BlockRssPlayer(m_playerLoader.player).rssUrl = rssCombo.selectedItem.@url;
+				}
+				updateButtons();
+			}
+			
+			private function onCustomLink():void
+			{
+				if (rssCombo.selectedIndex==1) // Custom Rss
+				{
+					BlockRssPlayer(m_playerLoader.player).rssUrl = rssLink.text;
+				}
+				updateButtons();
+			}
+			
+			private function updateButtons():void
+			{
+				switch(rssCombo.selectedIndex)
+				{
+					case 0:  // Embedded Rss
+						rssLink.editable = false;
+						formUrl.height = 0;
+						formUrl.visible = false;
+						viewStack.selectedItem = embedded;
+						validateNow();
+						grid.dataProvider = BlockRssPlayer(m_playerLoader.player).embeddedRssCollection;
+						break;
+					case 1: // Custom url
+						rssLink.editable = true;
+						formUrl.height = NaN;
+						formUrl.visible = true;
+						viewStack.selectedItem = notEmbedded;
+						break;
+					default:
+						rssLink.editable = false;
+						formUrl.height 	= NaN;
+						formUrl.visible = true;
+						viewStack.selectedItem = notEmbedded;
+						rssLink.text = BlockRssPlayer(m_playerLoader.player).rssUrl;
+						break;
+				}
+			}
+			
+			private function onTextInput(event:Event):void
+			{
+				if (rssCombo.selectedIndex==1)
+				{
+					if (rssLink.text.substr(0, 7)!="http://" && rssLink.text.substr(0, 8)!="https://")
+					{
+						rssLink.text = "http://" + rssLink.text; 
+					}  
+					BlockRssPlayer(m_playerLoader.player).rssUrl = rssLink.text;
+				}
+			}
+			
+			public function onAddItem():void
+     		{
+     			var xmlItem:XML = 
+     					<item>
+     						<title>title</title>
+     						<description>description</description>
+     					</item>
+				BlockRssPlayer(m_playerLoader.player).embeddedRssCollection.addItem(xmlItem);
+     		}
+
+     		public function onDeleteItem():void
+     		{
+     			if (grid.selectedItem!=null)
+     			{
+					BlockRssPlayer(m_playerLoader.player).embeddedRssCollection.removeItemAt(grid.selectedIndex);
+     			}
+     		}
+     		/*M???
+     		private function onTitleLabel(item:Object, column:DataGridColumn):String
+     		{
+     			return item.item.title.toString();
+     		}
+			*/
+     		
+     		private function onGridChanged():void
+     		{
+     			BlockRssPlayer(m_playerLoader.player).updateEmbeddedRss();	
+     		}
+     		
+     		private function onMinRefreshTime():void
+     		{
+     			BlockRssPlayer(m_playerLoader.player).minRefreshTime = minRefreshTime.value;	
+     		}
+			
+			
+			
+			
+			//itemFocusOut="onGridChanged()"
+		]]>
+	</fx:Script>
+	
+	<ms:layout>
+		<s:VerticalLayout/>
+	</ms:layout>
+
+	<s:VGroup id="ctrl" width="100%"/>
+
+	<s:Form width="100%">
+
+		<s:FormItem width="100%"
+			label="{resourceManager.getString('player', 'rss.rssCombo')}">
+			<s:DropDownList id="rssCombo" width="100%" 
+				dataProvider="{m_xmlListCollection}" labelField="@label" 
+				change="onSelectRssNews(event)"/>
+		</s:FormItem>
+		<s:FormItem width="100%" id="formUrl"
+			label="{resourceManager.getString('player', 'rss.url')}">
+			<s:TextInput id="rssLink" editable="false" 
+				width="100%"
+				focusOut="onCustomLink()" enter="onCustomLink()"/>
+		</s:FormItem>
+	</s:Form>
+	<ViewStack:SparkViewStack id="viewStack" 
+		width="100%">
+		<s:NavigatorContent id="notEmbedded" width="100%">
+			<s:layout>
+				<s:VerticalLayout paddingLeft="10"/>
+			</s:layout>
+			<s:Label text="Min refresh"/>
+			<ms:NumericStepperEx id="minRefreshTime" minimum="1" maximum="1000"
+				change="onMinRefreshTime()"/>
+			<s:Label text="(minutes)"/>
+		</s:NavigatorContent>					
+		<s:NavigatorContent id="embedded" width="100%">
+			<s:layout>
+				<s:VerticalLayout gap="0"/>
+			</s:layout>
+			<Menu:SparkToolBar callbackObj="{this}" dataProvider="{m_menuBarCollection}" width="100%" height="22"/>
+			<s:DataGrid id="grid"
+				width="100%"
+				editable="true">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn headerText="title" dataField="title"/>
+						<s:GridColumn headerText="description" dataField="description"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>
+		</s:NavigatorContent>	
+	</ViewStack:SparkViewStack>
+</ms:PlayerPage>	
+

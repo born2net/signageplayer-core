@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:GridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" clipAndEnableScrolling="true">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.CollectionEvent;
+			
+			import spark.components.DataGrid;
+			override public function prepare(hasBeenRecycled:Boolean):void 
+			{
+				//lblData.text = data[column.dataField]
+			}
+			
+			
+			public override function set data(value:Object):void
+			{
+				super.data = value;
+				if (data==null)
+					return;
+				
+				
+				var mode:String = data.mode;
+				for each(var pinMode:Object in ArrayList(pinModeList.dataProvider).source)
+				{
+					if (pinMode.mode==mode)
+					{
+						pinModeList.selectedItem = pinMode;
+						break;
+					}
+				}
+				
+				if (pinModeList.selectedItem!=null)
+				{
+					if (pinModeList.selectedItem.mode=="digitalOut")
+					{
+						var outType:String = data.digitalOutType;
+						for each(var outTypeItem:Object in ArrayList(digitalOutType.dataProvider).source)
+						{
+							if (outTypeItem.name==outType)
+							{
+								digitalOutType.selectedItem = outTypeItem;
+								break;
+							}
+						}
+					}
+					else if (pinModeList.selectedItem.mode=="digitalIn")
+					{
+						var inType:String = data.digitalInType;
+						for each(var inTypeItem:Object in ArrayList(digitalInType.dataProvider).source)
+						{
+							if (inTypeItem.name==inType)
+							{
+								digitalInType.selectedItem = inTypeItem;
+								break;
+							}
+						}
+					}
+				}
+				updateButtons();
+			}
+			
+			private function onPinMode():void
+			{
+				data.mode = String(pinModeList.selectedItem.mode);
+				if (data.mode=="digitalOut")
+				{
+					data.digitalOutType="normal";
+				}
+				else if (data.mode=="digitalIn")
+				{
+					data.digitalInType="pull_up";
+				}
+				else if (data.mode=="none")
+				{
+					data.digitalOutType=null;
+					data.digitalInType=null;
+				}
+				ArrayCollection(DataGrid(owner).dataProvider).dispatchEvent( new CollectionEvent(CollectionEvent.COLLECTION_CHANGE) );
+				updateButtons(); 
+			}
+			
+
+			private function onDigitalOutType():void
+			{
+				data.digitalOutType = String(digitalOutType.selectedItem.name);
+				ArrayCollection(DataGrid(owner).dataProvider).dispatchEvent( new CollectionEvent(CollectionEvent.COLLECTION_CHANGE) );
+				updateButtons();
+			}
+
+			private function onDigitalInType():void
+			{
+				data.digitalInType = String(digitalInType.selectedItem.name);
+				ArrayCollection(DataGrid(owner).dataProvider).dispatchEvent( new CollectionEvent(CollectionEvent.COLLECTION_CHANGE) );
+				updateButtons();
+			}
+			
+			private function updateButtons():void
+			{
+				if (pinModeList.selectedItem==null)
+					return;
+				if (pinModeList.selectedItem.mode=="digitalOut")
+				{
+					digitalOutType.width = 100;
+					digitalOutType.visible = true;
+					
+					digitalInType.width = 0;
+					digitalInType.visible = false;
+				}
+				else if (pinModeList.selectedItem.mode=="digitalIn")
+				{
+					digitalOutType.width = 0;
+					digitalOutType.visible = false;
+					
+					digitalInType.width = 100;
+					digitalInType.visible = true;
+				}
+				else
+				{
+					digitalOutType.width = 0;
+					digitalOutType.visible = false;
+					
+					digitalInType.width = 0;
+					digitalInType.visible = false;
+				}
+			}
+		]]>
+	</fx:Script>
+
+	<s:layout>
+		<s:HorizontalLayout gap="0"/>
+	</s:layout>
+	<s:DropDownList id="pinModeList" labelField="label"
+					change="onPinMode()"
+					selectedIndex="0">
+		<s:dataProvider>
+			<s:ArrayList>
+				<fx:Object mode="none" 		label="None"/>
+				<fx:Object mode="digitalOut" label="Digital Out"/>
+				<fx:Object mode="digitalIn" label="Digital In"/>
+				
+<!--				
+				<fx:Object mode="analogOut" label="Analog Out"/>
+				<fx:Object mode="analogIn" 	label="Analog In"/>
+-->				
+			</s:ArrayList>
+		</s:dataProvider>
+	</s:DropDownList>
+	<s:DropDownList id="digitalOutType" labelField="label"
+					change="onDigitalOutType()">
+		<s:dataProvider>
+			<s:ArrayList>
+				<fx:Object name="normal" label="Normal"/>
+				<fx:Object name="open_drain" label="Open drain"/>
+			</s:ArrayList>
+		</s:dataProvider>
+	</s:DropDownList>
+	<s:DropDownList id="digitalInType" labelField="label"
+					change="onDigitalInType()">
+		<s:dataProvider>
+			<s:ArrayList>
+				<fx:Object name="floating" label="Floating"/>
+				<fx:Object name="pull_down" label="Pull down"/>
+				<fx:Object name="pull_up" label="Pull up"/>
+			</s:ArrayList>
+		</s:dataProvider>
+	</s:DropDownList>
+</s:GridItemRenderer>

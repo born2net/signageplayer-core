@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<flexLibProperties includeAllClasses="false" useMultiPlatformConfig="false" version="1">
+  <includeClasses>
+    <classEntry path="FontCtrl"/>
+    <classEntry path="IPlayer"/>
+    <classEntry path="IPlayerTransition"/>
+    <classEntry path="IRssWeatherProvider"/>
+    <classEntry path="PlayerModule"/>
+    <classEntry path="PlayerPage"/>
+    <classEntry path="ResourcePicker"/>
+    <classEntry path="ScenePicker"/>
+    <classEntry path="IFacebookProvider"/>
+    <classEntry path="IFacebookAlbumProvider"/>
+    <classEntry path="EventItem"/>
+  </includeClasses>
+  <includeResources/>
+  <namespaceManifests/>
+</flexLibProperties>

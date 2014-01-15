@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>StyleServiceAir</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>com.adobe.flexbuilder.project.flexbuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>com.adobe.flexbuilder.project.flexlibnature</nature>
+		<nature>com.adobe.flexbuilder.project.actionscriptnature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>[source path] GuiSpark</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/GuiSpark</location>
+		</link>
+		<link>
+			<name>[source path] core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/StyleService/core</location>
+		</link>
+		<link>
+			<name>[source path] interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/StyleService/interfaces</location>
+		</link>
+	</linkedResources>
+</projectDescription>

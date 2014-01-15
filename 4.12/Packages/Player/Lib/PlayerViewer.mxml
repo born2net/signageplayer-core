@@ -1,0 +1,383 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+		   xmlns:oh="com.roguedevelopment.objecthandles.*"
+	width="400" height="300" xmlns:Menu="Menu.*">
+ 
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			
+			import spark.components.Label;
+			import spark.skins.spark.BorderContainerSkin;
+
+			private var m_framework:IFramework;
+			private var m_styleService:IStyleService;
+			private var m_moduleService:IModuleService;
+			private var m_propertyService:IPropertyService;
+			
+			private var m_invalidateFramework:Boolean = false;
+			private var m_invalidatePlayerLoad:Boolean = false;
+			private var m_invalidateAutoStreach:Boolean = false;
+			
+			private var m_autoStreach:Boolean = false;
+			
+
+			private var m_xmlPlayer:XML = null;
+			private var m_beginTime:Number;
+[Bindable]	public var m_currentTime:Number = 0;
+[Bindable]	public var m_lastTime:Number = 10000;
+			private var m_playerState:String = PlayerState.STOP;
+
+[Bindable]  public var m_menuBarCollection:XMLListCollection;
+			private var m_xmlStop:XML;
+			private var m_xmlPlay:XML;
+			private var m_xmlPause:XML;
+			
+			private var m_xmlMoveFirst:XML;
+			private var m_xmlFastBack:XML;
+			private var m_xmlFastForward:XML;
+			private var m_xmlMoveLast:XML;
+			
+			
+			public function set framework(i_framework:IFramework):void
+			{
+				m_framework = i_framework;
+				m_invalidateFramework = true;
+				invalidateProperties();
+			}
+			
+			public function get autoStreach():Boolean
+			{
+				return m_autoStreach;
+			}
+
+			public function set autoStreach(i_autoStreach:Boolean):void
+			{
+				m_autoStreach = i_autoStreach;
+				m_invalidateAutoStreach = true;
+				invalidateProperties();
+			}
+					
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				
+				playerLoader.addEventListener("event_player_ready", onPlayerReady);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateFramework)
+				{
+					m_invalidateFramework = false;
+					playerLoader.framework = m_framework;
+					m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+					m_moduleService = m_framework.ServiceBroker.QueryService("ModuleService") as IModuleService;
+					m_propertyService = m_framework.ServiceBroker.QueryService("PropertyService") as IPropertyService;
+					playerLoader.addEventListener(OffsetTimeEvent.EVENT_OFFSET_TIME, onOffsetTime)
+					initMenu();
+					updateButtons();
+					
+					
+					backgroundContainer.setStyle("backgroundImage", FlexGlobals.topLevelApplication.styleManager.getStyleDeclaration(".emptyBackground").getStyle("image"));				
+				}
+
+				if (m_framework==null)
+					return;
+				
+				if (m_invalidateAutoStreach)
+				{
+					m_invalidateAutoStreach = false;
+					playerContainer.setStyle("skinClass", m_autoStreach ? BorderContainerSkin : ScrollerSkin);
+				}
+				
+				if (m_invalidatePlayerLoad)
+				{
+					m_invalidatePlayerLoad = false;
+					loadPlayer();
+				}
+				
+				
+			}
+			
+			
+			
+			public function set totalTime(i_totalTime:Number):void
+			{
+				m_lastTime = i_totalTime;
+			}
+			
+			public function load(i_xmlPlayer:XML):void
+			{
+				m_xmlPlayer = i_xmlPlayer;
+				m_invalidatePlayerLoad = true;
+				invalidateProperties();
+			}
+			
+			private function loadPlayer():void
+			{
+				playerLoader.load(m_xmlPlayer);
+			}
+			
+			private function onPlayerReady(event:Event):void
+			{
+				onSize();
+				invalidateDisplayList();
+				
+				dispatchEvent( new Event("show_properties_event", true) );
+			}
+			
+			
+			public function clear():void
+			{
+				onStop();
+				m_xmlPlayer = null;
+				m_lastTime = 10000;
+				if (m_moduleService!=null)
+				{
+					playerLoader.clear();
+				}
+			}
+			
+			private function onOffsetTime(event:OffsetTimeEvent):void
+			{
+				m_currentTime=event.offsetTime;
+				m_beginTime = new Date().time - m_currentTime;
+				onFrame(null);
+			}
+			
+			public function onStop():void
+			{
+				m_playerState = PlayerState.STOP;
+				FlexGlobals.topLevelApplication.removeEventListener(Event.ENTER_FRAME, onFrame);
+				m_currentTime = 0;
+				playerLoader.stop();
+				timeDisplay.setTime(0);
+				if (m_propertyService!=null)
+				{
+					m_propertyService.invalidateData();
+				}
+				updateButtons();
+			}
+
+			public function onPause():void
+			{
+				m_playerState = PlayerState.PAUSE;
+				FlexGlobals.topLevelApplication.removeEventListener(Event.ENTER_FRAME, onFrame);
+				playerLoader.pause();				
+				updateButtons();
+			}
+
+			public function onPlay():void
+			{
+				setFocus(); // Make sure it update the properties
+				
+				if (m_playerState==PlayerState.STOP)
+				{
+					m_currentTime = 0;
+				}
+				m_playerState = PlayerState.PLAYING;
+				m_beginTime = new Date().time - m_currentTime;
+				FlexGlobals.topLevelApplication.addEventListener(Event.ENTER_FRAME, onFrame);
+				playerLoader.start();
+				updateButtons();
+			}
+			
+			public function onMoveFirst():void
+			{
+				m_beginTime = new Date().time;
+				timeDisplay.setTime(0);
+				onFrame(null);
+			}
+
+			public function onFastBack():void
+			{
+				m_currentTime-=100;
+				if (m_currentTime<0)
+					m_currentTime=0;
+				m_beginTime = new Date().time - m_currentTime;
+				onFrame(null);
+			}
+
+			public function onFastForward():void
+			{
+				m_currentTime+=100;
+				m_beginTime = new Date().time - m_currentTime;
+				onFrame(null);
+			}
+			
+			public function onMoveLast():void
+			{
+				m_currentTime=m_lastTime;
+				m_beginTime = new Date().time - m_currentTime;
+				onFrame(null);
+				onPause();
+			}			
+			
+			private function onFrame(event:Event):void
+			{
+				m_currentTime = (new Date().time) - m_beginTime;
+				if (m_currentTime>m_lastTime)
+				{
+					m_currentTime=m_lastTime;
+					onStop();
+				}
+				timeDisplay.setTime(m_currentTime/1000);
+				playerLoader.onFrame(m_currentTime);
+			}
+
+			
+			private function initMenu():void
+			{
+				m_menuBarCollection = new XMLListCollection();
+				m_xmlStop = <Command label="" icon="stopIcon" click="onStop" />;
+				m_xmlPlay = <Command label="" icon="playIcon" click="onPlay" />;
+				m_xmlPause = <Command label="" icon="pauseIcon" click="onPause" />;
+				m_xmlMoveFirst = <Command label="" icon="moveFirstIcon" click="onMoveFirst" />;
+				m_xmlFastBack = <Command label="" icon="fastBackIcon" click="onFastBack" />;
+				m_xmlFastForward = <Command label="" icon="fastForwardIcon" click="onFastForward" />;
+				m_xmlMoveLast = <Command label="" icon="moveLastIcon" click="onMoveLast" />;
+				
+				m_menuBarCollection.addItem(m_xmlStop);
+				m_menuBarCollection.addItem(m_xmlMoveFirst);
+				m_menuBarCollection.addItem(m_xmlFastBack);
+				m_menuBarCollection.addItem(m_xmlPause);
+				m_menuBarCollection.addItem(m_xmlPlay);
+				m_menuBarCollection.addItem(m_xmlFastForward);
+				m_menuBarCollection.addItem(m_xmlMoveLast);
+			}
+			
+			private function updateButtons():void
+			{
+				if (m_xmlPlay==null)
+					return; //???
+					
+				switch(m_playerState)
+				{
+					case PlayerState.STOP:
+						m_xmlPlay.@enabled = true;
+						m_xmlPause.@enabled = false;
+						m_xmlStop.@enabled = false;
+						m_xmlMoveFirst.@enabled = false;
+						m_xmlFastBack.@enabled = false;
+						m_xmlFastForward.@enabled = false;
+						m_xmlMoveLast.@enabled = false;
+						slider.enabled = false;
+						m_propertyService.enabled = true;
+						break;
+					case PlayerState.PAUSE:
+						m_xmlPlay.@enabled = true;
+						m_xmlPause.@enabled = false;
+						m_xmlStop.@enabled = true;
+						m_xmlMoveFirst.@enabled = true;
+						m_xmlFastBack.@enabled = true;
+						m_xmlFastForward.@enabled = true;
+						m_xmlMoveLast.@enabled = true;
+						slider.enabled = true;
+						m_propertyService.enabled = false;
+						break;
+					case PlayerState.PLAYING:
+						m_xmlPlay.@enabled = false;
+						m_xmlPause.@enabled = true;
+						m_xmlStop.@enabled = true;
+						m_xmlMoveFirst.@enabled = true;
+						m_xmlFastBack.@enabled = true;
+						m_xmlFastForward.@enabled = true;
+						m_xmlMoveLast.@enabled = true;
+						slider.enabled = true;
+						m_propertyService.enabled = false;
+						break;
+				}
+				menuBar.dataProvider=m_menuBarCollection;
+			}
+			
+			private function onSliderChanged():void
+			{
+				m_currentTime = slider.value * 1000;
+				timeDisplay.setTime(slider.value);
+				playerLoader.onFrame(m_currentTime);
+			}
+			
+			private function onSize():void
+			{
+				if (m_autoStreach==false)
+				{
+					playerLoaderBackground.width = playerLoader.width;
+					playerLoaderBackground.height = playerLoader.height;
+				}
+				else
+				{
+					if (playerLoader.width != playerContainer.width || 
+						playerLoader.height != playerContainer.height)
+					{
+						invalidateDisplayList();
+					}
+				}
+			}
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (m_autoStreach && playerContainer!=null)
+				{
+					playerLoader.width = playerLoaderBackground.width = playerContainer.width;
+					playerLoader.height = playerLoaderBackground.height = playerContainer.height;
+				}
+			}
+			
+			private function onZoomChanged():void
+			{
+				playerContainer.scaleX = playerContainer.scaleY = zoom.selectedItem.scale;
+			}
+			
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+	<s:HGroup id="bar" width="100%" height="22" gap="0">
+		<Menu:SparkToolBar id="menuBar" callbackObj="{this}" dataProvider="{m_menuBarCollection}"
+						   width="240" height="22"/>
+		<ms:TimeDisplay id="timeDisplay" 
+						width="60" height="22"/>
+		<s:BorderContainer  width="100%" height="22">
+			<s:HSlider id="slider" 
+					   width="100%" height="100%"
+					   minimum="0" maximum="{m_lastTime/1000}" snapInterval="0.1"
+					   value="{m_currentTime/1000}"
+					   change="onSliderChanged()"
+					   liveDragging="true"/>
+		</s:BorderContainer>
+		<s:DropDownList id="zoom" labelField="label"  selectedIndex="0"
+						width="70" height="22"
+						change="onZoomChanged()">
+			<s:dataProvider>
+				<s:ArrayList>
+					<fx:Object scale="1.0" label="100%"/>
+					<fx:Object scale="0.75" label="75%"/>
+					<fx:Object scale="0.5" label="50%"/>
+					<fx:Object scale="0.35" label="35%"/>
+					<fx:Object scale="0.25" label="25%"/>
+					<fx:Object scale="0.15" label="15%"/>
+				</s:ArrayList>
+			</s:dataProvider>
+		</s:DropDownList>
+	</s:HGroup>
+	
+	<s:BorderContainer id="playerContainer" width="100%" height="100%" borderVisible="false">
+		<s:Group id="playerLoaderBackground" clipAndEnableScrolling="true" width="0" height="0">
+			<s:BorderContainer id="backgroundContainer" width="1249" height="2016" borderVisible="false">
+				<s:BorderContainer width="100%" height="100%" backgroundColor="0xA0A0A0" backgroundAlpha="0.6" borderVisible="false"/>
+			</s:BorderContainer>
+			<ms:PlayerLoader id="playerLoader" editModule="true" resize="onSize()"/>
+		</s:Group>
+	</s:BorderContainer>
+</s:BorderContainer>
+
+

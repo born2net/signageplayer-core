@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<actionScriptProperties analytics="false" mainApplicationPath="BlockApp.mxml" projectUUID="8a1e778a-df12-41c3-af15-3f981b08c2e8" version="10">
+  <compiler additionalCompilerArguments="-locale en_US" autoRSLOrdering="false" copyDependentFiles="false" flex3CompatMode="false" fteInMXComponents="false" generateAccessible="false" htmlExpressInstall="true" htmlGenerate="false" htmlHistoryManagement="true" htmlPlayerVersionCheck="true" includeNetmonSwc="false" outputFolderLocation="C:/MediaSignageDepot/Solution/4.12/Build/Debug/BusinessServer/Modules/4.6/Players/Standard" outputFolderPath="bin-debug" removeUnusedRSL="true" strict="true" targetPlayerVersion="0.0.0" useApolloConfig="false" useDebugRSLSwfs="true" verifyDigests="true" warn="true">
+    <compilerSourcePath>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Framework/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/CatalogLib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Editor/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/DBManager/Core"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/PropertyService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/CatalogService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/Player/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/PlayerService/Interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/StyleService/interfaces"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/GuiLib"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Packages/GuiSpark"/>
+      <compilerSourcePathEntry kind="1" linkType="1" path="C:/MediaSignageDepot/Solution/4.12/Services/AdvertisingService/interfaces"/>
+    </compilerSourcePath>
+    <libraryPath defaultLinkType="1">
+      <libraryPathEntry kind="4" path="">
+        <modifiedEntries>
+          <libraryPathEntry applicationDomain="default" forceLoad="false" index="8" kind="3" linkType="4" path="${PROJECT_FRAMEWORKS}/libs/osmf.swc" useDefaultLinkType="true">
+            <crossDomainRsls>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="http://fpdownload.adobe.com/pub/swz/crossdomain.xml" rslUrl="http://fpdownload.adobe.com/pub/swz/flex/4.6.0.23201/osmf_1.0.0.16316.swz"/>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="" rslUrl="osmf_1.0.0.16316.swz"/>
+            </crossDomainRsls>
+          </libraryPathEntry>
+        </modifiedEntries>
+        <excludedEntries>
+          <libraryPathEntry applicationDomain="default" forceLoad="false" index="10" kind="3" linkType="4" path="${PROJECT_FRAMEWORKS}/libs/advancedgrids.swc" useDefaultLinkType="true">
+            <crossDomainRsls>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="http://fpdownload.adobe.com/pub/swz/crossdomain.xml" rslUrl="http://fpdownload.adobe.com/pub/swz/flex/4.6.0.23201/advancedgrids_4.6.0.23201.swz"/>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="" rslUrl="advancedgrids_4.6.0.23201.swz"/>
+            </crossDomainRsls>
+          </libraryPathEntry>
+          <libraryPathEntry applicationDomain="default" forceLoad="false" index="9" kind="3" linkType="4" path="${PROJECT_FRAMEWORKS}/libs/mx/mx.swc" useDefaultLinkType="true">
+            <crossDomainRsls>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="http://fpdownload.adobe.com/pub/swz/crossdomain.xml" rslUrl="http://fpdownload.adobe.com/pub/swz/flex/4.6.0.23201/mx_4.6.0.23201.swz"/>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="" rslUrl="mx_4.6.0.23201.swz"/>
+            </crossDomainRsls>
+          </libraryPathEntry>
+          <libraryPathEntry applicationDomain="default" forceLoad="false" index="7" kind="3" linkType="4" path="${PROJECT_FRAMEWORKS}/libs/spark_dmv.swc" useDefaultLinkType="true">
+            <crossDomainRsls>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="http://fpdownload.adobe.com/pub/swz/crossdomain.xml" rslUrl="http://fpdownload.adobe.com/pub/swz/flex/4.6.0.23201/spark_dmv_4.6.0.23201.swz"/>
+              <crossDomainRslEntry autoExtract="true" policyFileUrl="" rslUrl="spark_dmv_4.6.0.23201.swz"/>
+            </crossDomainRsls>
+          </libraryPathEntry>
+        </excludedEntries>
+      </libraryPathEntry>
+      <libraryPathEntry kind="1" linkType="1" path="libs"/>
+    </libraryPath>
+    <sourceAttachmentPath/>
+  </compiler>
+  <applications>
+    <application path="BlockApp.mxml"/>
+  </applications>
+  <modules>
+    <module application="BlockCatalogApp.mxml" destPath="BlockCatalogPlayer.swf" optimize="false" sourcePath="BlockCatalogPlayer.mxml"/>
+    <module application="BlockCatalogApp.mxml" destPath="BlockItemPlayer.swf" optimize="false" sourcePath="BlockItemPlayer.mxml"/>
+  </modules>
+  <buildCSSFiles/>
+  <flashCatalyst validateFlashCatalystCompatibility="false"/>
+</actionScriptProperties>

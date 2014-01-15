@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"
+	label="{resourceManager.getString('player', 'label.title')}"
+	width="100%" height="100%" xmlns:Accordion="Accordion.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import flashx.textLayout.conversion.ConversionType;
+			import flashx.textLayout.conversion.TextConverter;
+			
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			
+			import spark.events.IndexChangeEvent;
+			import spark.events.TextOperationEvent; 
+			
+			
+			
+			
+			private var m_styleService:IStyleService;
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+				fontCtrl.addEventListener(FontCtrl.FONT_CHANGED, onFontChanged);
+				labelEventsCtrl.editor = m_playerLoader;
+			}
+			
+			private function onFontChanged(event:Event):void
+			{
+				BlockLabelPlayer(m_playerLoader.player).fontItem = fontCtrl.fontItem;
+			}			
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				
+				if (m_playerLoader.player==null)
+					return;
+
+				labelEventsCtrl.editor = m_playerLoader;
+				textInput.text = BlockLabelPlayer(m_playerLoader.player).text;
+				fontCtrl.fontItem = BlockLabelPlayer(m_playerLoader.player).fontItem;
+			}
+			
+			private function onUpdateComplete(event:FlexEvent):void
+			{
+				if (m_playerLoader.player==null)
+					return;
+				BlockLabelPlayer(m_playerLoader.player).text = textInput.text;
+			}
+			
+			
+			
+		]]>
+	</fx:Script>
+	<ms:layout>
+		<s:VerticalLayout gap="0"/>
+	</ms:layout>
+	<Accordion:SparkAccordion id="accordion" width="100%" height="100%">
+		<s:NavigatorContent label="General" width="100%" height="100%">
+			<s:layout>
+				<s:VerticalLayout/>
+			</s:layout>
+			<s:Form width="100%">
+				<s:FormItem label="Text" width="100%">
+					<s:TextInput id="textInput" width="100%" updateComplete="onUpdateComplete(event)"/>
+				</s:FormItem> 
+				<s:FormItem label="Font:"/>
+			</s:Form>
+			<ms:FontCtrl id="fontCtrl" width="100%"/>
+		</s:NavigatorContent>
+		
+		<ms:LabelEventsCtrl id="labelEventsCtrl" width="100%" height="100%"/>
+	</Accordion:SparkAccordion>
+</ms:PlayerPage>	
+

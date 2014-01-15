@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*">
+	
+	<fx:Script>
+		<![CDATA[
+			import flashx.textLayout.container.ScrollPolicy;
+			import flashx.textLayout.conversion.ConversionType;
+			import flashx.textLayout.conversion.TextConverter;
+			
+			private var m_styleService:IStyleService;
+			
+			private var m_fontItem:IFontItem;
+			private var m_invalidateText:Boolean = false;
+			protected var m_text:String = "Label";
+
+			private var m_faces:Object = new Object();
+			
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Label).length()>0)
+				{
+					m_fontItem.load(i_data.Label.Font[0]);
+					m_text = i_data.Label.Text.toString();
+				}
+				invalidateText();
+			}
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockLabelPage];
+			}
+			
+			
+			public override function save():XML
+			{
+				var xmlLabel:XML = <Label/>;
+				var xmlText:XML = <Text>{m_text}</Text>;
+				xmlLabel.appendChild(xmlText);
+				xmlLabel.appendChild( m_fontItem.save() );
+				return xmlLabel; 
+			}   
+			
+			public override function onCommand(i_eventHandler:IEventHandler, i_eventParam:Object):void
+			{
+				if (label==null)
+					return;
+				
+				switch(i_eventHandler.commandName)
+				{
+					case "setParam":
+							label.text = i_eventParam as String;
+						break;
+					case "addParam":
+						label.text = (int(label.text) + int(i_eventParam)).toString();
+						break;
+					case "decParam":
+						label.text = (int(label.text) - int(i_eventParam)).toString();
+						break;
+				}
+				
+				
+			}
+
+
+			
+			public function set text(i_text:String):void
+			{
+				m_playerLoader.modified = true;
+				m_text = i_text;
+				invalidateText();
+			}
+			
+			public function get text():String
+			{
+				return m_text;
+			}
+			
+			public function set fontItem(i_fontItem:IFontItem):void
+			{
+				m_playerLoader.modified = true;
+				m_fontItem = i_fontItem;
+				invalidateText();
+			}
+			
+			public function get fontItem():IFontItem
+			{		
+				return m_fontItem;
+			}
+			
+			
+			 
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+
+				m_fontItem = m_styleService.createFontItem();	
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			
+			private function invalidateText():void
+			{
+				m_faces = new Object();
+				var face:String = m_fontItem.fontFamily;
+				m_faces[face] = face;
+				if (m_styleService.fontsCompleted(m_faces))
+				{
+					m_invalidateText = true;
+					invalidateProperties();
+				}
+				else
+				{
+					m_styleService.addEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+				}
+			}
+			
+			
+			private function onStyleComplete(event:ServiceStyleEvent):void
+			{
+				if (m_styleService.fontsCompleted(m_faces))
+				{
+					m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					m_invalidateText = true;
+					invalidateProperties();
+				}
+			}
+			
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateText)
+				{
+					m_invalidateText = false;
+					m_fontItem.applyStyles(label);
+					label.text = m_text;
+				}
+				
+			}
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+			}
+		]]>
+	</fx:Script>	
+	
+	<s:RichText id="label" width="100%" height="100%" minHeight="0" minWidth="0"/>
+</ms:PlayerModule>	

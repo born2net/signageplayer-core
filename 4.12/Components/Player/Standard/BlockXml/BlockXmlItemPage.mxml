@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"	
+			   width="100%" height="300"
+	label="{resourceManager.getString('player', 'catalogItem.title')}">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				fontCtrl.addEventListener(FontCtrl.FONT_CHANGED, onFontChanged);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				fieldName.text = BlockXmlItemPlayer(m_playerLoader.player).fieldName; 
+				if (urlBase!=null)
+				{
+					urlBase.text = BlockXmlItemPlayer(m_playerLoader.player).urlBase;
+				}
+				fontCtrl.fontItem = BlockXmlItemPlayer(m_playerLoader.player).fontItem;
+				for each(var fieldType:Object in ArrayList(fieldTypeCombo.dataProvider).source)
+				{
+					if (fieldType.name==BlockXmlItemPlayer(m_playerLoader.player).fieldType)
+					{
+						fieldTypeCombo.selectedItem = fieldType;
+						break;
+					}
+				}
+				
+				currentState = (fieldType.name=="resource") ? "stateResource" : "stateText";
+			}
+			
+			private function onFieldChanged(event:Event):void
+			{
+				BlockXmlItemPlayer(m_playerLoader.player).fieldName = fieldName.text; 
+			}
+			
+			
+			private function onFieldType():void
+			{
+				BlockXmlItemPlayer(m_playerLoader.player).fieldType= fieldTypeCombo.selectedItem.name; 
+				currentState = (BlockXmlItemPlayer(m_playerLoader.player).fieldType=="resource") ? "stateResource" : "stateText";
+			}			
+			
+			private function onFontChanged(event:Event):void
+			{
+				BlockXmlItemPlayer(m_playerLoader.player).fontItem = fontCtrl.fontItem;
+			}
+			
+			private function onUrlBase():void
+			{
+				BlockXmlItemPlayer(m_playerLoader.player).urlBase= urlBase.text;
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+	</fx:Declarations>	
+	
+	<ms:layout>
+		<s:VerticalLayout/>
+	</ms:layout>
+	
+	<ms:states>
+		<s:State name="stateText"/>
+		<s:State name="stateResource"/>
+	</ms:states>
+	
+	<s:Form width="100%">
+		<s:FormItem width="100%"
+			label="Field name">
+			<s:TextInput id="fieldName"
+					width="100%"
+					change="onFieldChanged(event)"/>
+		</s:FormItem>
+		<s:FormItem width="100%"
+					label="Field type">
+			<s:DropDownList id="fieldTypeCombo" labelField="label" width="100%"
+						change="onFieldType()">
+				<s:dataProvider>
+					<s:ArrayList>
+						<fx:Object name="text" label="Text"/>
+						<fx:Object name="resource" label="Resource"/>
+					</s:ArrayList>
+				</s:dataProvider>
+			</s:DropDownList>
+		</s:FormItem>
+		<s:FormItem width="100%" label="Url base" includeIn="stateResource">
+			<s:TextInput id="urlBase" click="onUrlBase()"/>
+		</s:FormItem>
+	
+	</s:Form> 
+	<s:FormItem label="Font:"/>
+	<ms:FontCtrl id="fontCtrl" width="100%"/>
+		
+</ms:PlayerPage>

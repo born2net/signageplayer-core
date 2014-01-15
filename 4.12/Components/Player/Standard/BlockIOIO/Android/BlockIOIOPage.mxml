@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+	implements="IPage" 
+	label="IOIO"
+	width="100%" height="100%" xmlns:Accordion="Accordion.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			
+			private var m_pingCollection:ArrayCollection;
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+					
+				m_pingCollection = BlockIOIOPlayer(m_playerLoader.player).pinCollection();
+				
+				ioioGrid.dataProvider = m_pingCollection;
+				ioioEventsCtrl.editor = m_playerLoader;
+			} 
+			
+		]]> 
+	</fx:Script>
+
+	<Accordion:SparkAccordion id="accordion" width="100%" height="100%">
+		<s:NavigatorContent label="IOIO defenitions" width="100%" height="100%">
+			<s:DataGrid	id="ioioGrid" width="100%" height="100%"
+						editable="true">
+				<s:columns>
+					<s:ArrayList> 
+						<s:GridColumn dataField="name" headerText="Name" editable="false" width="80"/>
+						<s:GridColumn itemRenderer="IOIOItem" headerText="Setup"  editable="false"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>
+		</s:NavigatorContent>
+		<ms:IOIOEventsCtrl id="ioioEventsCtrl" width="100%" height="100%"/>
+	</Accordion:SparkAccordion>
+</ms:PlayerPage>	
+

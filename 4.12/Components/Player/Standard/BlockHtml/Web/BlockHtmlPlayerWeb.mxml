@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:BlockHtmlPlayer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" 
+					xmlns:ms="*"
+	width="342" height="298">
+
+	<fx:Script>
+		<![CDATA[
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				stage.addEventListener(FullScreenEvent.FULL_SCREEN, fullScreenRedraw);
+				iFrame.visible = true;
+			}
+			
+			private function fullScreenRedraw(event:FullScreenEvent):void 
+			{
+				updateBlockInfo();
+			}
+			
+			private function updateBlockInfo():void
+			{
+				if (stage.displayState == StageDisplayState.FULL_SCREEN)
+				{
+					showBlockInfo("[HTML can not be displayed in WEBPlayer full-screen mode.\nPlease use AIRPlayer for full functionality]");
+				}
+				else
+				{
+					showBlockInfo(null);
+				}
+			}
+			
+			protected override function onDispose():void
+			{
+				stage.removeEventListener(FullScreenEvent.FULL_SCREEN, fullScreenRedraw);
+				iFrame.dispose();
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				iFrame.source = m_playerUrl;
+				updateBlockInfo(); 
+			}
+		]]>
+	</fx:Script>
+	
+	<ms:IFrame id="iFrame" width="100%" height="100%"/>
+</ms:BlockHtmlPlayer>

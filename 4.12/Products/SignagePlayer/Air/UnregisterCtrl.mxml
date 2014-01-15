@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:ms="*"
+	width="350" height="280"
+	implements="IDialog">
+
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.soap.WebService;
+			
+			
+			public static const REMOVE_STATION_EVENT:String = "remove_station_event";
+			public static const READY_EVENT:String = "event_ready";
+			
+			private var m_framework:IFramework;
+			private var m_debugLog:IDebugLog;
+			private var m_cryptoService:ICryptoService;
+			private var m_webService:WebService = new WebService();
+			private var m_okCancelDlg:OkCancelDlg; 
+			
+			public function setOkCancelDlg(i_okCancelDlg:OkCancelDlg):void
+			{
+				m_okCancelDlg = i_okCancelDlg;	
+			}
+			
+			public function onOk():void
+			{
+				onUnregister();
+			}
+			
+			public function onCancel():void
+			{
+				m_okCancelDlg.close();
+			}
+			
+			public function onButton(i_name:String):void
+			{
+				
+			}
+			
+			public function init(i_framework:IFramework):void
+			{ 
+				m_framework = i_framework;
+				m_debugLog = m_framework.ServiceBroker.QueryService("DebugLog") as IDebugLog;
+				m_cryptoService = m_framework.ServiceBroker.QueryService("CryptoService") as ICryptoService;
+				var mediaSignageUrl:String = String(m_framework.StateBroker.GetState("MasterServerUrl"));
+				m_webService.useProxy = false;
+				m_webService.addEventListener(FaultEvent.FAULT, onWebServiceFault);
+				m_webService.loadWSDL(mediaSignageUrl+"LoginService.asmx?wsdl");
+				m_webService.GetBusinessId.addEventListener("result", onGetBusinessId);
+			}
+			
+			private function onWebServiceFault(event:FaultEvent):void
+			{
+				m_debugLog.addWarning("UnregisterCtrl.mxml:\n"+event.toString());
+			}
+			
+			private function onUnregister():void
+			{
+				m_cryptoService.masterEncrypt(getBusinessId, textUser.text, textPassword.text);
+			}
+			
+			private function getBusinessId(i_encryptRequest:IEncryptRequest):void
+			{
+				m_webService.GetBusinessId(i_encryptRequest.output);
+			} 
+			
+			
+			private function onGetBusinessId(event:ResultEvent):void
+			{
+				var resultBusinessId:int = int(event.result);
+				var businessId:int = int(m_framework.StateBroker.GetState("businessId"));
+				
+				if (resultBusinessId!=-1 && resultBusinessId==businessId) 
+				{
+					m_framework.StateBroker.SetState(this, "userName", textUser.text);
+					m_framework.StateBroker.SetState(this, "userPassword", textPassword.text);
+					textUser.text = textPassword.text = "";
+					m_framework.EventBroker.dispatchEvent( new Event(REMOVE_STATION_EVENT) );
+				}
+				else
+				{
+					AlertEx.showOk (
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						"Invalid user or password");
+					m_okCancelDlg.close();
+				}
+			}
+		]]>
+	</fx:Script>
+
+	<s:Form>
+		<s:FormItem label="Email">
+			<ms:TextInputStr id="textUser" width="120"/>
+		</s:FormItem>
+		<s:FormItem label="Password">
+			<s:TextInput id="textPassword" displayAsPassword="true" width="120"/>
+		</s:FormItem>
+	</s:Form>
+</s:Group>

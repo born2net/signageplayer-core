@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>SignagePlayeriOS</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>com.adobe.flexbuilder.project.flexbuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
+			<name>com.adobe.flexbuilder.project.apollobuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>com.adobe.flexide.project.multiplatform.multiplatformnature</nature>
+		<nature>com.adobe.flexbuilder.project.apollonature</nature>
+		<nature>com.adobe.flexbuilder.project.flexnature</nature>
+		<nature>com.adobe.flexbuilder.project.actionscriptnature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>[source path] AdvertisingService-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/AdvertisingService/core</location>
+		</link>
+		<link>
+			<name>[source path] AdvertisingService-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/AdvertisingService/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] BlockAdvertising</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockAdvertising</location>
+		</link>
+		<link>
+			<name>[source path] BlockCamera</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockCamera</location>
+		</link>
+		<link>
+			<name>[source path] BlockCatalog</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockCatalog</location>
+		</link>
+		<link>
+			<name>[source path] BlockChart</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockChart</location>
+		</link>
+		<link>
+			<name>[source path] BlockClock</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockClock</location>
+		</link>
+		<link>
+			<name>[source path] BlockCollection</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockCollection</location>
+		</link>
+		<link>
+			<name>[source path] BlockFacebook-Air</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockFacebook/Air</location>
+		</link>
+		<link>
+			<name>[source path] BlockHtml-Lib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockHtml/Lib</location>
+		</link>
+		<link>
+			<name>[source path] BlockHtml-Mobile</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockHtml/Mobile</location>
+		</link>
+		<link>
+			<name>[source path] BlockLabel</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockLabel</location>
+		</link>
+		<link>
+			<name>[source path] BlockQRCode</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockQRCode</location>
+		</link>
+		<link>
+			<name>[source path] BlockResource-Mobile</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockResource/Mobile</location>
+		</link>
+		<link>
+			<name>[source path] BlockRssText</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockRssText</location>
+		</link>
+		<link>
+			<name>[source path] BlockRssVideo-Air</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockRssVideo/Air</location>
+		</link>
+		<link>
+			<name>[source path] BlockRssVideo-Lib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockRssVideo/Lib</location>
+		</link>
+		<link>
+			<name>[source path] BlockRssWeather</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockRssWeather</location>
+		</link>
+		<link>
+			<name>[source path] BlockStockTicker</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockStockTicker</location>
+		</link>
+		<link>
+			<name>[source path] BlockXml</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockXml</location>
+		</link>
+		<link>
+			<name>[source path] CachingService-Air</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/CachingService/Air</location>
+		</link>
+		<link>
+			<name>[source path] CachingService-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/CachingService/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] CampaignBoardPicker</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/CampaignBoardPicker</location>
+		</link>
+		<link>
+			<name>[source path] CatalogLib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/CatalogLib</location>
+		</link>
+		<link>
+			<name>[source path] CatalogService-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/CatalogService/core</location>
+		</link>
+		<link>
+			<name>[source path] CatalogService-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/CatalogService/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] CryptoLib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/CryptoLib</location>
+		</link>
+		<link>
+			<name>[source path] CryptoService-Core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/CryptoService/Core</location>
+		</link>
+		<link>
+			<name>[source path] CryptoService-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/CryptoService/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] DBManager-Core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/DBManager/Core</location>
+		</link>
+		<link>
+			<name>[source path] DebugLog-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/DebugLog/core</location>
+		</link>
+		<link>
+			<name>[source path] DebugLog-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/DebugLog/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] DesignerPlayer</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/DesignerPlayer</location>
+		</link>
+		<link>
+			<name>[source path] ERILib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/ERILib</location>
+		</link>
+		<link>
+			<name>[source path] Editor-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Editor/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Framework-Core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Framework/Core</location>
+		</link>
+		<link>
+			<name>[source path] Framework-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Framework/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] GuiLib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/GuiLib</location>
+		</link>
+		<link>
+			<name>[source path] GuiSpark</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/GuiSpark</location>
+		</link>
+		<link>
+			<name>[source path] LoaderManager-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/LoaderManager/core</location>
+		</link>
+		<link>
+			<name>[source path] LoaderManager-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/LoaderManager/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] LocalCommunication-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/LocalCommunication/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] LocalCommunication-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/LocalCommunication/core</location>
+		</link>
+		<link>
+			<name>[source path] MobileLib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Products/SignagePlayer/MobileLib</location>
+		</link>
+		<link>
+			<name>[source path] ModuleService-Air</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/Air</location>
+		</link>
+		<link>
+			<name>[source path] ModuleService-Embedded</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/Embedded</location>
+		</link>
+		<link>
+			<name>[source path] ModuleService-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/core</location>
+		</link>
+		<link>
+			<name>[source path] ModuleService-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Persistent-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/Persistent/core</location>
+		</link>
+		<link>
+			<name>[source path] Persistent-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/Persistent/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Player-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Player/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Player-Lib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Player/Lib</location>
+		</link>
+		<link>
+			<name>[source path] PlayerService-Air</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/PlayerService/Air</location>
+		</link>
+		<link>
+			<name>[source path] PlayerService-Core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/PlayerService/Core</location>
+		</link>
+		<link>
+			<name>[source path] PlayerService-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/PlayerService/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] PostServiceLib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/PostServiceLib</location>
+		</link>
+		<link>
+			<name>[source path] PropertyService-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/PropertyService/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Rc4Lib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Rc4Lib</location>
+		</link>
+		<link>
+			<name>[source path] RssService-Air</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/RssService/Air</location>
+		</link>
+		<link>
+			<name>[source path] RssService-Lib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/RssService/Lib</location>
+		</link>
+		<link>
+			<name>[source path] RssService-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/RssService/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] SignagePlayer-Air</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Products/SignagePlayer/Air</location>
+		</link>
+		<link>
+			<name>[source path] SignagePlayer-Lib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Products/SignagePlayer/Lib</location>
+		</link>
+		<link>
+			<name>[source path] StateManager-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/StateManager/core</location>
+		</link>
+		<link>
+			<name>[source path] StateManager-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/StateManager/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] StationService-Core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/StationService/Core</location>
+		</link>
+		<link>
+			<name>[source path] StationService-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/StationService/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] StyleService-Air</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/StyleService/Air</location>
+		</link>
+		<link>
+			<name>[source path] StyleService-Embedded</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/StyleService/Embedded</location>
+		</link>
+		<link>
+			<name>[source path] StyleService-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/StyleService/core</location>
+		</link>
+		<link>
+			<name>[source path] StyleService-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/StyleService/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Styles</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Styles</location>
+		</link>
+		<link>
+			<name>[source path] ViewerService-Lib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/ViewerService/Lib</location>
+		</link>
+		<link>
+			<name>[source path] WatchDog-core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/WatchDog/core</location>
+		</link>
+		<link>
+			<name>[source path] WatchDog-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/WatchDog/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Web</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockResource/Web</location>
+		</link>
+		<link>
+			<name>bin-debug</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Build/Master/Code/mobile_d</location>
+		</link>
+	</linkedResources>
+</projectDescription>

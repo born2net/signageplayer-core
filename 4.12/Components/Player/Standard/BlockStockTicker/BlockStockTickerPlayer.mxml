@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+	implements="IRssStockProvider">
+	 
+	<fx:Script> 
+		<![CDATA[
+			import mx.core.IUIComponent;
+			import mx.core.IVisualElement;
+			import mx.core.UIComponent;
+			import mx.events.ModuleEvent;
+
+			private var m_playerLoaderService:IPlayerLoaderService;
+			
+			private var m_rssService:IRssService;
+			private var m_rssRequest:IRssRequest;
+			
+			private var m_hPlayerData:int = -1;
+			private var m_symbols:String = "DOW, ^IXIC, ^GSPC, ^TNX, ^FTSE, ^GDAXI, ^FCHI, ^N225, ^HSI, ^STI";
+			private var m_Stocks:Object;
+			private var m_invalidateSymbols:Boolean = false;
+			private var m_invalidateData:Boolean = false;
+			private var m_vertical:Boolean = false;
+			private var m_speed:Number = 10;
+			private var m_timer:Timer;
+			private var m_time:Number = 0;
+			private var m_startTime:Number = 0;
+			
+
+			public override function get propertyPages():Array
+			{
+				return [BlockStockTickerPage];
+			}
+
+			public function set hPlayerData(i_hPlayerData:int):void
+			{
+				m_playerLoader.modified = true;
+				m_invalidateSymbols = true;
+				m_hPlayerData = i_hPlayerData;
+				invalidateProperties();
+			}
+
+			public function get hPlayerData():int
+			{
+				return m_hPlayerData;
+			}
+			
+			public function get symbols():String
+			{
+				return m_symbols;
+			}
+
+			public function set symbols(i_symbols:String):void
+			{
+				m_playerLoader.modified = true;
+				m_invalidateSymbols = true;
+				m_symbols = i_symbols;
+				loadStocks();
+			}
+			
+			public function get vertical():Boolean
+			{
+				return m_vertical;
+			}
+	
+			public function set vertical(i_vertical:Boolean):void
+			{
+				m_playerLoader.modified = true;
+				m_invalidateSymbols = true;
+				m_vertical = i_vertical;
+				invalidateProperties();
+			}
+
+			public function get speed():Number
+			{
+				return m_speed;	
+			}
+
+			public function set speed(i_speed:Number):void
+			{
+				m_playerLoader.modified = true;
+				m_speed = i_speed;
+				if (cyclicScroller!=null)
+				{
+					cyclicScroller.speed = m_speed;
+				}
+			}
+
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Stocks).length()>0)
+				{
+					m_symbols = i_data.Stocks.Symbols.toString();
+					m_hPlayerData = i_data.Stocks.Player.@hDataSrc;
+					m_vertical = (String(i_data.Stocks.@vertical)=="1");
+					if (XMLList(i_data.Stocks.@speed).length()>0)
+					{
+						m_speed = Number(i_data.Stocks.@speed);
+					}
+				}
+				m_invalidateSymbols = true;
+				loadStocks();
+			} 
+
+			public override function save():XML
+			{
+				var xmlStocks:XML = <Stocks>
+										<Symbols>{m_symbols}</Symbols>
+										<Player hDataSrc={m_hPlayerData}  />
+									</Stocks>;
+				xmlStocks.@vertical = m_vertical ? "1" : "0";
+				xmlStocks.@speed = m_speed;
+				return xmlStocks; 
+			}   
+
+
+			public override function start():void
+			{
+				super.start();
+				cyclicScroller.start();
+				m_timer.start();
+				m_time = 0;
+				m_startTime = 0;
+			}
+
+
+			public override function stop():void
+			{
+				super.stop();
+				cyclicScroller.stop();
+				m_timer.stop();
+			}
+			
+			public override function onFrame(i_time:Number):void
+			{
+				m_time = i_time;
+				cyclicScroller.onFrame(i_time);
+				for(var i:int=0;i<cyclicScroller.numElements;i++)
+				{
+					var playerLoader:IPlayerLoader = IPlayerLoader(cyclicScroller.getElementAt(i));
+					var x1:Number = playerLoader.x; 
+					var y1:Number = playerLoader.y;
+					playerLoader.onFrame(i_time - m_startTime);
+					playerLoader.x = x1; 
+					playerLoader.y = y1;
+				}
+			}
+
+			/************************************/
+			/* implements IRssStockProvider		*/
+			/************************************/			
+			public function getStockLastTrade(i_symbol:String):String
+			{
+				if (m_Stocks==null || m_Stocks[i_symbol]==null)
+					return "N\A";
+				return m_Stocks[i_symbol].lastTrade;				
+			}
+			public function getStockTradeDate(i_symbol:String):String
+			{
+				if (m_Stocks==null || m_Stocks[i_symbol]==null)
+					return "N\A";
+				return m_Stocks[i_symbol].tradeDate;   
+			}
+			public function getStockTradeTime(i_symbol:String):String
+			{
+				if (m_Stocks==null || m_Stocks[i_symbol]==null)
+					return "N\A";
+				return m_Stocks[i_symbol].tradeTime;   
+			}
+			public function getStockChange(i_symbol:String):String
+			{
+				if (m_Stocks==null || m_Stocks[i_symbol]==null)
+					return "N\A";
+				return m_Stocks[i_symbol].change;
+			}
+			public function getStockPercentage(i_symbol:String):String
+			{
+				if (m_Stocks==null || m_Stocks[i_symbol]==null)
+					return "N\A"; 
+				return m_Stocks[i_symbol].percentage;
+			}
+			public function getStockOpen(i_symbol:String):String
+			{
+				if (m_Stocks==null || m_Stocks[i_symbol]==null)
+					return "N\A"; 
+				return m_Stocks[i_symbol].open;
+			}
+			public function getStockMax(i_symbol:String):String
+			{
+				if (m_Stocks==null || m_Stocks[i_symbol]==null)
+					return "N\A";  
+				return m_Stocks[i_symbol].max;
+			}
+			public function getStockMin(i_symbol:String):String
+			{
+				if (m_Stocks==null || m_Stocks[i_symbol]==null)
+					return "N\A";
+				return m_Stocks[i_symbol].min;
+			}
+			public function getStockVolume(i_symbol:String):String
+			{
+				if (m_Stocks==null || m_Stocks[i_symbol]==null)
+					return "N\A";
+				return m_Stocks[i_symbol].volume;
+			}
+	
+			public function isStockPositive(i_symbol:String):Boolean 
+			{
+				if (m_Stocks==null || m_Stocks[i_symbol]==null)
+					return true;
+				return (Number(m_Stocks[i_symbol].change)>=0);
+			}
+			 
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_playerLoaderService = m_framework.ServiceBroker.QueryService("PlayerLoaderService") as IPlayerLoaderService;
+				m_rssService = m_framework.ServiceBroker.QueryService("RssService") as IRssService;
+				m_timer = new Timer(10000)
+				m_timer.addEventListener(TimerEvent.TIMER, onTimer);	
+			} 
+			
+			private function onTimer(event:TimerEvent):void
+			{
+				loadStocks();
+			}
+			
+			private function loadStocks():void
+			{
+				if (m_rssRequest!=null)
+					return;
+				var rssURL:String = "http://download.finance.yahoo.com/d/quotes.csv?s="+m_symbols+"&f=sl1d1t1c1ohgvc1&e=xml";					
+				m_rssRequest = m_rssService.createRssRequest(rssURL, 1, 60 * 12 * 2);
+				m_rssRequest.addEventListener(RssEvent.RSS_RESULT, onRssResult);
+				m_rssRequest.request();
+			}
+			
+			private function onRssResult(event:RssEvent):void
+			{	
+				m_rssRequest = null;
+				var rssRequest:IRssRequest = event.rssRequest;
+				rssRequest.removeEventListener(RssEvent.RSS_RESULT, onRssResult);
+				if (rssRequest.result==null)
+					return;
+					
+				m_Stocks = new Object();	
+				var stockLines:Array = String(rssRequest.result).split("\n");
+				var myPattern:RegExp = /[""]/g;
+				for each(var line:String in stockLines)
+				{
+					var stockData:Array = line.split(',');
+					if (stockData.length>=10)
+					{
+						var symbol:String = String(stockData[0]).replace(myPattern, "");
+						var stock:Object = new Object();
+						stock.lastTrade	 = String(stockData[1]);
+						stock.tradeDate	 = String(stockData[2]).replace(myPattern, "");
+						stock.tradeTime	 = String(stockData[3]).replace(myPattern, "");
+						stock.change	 = String(stockData[4]);
+						stock.open		 = String(stockData[5]);
+						stock.max		 = String(stockData[6]);
+						stock.min		 = String(stockData[7]);
+						stock.volume	 = String(stockData[8]);
+						stock.percentage = String((int((10000 * Number(stock.change)) / Number(stock.lastTrade)))/100)+"%";
+						m_Stocks[symbol] = stock;
+					}
+				}
+				m_invalidateData = true;
+				invalidateProperties();
+			}
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_symbols==null || m_hPlayerData==-1)
+					return;
+				var playerLoader:IPlayerLoader;
+				if (m_invalidateSymbols)
+				{
+					m_invalidateSymbols = false;
+					cyclicScroller.vertical = m_vertical;
+					cyclicScroller.speed = m_speed;
+					cyclicScroller.clearAll();
+					var myPattern:RegExp = / /g;
+					var symbolList:Array = m_symbols.replace(myPattern, "").split(",");
+					for each(var symbol:String in symbolList)
+					{ 
+						playerLoader = m_playerLoaderService.createPlayerLoader();
+						var xmlPlayer:XML = <Player/>;
+						xmlPlayer.@hDataSrc = m_hPlayerData;
+						//??? xmlPlayer.@src = m_playerDataId;
+						playerLoader.load(xmlPlayer);
+						cyclicScroller.addElement(IVisualElement(playerLoader));
+						playerLoader.setDataProvider(this, symbol);
+					}
+					
+					if (playerLoader!=null)
+					{
+						if (playerLoader.player!=null)
+						{
+							cyclicScroller.invalidateChilds();
+						}
+						else
+						{
+							playerLoader.addEventListener(ModuleEvent.READY, onModuleReady);
+						}
+					}							
+				}
+				if (m_invalidateData) 
+				{
+					m_invalidateData = false;
+					m_startTime = m_time;
+					for(var i:int=0;i<cyclicScroller.numElements;i++)
+					{
+						playerLoader = IPlayerLoader(cyclicScroller.getElementAt(i));
+						var x1:Number = playerLoader.x; 
+						var y1:Number = playerLoader.y;
+						playerLoader.start();
+						playerLoader.x = x1; 
+						playerLoader.y = y1;
+					}
+				}
+			}
+			
+			private function onModuleReady(event:ModuleEvent):void
+			{
+				event.target.removeEventListener(ModuleEvent.READY, onModuleReady);
+				cyclicScroller.invalidateChilds();
+			}
+				
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				if (m_rssRequest!=null)
+				{
+					m_rssRequest.removeEventListener(RssEvent.RSS_RESULT, onRssResult);
+					m_rssRequest = null;
+				}
+				if (m_timer!=null)
+				{
+					m_timer.removeEventListener(TimerEvent.TIMER, onTimer);
+					m_timer = null;
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<ms:CyclicScroller id="cyclicScroller" vertical="false"  width="100%" height="100%"/>
+</ms:PlayerModule>	

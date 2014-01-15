@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+	label="ExtApp" 
+	width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			import mx.core.UIComponent;
+			import mx.events.DragEvent;
+			import mx.events.DropdownEvent;
+			import mx.managers.DragManager;
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+				
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				var predefined:String = BlockExtAppPlayer(m_playerLoader.player).predefined;
+				appCombo.selectedItem = appCollection.source.(@id==predefined)[0];
+				appName.text = BlockExtAppPlayer(m_playerLoader.player).appName;
+				cmdLine.text = BlockExtAppPlayer(m_playerLoader.player).cmdLine;
+				switch(predefined)
+				{
+					case "virtualDub":
+						appName.editable = false;
+						cmdLine.editable = false;
+						filterForm.visible = true;
+						powerPointNotic.visible = false;
+						var applyFilter:String = BlockExtAppPlayer(m_playerLoader.player).xmlParams.@applyFilter;
+						filterCombo.selectedItem = filterCollection.source.(@id==applyFilter)[0];
+					break;
+					case "averMediaCenter":
+						appName.editable = true;
+						cmdLine.editable = false;
+						filterForm.visible = false;
+						powerPointNotic.visible = false;
+					break;	
+					case "powerPoint":
+						appName.editable = true;
+						cmdLine.editable = false;
+						filterForm.visible = false;
+						powerPointNotic.visible = true;
+					break;	
+					case "custom":
+						appName.editable = true;
+						cmdLine.editable = true;
+						filterForm.visible = false;
+						powerPointNotic.visible = false;
+					break;
+				}
+			}
+			
+			private function onDragEnter(event:DragEvent):void
+			{
+				DragManager.acceptDragDrop(UIComponent(event.currentTarget));
+			}
+			
+			private function onDragOver(event:DragEvent):void
+            {
+            	var itemsArray:Array = null;
+            	var xmlItem:XML = null;
+				if (event.dragSource.hasFormat("items")) 
+                {
+	                itemsArray = event.dragSource.dataForFormat('items') as Array;
+	                xmlItem = XML(itemsArray[0]);
+					if (xmlItem.name()=="Resource")
+					{
+						DragManager.showFeedback(DragManager.COPY);
+						return;
+					}            	
+                }
+               	DragManager.showFeedback(DragManager.NONE);            	
+            }
+            
+            
+			private function onDragDrop(event:DragEvent):void
+			{
+            	var itemsArray:Array = null;
+            	var xmlItem:XML = null;
+                if (event.dragSource.hasFormat("items")) 
+                {
+	                itemsArray = event.dragSource.dataForFormat('items') as Array;
+	                xmlItem = XML(itemsArray[0]);
+	                if (xmlItem.name()=="Resource")
+	                {
+	                	var xmlResource:XML = xmlItem;
+	                	var hResource:int = xmlResource.@hResource;
+	                	var recResource:Rec_resource = BlockExtAppPlayer(m_playerLoader.player).getResource(hResource);
+	                	if (recResource.native_id!=-1)
+	                	{
+	                		cmdLine.text += "$File[" + recResource.native_id + "]";
+	                		BlockExtAppPlayer(m_playerLoader.player).cmdLine = cmdLine.text;
+	                	}
+		                else
+		                {
+						AlertEx.showOk(
+							UIComponent(m_framework.StateBroker.GetState("topWindow")),
+		                	"Please upload this resource to the server first", 
+		                	"Can't use this resource");
+		                }
+	                }
+                }
+			}
+			
+			protected function onPredefinedApp():void
+			{
+				BlockExtAppPlayer(m_playerLoader.player).predefined = appCombo.selectedItem.@id;
+				invalidateProperties();
+			}
+			
+			protected function onChange():void
+			{
+				BlockExtAppPlayer(m_playerLoader.player).appName = appName.text;
+				BlockExtAppPlayer(m_playerLoader.player).cmdLine = cmdLine.text;
+				invalidateProperties();
+			}
+			
+			protected function onCaptureFilter():void
+			{
+				BlockExtAppPlayer(m_playerLoader.player).xmlParams.@applyFilter = filterCombo.selectedItem.@id;
+				BlockExtAppPlayer(m_playerLoader.player).updateAppCmdLine();
+				m_playerLoader.modified = true;
+				invalidateProperties();
+			}
+			
+			private function onDownloadPowerPoint():void
+			{
+				navigateToURL( new URLRequest("http://signage.me/files/powerpointviewer.exe"), "_blank" );
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:XMLListCollection id="appCollection">
+			<fx:XMLList>
+				<ExtApp label="Capture card (Windows)" id="virtualDub"/>
+				<ExtApp label="AVer MediaCenter HD (Windows)" id="averMediaCenter"/>
+				<ExtApp label="PowerPoint Viewer (Windows)" id="powerPoint"/>
+				<ExtApp label="custom" id="custom" />
+			</fx:XMLList>
+		</s:XMLListCollection>
+		
+		<s:XMLListCollection id="filterCollection">
+			<fx:XMLList>
+				<Filter label="None" id="none"/>
+				<Filter label="Linear" id="linear" />
+				<Filter label="Cubic" id="cubic" />
+			</fx:XMLList>
+		</s:XMLListCollection>
+	</fx:Declarations>
+	
+	
+	<s:Form width="100%">
+		<s:FormItem label="ExtApp" width="100%">
+			<s:DropDownList id="appCombo" 
+				dataProvider="{appCollection}" labelField="@label"
+				change="onPredefinedApp()" 
+				width="100%" />
+		</s:FormItem>
+		<s:FormItem width="100%"
+			label="app name">
+			<s:TextInput id="appName" width="100%"
+				enter="onChange()" focusOut="onChange()" />
+		</s:FormItem>
+		<s:FormItem width="100%"
+			label="command line">
+			<s:TextInput id="cmdLine" width="100%"
+				dragOver="onDragOver(event)"
+				dragEnter="onDragEnter(event)"
+				dragDrop="onDragDrop(event)"
+				enter="onChange()" focusOut="onChange()" />
+			<s:Label text="(drop resource file here)"/>	
+		</s:FormItem>
+		<s:FormItem id="filterForm" label="Capture filter" width="100%">
+			<s:DropDownList id="filterCombo" 
+				dataProvider="{filterCollection}" labelField="@label"
+				change="onCaptureFilter()" 
+				width="100%" />
+		</s:FormItem>
+	</s:Form>
+	
+	<s:BorderContainer id="powerPointNotic" 
+		width="100%" height="100%" x="5" y="160">
+		<s:TextArea width="100%" x="5">
+				Notice: 
+				be sure to install the PowerPoint-Viewer on the remote Stations that use this campaign.
+	    </s:TextArea>
+		<s:Button y="40" 
+			label="download from here:" 
+			click="onDownloadPowerPoint()"/>
+		<s:TextInput x="10" y="65" text="http://signage.me/files/powerpointviewer.exe" 
+			editable="false"/>	
+	</s:BorderContainer>
+</ms:PlayerPage>	
+

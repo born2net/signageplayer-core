@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"	
+			   width="100%"
+	label="{resourceManager.getString('player', 'catalogItem.title')}">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				comboField.dataProvider = new XMLListCollection(fieldList);
+				fontCtrl.addEventListener(FontCtrl.FONT_CHANGED, onFontChanged);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				for each(var xmlField:XML in comboField.dataProvider)
+				{
+					if (BlockFacebookItemPlayer(m_playerLoader.player).field==xmlField.@value)
+					{
+						comboField.selectedItem = xmlField;
+						break;
+					}
+				} 
+				
+				fontCtrl.fontItem = BlockFacebookItemPlayer(m_playerLoader.player).fontItem;
+			}
+			
+			private function onFieldChanged(event:Event):void
+			{
+				var field:String = comboField.selectedItem.@value;
+				BlockFacebookItemPlayer(m_playerLoader.player).field = field; 
+			}
+			
+			private function onFontChanged(event:Event):void
+			{
+				BlockFacebookItemPlayer(m_playerLoader.player).fontItem = fontCtrl.fontItem;
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<fx:XMLList id="fieldList">		
+			<Field label="Friend name" value="{FacebookField.FRIEND_NAME}"/>
+			<Field label="Friend sex" value="{FacebookField.FRIEND_SEX}"/>
+			<Field label="Friend pic" value="{FacebookField.FRIEND_IMAGE}"/>
+			
+			<Field label="Photo created" value="{FacebookField.ALBUM_PHOTO_CREATED}"/>
+			<Field label="Photo caption" value="{FacebookField.ALBUM_PHOTO_CAPTION}"/>
+			<Field label="Photo big" value="{FacebookField.ALBUM_BIG_PHOTO}"/>
+			<Field label="Photo small" value="{FacebookField.ALBUM_SMALL_PHOTO}"/>
+			
+			<Field label="Event name" value="{FacebookField.EVENT_NAME}"/>
+			<Field label="Event location" value="{FacebookField.EVENT_LOCATION}"/>
+			<Field label="Event start" value="{FacebookField.EVENT_START_TIME}"/>
+			<Field label="Event image" value="{FacebookField.EVENT_IMAGE}"/>
+		</fx:XMLList>
+	</fx:Declarations>	
+	
+	<ms:layout>
+		<s:VerticalLayout/>
+	</ms:layout>
+	
+	<s:Form width="100%">
+		<s:FormItem width="100%"
+			label="Field">
+			<s:DropDownList id="comboField" 
+					width="100%"
+					labelField="@label" 
+					change="onFieldChanged(event)"/>
+		</s:FormItem>
+	</s:Form> 
+	<s:Label text="Font:" paddingLeft="10"/>
+	<ms:FontCtrl id="fontCtrl" width="100%"/>
+		
+</ms:PlayerPage>

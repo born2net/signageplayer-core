@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:Controls="Controls.*"
+		   xmlns:ms="*"
+	implements="IPage" 
+	label="Countdown"
+	width="100%" height="100%" >
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			
+			
+		
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				fontCtrl.addEventListener(FontCtrl.FONT_CHANGED, onFontChanged);
+				dateCtrl.addEventListener(Event.CHANGE, onFinalTime);
+				timeCtrl.addEventListener(TimeEvent.TIME_CHANGED, onFinalTime);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				fontCtrl.fontItem = BlockCountdownPlayer(m_playerLoader.player).fontItem;
+				formatText.text =  BlockCountdownPlayer(m_playerLoader.player).formatText;
+				
+				for each(var item:Object in ArrayList(modeCtrl.dataProvider).source)
+				{
+					if (item.mode==BlockCountdownPlayer(m_playerLoader.player).mode)
+					{
+						modeCtrl.selectedItem = item;
+					}
+				}
+				
+				updateTime();
+			} 
+			
+			private function onFontChanged(event:Event):void
+			{
+				BlockCountdownPlayer(m_playerLoader.player).fontItem = fontCtrl.fontItem;
+			}
+			
+			private function onMode():void
+			{
+				BlockCountdownPlayer(m_playerLoader.player).mode = modeCtrl.selectedItem.mode;
+				updateTime();
+			}
+			
+			private function updateTime():void
+			{
+				if (BlockCountdownPlayer(m_playerLoader.player).mode=="Date")
+				{
+					dateForm.visible = true;
+					timeForm.label = "Time";
+					var finalDate:Date = BlockCountdownPlayer(m_playerLoader.player).finalDate;
+					dateCtrl.selectedDate = new Date(finalDate.fullYear, finalDate.month, finalDate.date);
+					timeCtrl.setTime(finalDate.seconds + 60 * finalDate.minutes + 3600 * finalDate.hours);
+				}
+				else
+				{
+					dateForm.visible = false;
+					timeForm.label = "Duration";
+					timeCtrl.setTime(BlockCountdownPlayer(m_playerLoader.player).duration);
+				}
+			}
+
+			private function onMaskChange():void
+			{
+				BlockCountdownPlayer(m_playerLoader.player).formatText = formatText.text;
+			}
+			
+			private function onFinalTime(event:Event):void
+			{
+				if (BlockCountdownPlayer(m_playerLoader.player).mode=="Date")
+				{
+					BlockCountdownPlayer(m_playerLoader.player).finalDate = new Date(dateCtrl.selectedDate.fullYear, dateCtrl.selectedDate.month, dateCtrl.selectedDate.date, 
+						timeCtrl.hour, timeCtrl.minute, timeCtrl.second);
+				}
+				else
+				{
+					BlockCountdownPlayer(m_playerLoader.player).duration = timeCtrl.getTime();
+				}
+			}
+			
+		]]> 
+	</fx:Script>
+
+	
+	<ms:layout>
+		<s:VerticalLayout paddingLeft="5" paddingRight="5" paddingTop="5"/>
+	</ms:layout>
+	<s:Label text="Font:"/>
+	<ms:FontCtrl id="fontCtrl" width="100%"/>	
+
+	
+	
+	<s:Form width="100%">
+		<s:FormItem label="Format">
+			<ms:TextInputStr id="formatText" width="160" focusOut="onMaskChange()" enter="onMaskChange()"/>
+		</s:FormItem>
+		<s:FormItem label="Mode">
+			<s:DropDownList id="modeCtrl" labelField="label"
+							change="onMode()">
+				<s:dataProvider>
+					<mx:ArrayList>
+						<fx:Object mode="Duration" label="Duration"/>
+						<fx:Object mode="Date" label="Date"/>
+					</mx:ArrayList>
+				</s:dataProvider>
+			</s:DropDownList>
+		</s:FormItem>
+		<s:FormItem id="dateForm" label="Date">
+			<Controls:SparkDateField id="dateCtrl" skinClass="Controls.DateFieldListSkin"/>	
+		</s:FormItem>
+		<s:FormItem id="timeForm">
+			<ms:TimeCtrl id="timeCtrl" showSeconds="true"
+						 borderColor="#00FF00" borderWeight="1" borderStyle="solid" cornerRadius="5" /> 
+		</s:FormItem>
+	</s:Form>
+	
+	<s:Line width="100%" height="1"/>
+
+	<s:RichText paddingLeft="10">
+		<s:text>
+%D Days  
+%H Hours 
+%M Minutes
+%S Seconds  
+		</s:text>
+	</s:RichText>
+	
+</ms:PlayerPage>	
+

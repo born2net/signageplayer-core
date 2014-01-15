@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"
+	label="Rss"
+	width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			import mx.collections.XMLListCollection;
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			import flash.net.navigateToURL;
+			import spark.events.IndexChangeEvent;
+			
+			
+[Bindable]  private var m_xmlListCollection:XMLListCollection;			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				rssLink.addEventListener(FlexEvent.ENTER, onTextInput);
+				rssLink.addEventListener(FocusEvent.FOCUS_OUT, onTextInput);
+
+				
+				m_framework = Global.getFramework(this);
+				var masterServerUrl:String = String(m_framework.StateBroker.GetState("MasterServerUrl"));
+				var urlLoader:URLLoader = new URLLoader();
+				urlLoader.addEventListener(Event.COMPLETE, onLoadRssXml);
+				urlLoader.load(new URLRequest(masterServerUrl+"Rss/RssVideo.xml"));
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				if (m_xmlListCollection!=null)
+				{
+					rssCombo.validateNow();
+					maintainAspectRatio.selected = BlockRssVideoPlayer(m_playerLoader.player).maintainAspectRatio;
+					rssCombo.selectedIndex = 0;
+					rssLink.text = BlockRssVideoPlayer(m_playerLoader.player).rssUrl;
+					for each(var xmlRss:XML in m_xmlListCollection.source)
+					{
+						if (xmlRss.@url==BlockRssVideoPlayer(m_playerLoader.player).rssUrl)
+						{
+							rssCombo.selectedItem = xmlRss;
+							break;
+						}
+					}
+					rssLink.editable = (rssCombo.selectedIndex==0);
+				}
+			}
+			
+			private function onLoadRssXml(event:Event):void
+			{
+				var xmlRssVideo:XML = new XML(event.target.data);
+				m_xmlListCollection = new XMLListCollection(xmlRssVideo.*);
+				var xmlCustom:XML = <Rss label="[Custom]" />
+				m_xmlListCollection.addItemAt(xmlCustom, 0);
+				invalidateProperties();
+			}
+			 
+			private function onSelectRssVideo(event:IndexChangeEvent):void
+			{
+				if (rssCombo.selectedIndex==0)
+				{
+					rssLink.editable = true;
+				}
+				else
+				{
+					rssLink.editable = false;
+					BlockRssVideoPlayer(m_playerLoader.player).rssUrl = rssCombo.selectedItem.@url;
+					rssLink.text = BlockRssVideoPlayer(m_playerLoader.player).rssUrl;
+				}
+			}
+			
+			private function onTextInput(event:Event):void
+			{
+				if (rssCombo.selectedIndex==0)
+				{
+					if (rssLink.text.substr(0, 7)!="http://" && rssLink.text.substr(0, 8)!="https://")
+					{
+						rssLink.text = "http://" + rssLink.text; 
+					}  
+					BlockRssVideoPlayer(m_playerLoader.player).rssUrl = rssLink.text;
+				}
+			}
+			
+			private function onMaintainAspectRatio():void
+			{
+				BlockRssVideoPlayer(m_playerLoader.player).maintainAspectRatio = maintainAspectRatio.selected;	
+			}
+			
+			
+		]]>
+	</fx:Script>
+
+	<ms:layout>
+		<s:VerticalLayout/>
+	</ms:layout>
+	<s:Form width="100%">
+		<s:FormItem label="RSS">
+			<s:DropDownList id="rssCombo" dataProvider="{m_xmlListCollection}" labelField="@label" 
+							change="onSelectRssVideo(event)"/>
+		</s:FormItem>
+		<s:FormItem label="link">
+			<s:TextInput id="rssLink" editable="false" />
+		</s:FormItem>		
+	</s:Form>
+	<s:VGroup paddingLeft="10">
+		<s:Button
+			label="Learn how to embed screenfeed.com"
+			click="navigateToURL( new URLRequest('http://www.screenfeed.com/') )"
+			/>
+		<s:CheckBox id="maintainAspectRatio" 
+					label="{resourceManager.getString('player', 'swf.maintainAspectRatio')}" 
+					click="onMaintainAspectRatio()"/>
+		
+	</s:VGroup>
+
+</ms:PlayerPage>	
+

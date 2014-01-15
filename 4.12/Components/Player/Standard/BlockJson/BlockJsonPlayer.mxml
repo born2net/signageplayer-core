@@ -1,0 +1,462 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+	implements="IXmlItemProvider"> 
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.core.IUIComponent;
+			import mx.core.IVisualElement;
+			private var m_cachingService:ICachingService;
+			private var m_playerLoaderService:IPlayerLoaderService;
+			private var m_slideShow:Boolean = true;
+			private var m_itemInterval:Number = 5;
+			private var m_hPlayerData:int = -1;
+			private var m_itemsPath:String = "channel.item";
+			
+			private var m_timer:Timer;
+			private var m_time:Number = 0;
+			private var m_startTime:Number = 0;
+			
+			
+			private var m_invalidatePlayerData:Boolean = false;
+			private var m_childPlayerLoader:IPlayerLoader;
+			private var m_url:String;
+			private var m_xml:XML;
+			private var m_itemList:XMLList;
+			private var m_itemIndex:int = -1;
+			
+			
+			public function getItemValue(i_fieldName:String):String
+			{
+				if (m_itemIndex==-1)
+					return null;
+				
+				var xmlItem:XML = m_itemList[ m_itemIndex ];
+				
+				var xmlList:XMLList = getItemList(xmlItem, i_fieldName);
+				return xmlList;
+			}
+			
+			private function getItemList(i_item:*, i_fieldName:String):XMLList
+			{
+				var item:*; 
+				try
+				{
+					item = i_item;
+					var fields:Array = i_fieldName.split(".");
+					for each(var field:String in fields)
+					{
+						item = configExpression(item, field);
+					}
+				}
+				catch(e:Error)
+				{
+					return null;
+				}
+				
+				return item;
+			}
+			
+			
+			private function configExpression(theXML:*, value:String):XMLList
+			{
+				var attMatch:RegExp = /[\@]{1}[^\=]{1,}/;
+				var attNameMatch:RegExp = /[\=]{1}[^\.\)]{1,}/;
+				var result:XMLList;
+				var i1:int = value.indexOf("(");
+				if (i1 == -1) 
+				{
+					var element:Array = value.split(":");
+					if (element.length==2)
+					{
+						var ns:Namespace = m_xml.namespace(element[0]);						
+						var qname:QName = new QName(ns.uri, element[1]);
+						result = theXML.descendants(qname);
+					}
+					else
+					{
+						result = theXML[value];
+					}
+				} 
+				else 
+				{
+					//var str1:String = value.match(attMatch).toString().replace("@", "");
+					//var str2:String = value.match(attNameMatch).toString().replace("=", "");
+					//result = theXML.(@[str1] == str2);
+					
+					var i2:int = value.indexOf("==", i1);
+					if (i2==-1)
+						return null;
+					var i3:int = value.indexOf(")", i2);
+					if (i3==-1)
+						return null;
+					
+					var str1:String = value.substring(i1+1, i2);
+					var str2:String = value.substring(i2+2, i3);
+					
+					if (str2.length<2)
+						return null;
+					var c1:String = str2.charAt(0);
+					var c2:String = str2.charAt(str2.length-1);
+					if (c1!=c2)
+						return null;
+					
+					if (c1!="\"" && c1!="'")
+						return null;
+					
+					str2 = str2.substr(1, str2.length-2);
+					
+					
+					if (str1.charAt(0)=="@")
+					{
+						str1 = str1.substr(1);
+						result = theXML.(@[str1] == str2);
+					}
+					else
+					{
+						for each(var xml:XML in theXML)
+						{
+							var str:String = xml[str1];
+							if (str==str2)
+							{
+								var xmlRoot:XML = <root/>;
+								xmlRoot.appendChild(xml);
+								return xmlRoot.*;
+							}
+						}
+					}
+				}
+				return result;
+			}			
+
+			
+			public override function initModule():void
+			{
+				super.initModule();
+				m_cachingService = m_framework.ServiceBroker.QueryService("CachingService") as ICachingService;
+				m_playerLoaderService = m_framework.ServiceBroker.QueryService("PlayerLoaderService") as IPlayerLoaderService;
+				
+				m_timer = new Timer(m_itemInterval * 1000); 
+				m_timer.addEventListener(TimerEvent.TIMER, onTimer);				
+			}
+			
+			private function onTimer(event:TimerEvent):void
+			{
+				if (m_itemList==null)
+					return;
+				m_itemIndex++;
+				if (m_itemIndex>=m_itemList.length())
+				{
+					loadUrl(); // 0833: If only 1 timelime OR if previewing data of XML Player, player will load only cached data
+					m_itemIndex = 0;
+				}
+				showPage();
+			}			
+
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Xml).length()>0)
+				{
+					if (XMLList(i_data.Xml.@url).length()>0)
+					{
+						m_url = i_data.Xml.@url;
+					}
+					m_itemsPath = i_data.Xml.@itemsPath;
+					m_slideShow = (i_data.Xml.@slideShow=="1");
+					m_itemInterval = int(i_data.Xml.@itemInterval);
+					m_timer.delay = m_itemInterval * 1000;
+					if (XMLList(i_data.Xml.Player).length()>0)
+					{
+						m_hPlayerData = i_data.Xml.Player.@hDataSrc;
+						m_invalidatePlayerData = true;
+					}
+					loadUrl();
+					invalidateProperties();
+					invalidateDisplayList();
+				}
+			}
+			
+			public override function save():XML
+			{
+				var xmlXml:XML = <Xml/>;
+				if (m_hPlayerData!=-1)
+				{
+					var xmlPlayer:XML = <Player hDataSrc={m_hPlayerData} />
+					xmlXml.appendChild(xmlPlayer);
+				}
+				
+				xmlXml.@itemsPath = m_itemsPath;
+				xmlXml.@slideShow = m_slideShow ? "1" : "0";
+				xmlXml.@itemInterval = m_itemInterval;
+				if (m_url!=null)
+				{
+					xmlXml.@url = m_url;
+				}
+				return xmlXml; 
+			}   
+			
+			public override function start():void
+			{
+				super.start();
+				m_startTime = 0;
+				m_time = 0;
+				if (m_slideShow)
+				{
+					m_timer.start();
+				}
+			} 
+
+			public override function stop():void
+			{
+				super.stop();
+				if (m_slideShow && m_timer!=null)
+				{
+					m_timer.stop();
+				}
+			} 
+								
+
+			public override function onFrame(i_time:Number):void
+			{
+				super.onFrame(i_time);
+				m_time = i_time;
+				if (m_childPlayerLoader!=null)
+				{
+					m_childPlayerLoader.onFrame(i_time - m_startTime);
+				}
+			}					
+			
+								
+
+			public override function get propertyPages():Array
+			{
+				return [BlockJsonPage];
+			}
+			
+			
+			
+			public override function onCommand(i_eventHandler:IEventHandler, i_eventParam:Object):void
+			{
+				switch(i_eventHandler.commandName)
+				{
+					case "firstPage":
+						m_itemIndex = 0;
+						m_timer.stop();
+						break;
+					
+					case "prevPage":
+						m_itemIndex--;
+						if (m_itemIndex<0)
+							m_itemIndex = m_itemList.length()-1;	
+						m_timer.stop();
+						break;
+					
+					case "nextPage":
+						m_itemIndex++;
+						if (m_itemIndex>=m_itemList.length())
+							m_itemIndex = 0;	
+						m_timer.stop();
+						break;
+					
+					case "lastPage":
+						m_itemIndex = m_itemList.length()-1;
+						m_timer.stop();
+						break;
+					case "loadUrl":
+						m_itemIndex = -1;
+						m_url = i_eventHandler.commandParams.Url.@name;
+						loadUrl();
+						if (m_slideShow)
+						{
+							m_timer.start();
+						}
+						break;					
+					
+				}
+				showPage();
+			}
+			
+			
+			private function showPage():void
+			{
+				m_startTime = m_time;
+				if (m_childPlayerLoader!=null && m_childPlayerLoader.player!=null)
+				{
+					IProviderItem(m_childPlayerLoader.player).setDataProvider(this);
+				}
+			}			
+			
+			
+			public function get hPlayerData():int
+			{
+				return m_hPlayerData;	
+			}
+			
+			public function set hPlayerData(i_hPlayerData:int):void
+			{
+				m_hPlayerData = i_hPlayerData;
+				m_invalidatePlayerData = true;
+				m_playerLoader.modified = true;
+				invalidateProperties();
+				invalidateDisplayList();
+			}
+			
+			
+			public function get itemsPath():String
+			{
+				return m_itemsPath;	
+			}
+			
+			public function set itemsPath(i_itemsPath:String):void
+			{
+				m_itemsPath = i_itemsPath;
+				m_playerLoader.modified = true;
+				if (m_xml==null)
+				{
+					m_itemIndex = -1;
+					return;
+				}
+				m_itemList = getItemList(m_xml, m_itemsPath);
+				m_itemIndex = (m_itemList!=null && m_itemList.length()>0) ? 0 : -1;
+				if (m_childPlayerLoader!=null && m_childPlayerLoader.player!=null)
+				{
+					IProviderItem(m_childPlayerLoader.player).setDataProvider(this);
+				}
+			}
+			
+			
+			public function get slideShow():Boolean
+			{
+				return m_slideShow;
+			}
+			
+			public function set slideShow(i_slideShow:Boolean):void
+			{
+				m_playerLoader.modified = true;
+				m_slideShow = i_slideShow;
+				if (m_timer!=null)
+				{
+					if (m_slideShow)
+					{
+						m_timer.start();
+					}
+					else
+					{
+						m_timer.stop();
+					}
+				}
+			}			
+
+			public function get itemInterval():Number
+			{
+				return m_itemInterval;
+			}
+			
+			public function set itemInterval(i_itemInterval:Number):void
+			{
+				m_playerLoader.modified = true;
+				m_itemInterval = i_itemInterval;
+				m_timer.delay = m_itemInterval * 1000;
+			}
+
+			
+			public function get url():String
+			{
+				return m_url;
+			}
+			
+			public function set url(i_url:String):void
+			{
+				m_url = i_url;
+				m_playerLoader.modified = true;
+				loadUrl();
+			}
+			
+			private function loadUrl():void
+			{
+				if (m_url==null || m_url=="")
+					return;
+				
+				if (m_cachingService==null)
+					return;
+				
+				
+				var fileName:String = m_cachingService.generateFileName(m_url);
+				var cachingItem:ICachingItem = m_cachingService.getCachingItem("Caching", fileName);
+				cachingItem.expireDuration = 60 * 60 * 24 * 7; // 1 week
+				cachingItem.url = m_url;
+				if (isNaN(cachingItem.lastDownload) || cachingItem.lastDownload>60) // download new file if it's older then 1 min
+				{
+					cachingItem.cache(true);
+				} 				
+				if (cachingItem.data!=null)
+				{
+					m_xml = new XML(cachingItem.data);
+					m_itemList = getItemList(m_xml, m_itemsPath);
+					if (m_itemList!=null)
+					{
+						m_itemIndex = (m_itemList.length()>0) ? 0 : -1;
+						if (m_childPlayerLoader!=null)
+						{
+							m_childPlayerLoader.setDataProvider(this);
+						}
+					}
+				}
+			}
+			
+			
+			
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_childPlayerLoader = m_playerLoaderService.createPlayerLoader();
+				IUIComponent(m_childPlayerLoader).width = width;
+				IUIComponent(m_childPlayerLoader).height = height; 
+				addElement(IVisualElement(m_childPlayerLoader));
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoaderService==null)
+					return;
+				m_startTime = m_time;
+				m_childPlayerLoader.setDataProvider(this);
+				
+				if (m_invalidatePlayerData)
+				{
+					m_invalidatePlayerData = false;
+					var xmlPlayer:XML = <Player hDataSrc={m_hPlayerData} />
+					m_childPlayerLoader.load(xmlPlayer);
+				}
+			}
+
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				IUIComponent(m_childPlayerLoader).width = width;
+				IUIComponent(m_childPlayerLoader).height = height; 
+				if (m_childPlayerLoader.player!=null)
+				{
+					IUIComponent(m_childPlayerLoader.player).width = width;
+					IUIComponent(m_childPlayerLoader.player).height = height;
+				}
+			}
+			
+		    protected override function onDispose():void
+		    {
+		    	super.onDispose();
+				m_timer.removeEventListener(TimerEvent.TIMER, onTimer);
+		    }
+		]]>
+	</fx:Script>	
+
+</ms:PlayerModule>	

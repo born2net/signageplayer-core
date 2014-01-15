@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>ViewerServiceLib</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>com.adobe.flexbuilder.project.flexbuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>com.adobe.flexbuilder.project.flexlibnature</nature>
+		<nature>com.adobe.flexbuilder.project.actionscriptnature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>[source path] Editor-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Editor/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Player-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Player/Interfaces</location>
+		</link>
+	</linkedResources>
+</projectDescription>

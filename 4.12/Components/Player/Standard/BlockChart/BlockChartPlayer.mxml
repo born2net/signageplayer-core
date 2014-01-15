@@ -1,0 +1,415 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.charts.series.AreaSeries;
+			import mx.charts.series.BarSeries;
+			import mx.charts.series.BubbleSeries;
+			import mx.charts.series.CandlestickSeries;
+			import mx.charts.series.ColumnSeries;
+			import mx.charts.series.HLOCSeries;
+			import mx.charts.series.LineSeries;
+			import mx.charts.series.PieSeries;
+			import mx.charts.series.PlotSeries;
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.collections.XMLListCollection;
+			
+			import spark.components.gridClasses.GridColumn;
+			
+			private var m_legend:Boolean = false;
+[Bindable]  private var m_rowCollection:XMLListCollection;
+[Bindable]  private var m_columnCollection:XMLListCollection;
+
+
+			private var m_columns:XML =			
+	        	<Columns> 
+		        	<Column colName="C1"/>
+		        	<Column colName="C2"/>
+		   			<Column colName="C3"/>
+		   			<Column colName="C4"/>		        	
+	        	</Columns>;
+	        	
+			
+			private var m_rows:XML =
+				<Rows>
+					<Row C1="10" C2="20" C3="30" C4="10"/>
+					<Row C1="5" C2="10" C3="60" C4="10" />
+					<Row C1="15" C2="20" C3="60" C4="10" />
+				</Rows>;
+			
+			private var m_serieses:XML =			
+	        	<Serieses> 
+		        	<Series label="Series 1" field1="C1" field2="C2" field3="C3" field4="C4" />
+	        	</Serieses>;
+			
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Chart).length()>0)
+				{
+					currentState = "state_" + i_data.Chart.@type;
+					m_legend = (i_data.Chart.@legend == "1");
+					csvText = i_data.Chart.Csv[0]; 
+					m_serieses = i_data.Chart.Serieses[0];
+				}
+				else
+				{
+					currentState = "state_lineChart";
+					m_legend = true;
+					m_rowCollection 	= new XMLListCollection( m_rows.* );
+					m_columnCollection 	= new XMLListCollection( m_columns.* );
+				}
+			}
+			
+			public override function save():XML
+			{
+				var xmlChart:XML = <Chart/>;
+				xmlChart.@type = currentState.substr(6);
+				xmlChart.@legend = m_legend ? "1" : "0";
+				xmlChart.appendChild(<Csv>{csvText}</Csv>);
+				xmlChart.appendChild(m_serieses);
+				return xmlChart;
+			}   
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockChartPage];
+			}
+			
+
+			public function set csvText(i_csvText:String):void
+			{
+				var rows:Array = i_csvText.split("\n");
+				var columns:Array = String(rows[0]).split(",");
+				m_columns = <Columns/>;	
+				var colName:String;		
+				for each(colName in columns)
+				{
+					var xmlColumn:XML = <Column/>;
+					xmlColumn.@colName = colName;
+					m_columns.appendChild(xmlColumn);
+				}
+				m_rows = <Rows/>;
+				var rowCount:int = rows.length;
+				var colCount:int = columns.length;
+				for(var r:int = 1; r<rowCount; r++)
+				{
+					var xmlRow:XML = <Row/>;
+					if (rows[r]!="")
+					{
+						var data:Array = String(rows[r]).split(",");
+						for(var c:int=0; c<colCount; c++)
+						{
+							colName = columns[c];
+							var value:String = data[c];
+							xmlRow.attribute(colName)[0] = value;
+						}						
+						m_rows.appendChild(xmlRow);
+					}
+				}
+				m_rowCollection 	= new XMLListCollection( m_rows.* );
+				m_columnCollection 	= new XMLListCollection( m_columns.* );
+			}
+			 
+			public function get csvText():String
+			{
+				var columns:Array = [];
+				var csv:String = "";
+				var strColumn:String;
+				for each(var xmlColumn:XML in m_columns.*)
+				{
+					strColumn = String(xmlColumn.@colName); 
+					if (csv!="")
+						csv+=",";
+					csv+= strColumn;
+					columns.push(strColumn);
+				}
+				csv+="\n";
+				
+				for each(var xmlRow:XML in m_rows.*)
+				{
+					var strRow:String = "";
+					for each(strColumn in columns)
+					{
+						var strData:String = xmlRow.attribute(strColumn);
+						if (strRow!="")
+							strRow+=",";
+						strRow+= strData;
+					}
+					csv+=strRow;
+					csv+="\n";
+				}
+				return csv;
+			} 
+			 
+			 
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+			}
+			
+			public function get columnCollection():XMLListCollection
+			{
+				return m_columnCollection;
+			}
+
+			public function get rowCollection():XMLListCollection
+			{
+				return m_rowCollection;
+			}
+
+			public function get series():XMLList
+			{
+				return m_serieses.*;
+			}
+			
+			public function set chartType(i_chartType:String):void
+			{
+				m_playerLoader.modified = true;
+				currentState = i_chartType;
+				validateNow();
+			}
+			
+			public function get chartType():String
+			{
+				return currentState
+			}
+			
+			public function populateSeries():void
+			{
+				var seriesList:ArrayList = new ArrayList();
+				var xmlSeries:XML;
+				switch(currentState)
+				{
+					case "state_dataGrid":
+						for each(xmlSeries in m_serieses.*)
+						{
+							var gridColumn:GridColumn = new GridColumn();
+							gridColumn.dataField = "@" + xmlSeries.@field1;
+							gridColumn.headerText = xmlSeries.@label;
+							seriesList.addItem(gridColumn);
+						}
+						dataGrid.columns = seriesList;
+						break;
+					case "state_pieChart":
+						for each(xmlSeries in m_serieses.*)
+						{
+							var pieSeries:PieSeries = new PieSeries();
+							pieSeries.field = "@" + xmlSeries.@field1;
+							pieSeries.nameField = xmlSeries.@label;
+							pieSeries.setStyle("labelPosition", "callout");
+							seriesList.addItem(pieSeries);
+						}
+						pieChart.series  = seriesList.source;
+						break;
+					case "state_areaChart":
+						for each(xmlSeries in m_serieses.*)
+						{
+							var areaSeries:AreaSeries = new AreaSeries();
+							areaSeries.yField = "@" + xmlSeries.@field1;
+							areaSeries.displayName = xmlSeries.@label;
+							seriesList.addItem(areaSeries);
+						}
+						areachart.series  = seriesList.source;
+						break;
+					case "state_barChart":
+						for each(xmlSeries in m_serieses.*)
+						{
+							var barSeries:BarSeries = new BarSeries();
+							barSeries.xField = "@" + xmlSeries.@field1;
+							barSeries.displayName = xmlSeries.@label;
+							seriesList.addItem(barSeries);
+						}
+						barchart.series  = seriesList.source;
+						break;
+					case "state_columnChart":
+						for each(xmlSeries in m_serieses.*)
+						{
+							var columnSeries:ColumnSeries = new ColumnSeries();
+							columnSeries.yField = "@" + xmlSeries.@field1;
+							columnSeries.displayName = xmlSeries.@label;
+							seriesList.addItem(columnSeries);
+						}
+						columnchart.series  = seriesList.source;
+						break;
+					case "state_lineChart":
+						for each(xmlSeries in m_serieses.*)
+						{
+							var lineSeries:LineSeries = new LineSeries();
+							lineSeries.yField = "@" + xmlSeries.@field1;
+							lineSeries.displayName = xmlSeries.@label;
+							seriesList.addItem(lineSeries);
+						}
+						linechart.series  = seriesList.source;
+						break;
+					case "state_plotChart":
+						for each(xmlSeries in m_serieses.*)
+						{
+							var plotSeries:PlotSeries = new PlotSeries();
+							plotSeries.yField = "@" + xmlSeries.@field1;
+							plotSeries.displayName = xmlSeries.@label;
+							seriesList.addItem(plotSeries);
+						}
+						plotchart.series  = seriesList.source;
+						break;
+						
+					case "state_bubbleChart":
+						for each(xmlSeries in m_serieses.*)
+						{
+							var bubbleSeries:BubbleSeries = new BubbleSeries();
+							bubbleSeries.yField = "@" + xmlSeries.@field1;
+							bubbleSeries.xField = "@" + xmlSeries.@field2;
+							bubbleSeries.radiusField = "@" + xmlSeries.@field3;
+							bubbleSeries.displayName = xmlSeries.@label;
+							seriesList.addItem(bubbleSeries);
+						}
+						bubblechart.series  = seriesList.source;
+						break;
+					case "state_candlestickChart":
+						for each(xmlSeries in m_serieses.*)
+						{
+							var candlestickSeries:CandlestickSeries = new CandlestickSeries();
+							candlestickSeries.openField = "@" + xmlSeries.@field1;
+							candlestickSeries.closeField = "@" + xmlSeries.@field2;
+							candlestickSeries.highField = "@" + xmlSeries.@field3;
+							candlestickSeries.lowField = "@" + xmlSeries.@field4;
+							candlestickSeries.displayName = xmlSeries.@label;
+							seriesList.addItem(candlestickSeries);
+						}
+						candlestickchart.series  = seriesList.source;
+						break;
+					case "state_hlocChart":
+						for each(xmlSeries in m_serieses.*)
+						{
+							var hlocSeries:HLOCSeries = new HLOCSeries();
+							hlocSeries.openField = "@" + xmlSeries.@field1;
+							hlocSeries.closeField = "@" + xmlSeries.@field2;
+							hlocSeries.highField = "@" + xmlSeries.@field3;
+							hlocSeries.lowField = "@" + xmlSeries.@field4;
+							hlocSeries.displayName = xmlSeries.@label;
+							seriesList.addItem(hlocSeries);
+						}
+						hlocchart.series  = seriesList.source;
+						break;
+				}
+			}
+			
+	    
+		]]>
+	</fx:Script>
+	
+	<ms:states>
+		<s:State name="state_dataGrid" />
+		<s:State name="state_pieChart" />
+		<s:State name="state_areaChart" />
+		<s:State name="state_barChart" />
+		<s:State name="state_columnChart" />
+		<s:State name="state_lineChart" />
+		<s:State name="state_plotChart" />
+		<s:State name="state_bubbleChart" />
+		<s:State name="state_candlestickChart" />
+		<s:State name="state_hlocChart" />
+	</ms:states>
+	
+	
+	<s:DataGrid id="dataGrid" includeIn="state_dataGrid"
+		creationComplete="populateSeries()"
+		height="100%" width="100%"
+		dataProvider="{m_rowCollection}">
+	</s:DataGrid>
+
+	<s:VGroup includeIn="state_pieChart">
+		<mx:PieChart id="pieChart" 
+					 creationComplete="populateSeries()"
+					 height="100%" width="100%"
+					 dataProvider="{m_rowCollection}"/>          
+		<mx:Legend dataProvider="{pieChart}"/>
+	</s:VGroup>
+	
+	<s:VGroup includeIn="state_areaChart">
+		<mx:AreaChart id="areachart" 
+					  creationComplete="populateSeries()"
+					  height="100%" width="100%"
+					  dataProvider="{m_rowCollection}"/>
+		<mx:Legend dataProvider="{areachart}"/>
+	</s:VGroup>
+
+	<s:VGroup includeIn="state_barChart">
+		<mx:BarChart id="barchart"
+					 creationComplete="populateSeries()"
+					 height="100%" width="100%"
+					 dataProvider="{m_rowCollection}"/>
+		<mx:Legend dataProvider="{barchart}"/>
+	</s:VGroup>
+	
+	<s:VGroup includeIn="state_columnChart">
+		<mx:ColumnChart id="columnchart"
+						creationComplete="populateSeries()"
+						height="100%" width="100%"
+						dataProvider="{m_rowCollection}"/>
+		<mx:Legend dataProvider="{columnchart}"/>
+	</s:VGroup>
+	
+	<s:VGroup includeIn="state_lineChart">
+		<mx:LineChart id="linechart"
+					  creationComplete="populateSeries()"
+					  height="100%" width="100%"
+					  dataProvider="{m_rowCollection}"/>
+		<mx:Legend dataProvider="{linechart}"/>
+	</s:VGroup>
+
+	<s:VGroup includeIn="state_plotChart">
+		<mx:PlotChart id="plotchart"
+					  creationComplete="populateSeries()"
+					  height="100%" width="100%"
+					  dataProvider="{m_rowCollection}"/>
+		<mx:Legend dataProvider="{plotchart}"/>
+	</s:VGroup>
+	
+	<s:VGroup includeIn="state_bubbleChart">
+		<mx:BubbleChart id="bubblechart"
+						creationComplete="populateSeries()"
+						height="100%" width="100%"
+						dataProvider="{m_rowCollection}"/>
+		<mx:Legend dataProvider="{bubblechart}"/>
+	</s:VGroup>
+
+	<s:VGroup includeIn="state_candlestickChart">
+		<mx:CandlestickChart id="candlestickchart"
+							 creationComplete="populateSeries()"
+							 height="100%" width="100%"
+							 dataProvider="{m_rowCollection}"/>
+		<mx:Legend dataProvider="{candlestickchart}"/>
+	</s:VGroup>
+
+	<s:VGroup includeIn="state_hlocChart">
+		<mx:HLOCChart id="hlocchart"
+					  creationComplete="populateSeries()"
+					  height="100%" width="100%"
+					  dataProvider="{m_rowCollection}">
+			<mx:series>
+				<mx:HLOCSeries displayName="Series 1" openField="@C1" closeField="@C2" highField="@C3" lowField="@C4"/>
+			</mx:series>
+		</mx:HLOCChart>
+		<mx:Legend dataProvider="{hlocchart}"/>
+	</s:VGroup>
+	
+</ms:PlayerModule>	

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<flexLibProperties includeAllClasses="false" useMultiPlatformConfig="false" version="1">
+  <includeClasses>
+    <classEntry path="AdDomain"/>
+    <classEntry path="AdDomainBusiness"/>
+    <classEntry path="AdDomainBusinessStation"/>
+    <classEntry path="AdOutBusiness"/>
+    <classEntry path="AdOutPackage"/>
+    <classEntry path="AdReport"/>
+    <classEntry path="AdStation"/>
+    <classEntry path="AdvertisingService"/>
+    <classEntry path="Rate"/>
+    <classEntry path="AdStat"/>
+    <classEntry path="AdLocalStat"/>
+    <classEntry path="HourStats"/>
+  </includeClasses>
+  <includeResources/>
+  <namespaceManifests/>
+</flexLibProperties>

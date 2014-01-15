@@ -1,0 +1,408 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer 
+			xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			xmlns:s="library://ns.adobe.com/flex/spark" 
+			xmlns:mx="library://ns.adobe.com/flex/mx"
+			xmlns:Menu="Menu.*" 
+			xmlns:Controls="Controls.*"
+			xmlns:ms="*"
+			width="500" height="400">
+	
+	<fx:Script>
+		<![CDATA[
+			import flash.desktop.NativeApplication;
+			import flash.net.navigateToURL;
+			
+			import mx.collections.XMLListCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.managers.PopUpManager;
+			
+			public static const REQUEST_UNREGISTER_EVENT:String = "request_unregister_event";
+			public static const START_EVENT:String = "start_event";
+			public static const STOP_EVENT:String = "stop_event";
+			public static const SYNC_AND_PLAY_EVENT:String = "sync_and_play_event";
+			
+			 
+			private var m_framework:IFramework;
+			private var m_watchDogService:IWatchDogService;
+			private var m_loaderManager:ILoaderManager; 
+			private var m_dataBaseManager:DataBaseManager;
+			private var m_playerSocket:PlayerSocket;
+			private var m_campaignBoardPlayer:CampaignBoardPlayer = null;
+			
+			
+			
+			public function init(i_framework:IFramework, i_campaignBoardPlayer:CampaignBoardPlayer):void
+			{
+				m_framework = i_framework;
+				m_campaignBoardPlayer = i_campaignBoardPlayer;
+				
+				var environment:String = m_framework.StateBroker.GetState("environment") as String;
+				currentState = (environment=="mobile") ? "State_Mobile" : "State_Desktop";
+				
+				m_watchDogService = m_framework.ServiceBroker.QueryService("WatchDogService") as IWatchDogService;
+				m_loaderManager = m_framework.ServiceBroker.QueryService("LoaderManager") as ILoaderManager;
+				m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+				m_playerSocket = m_framework.ServiceBroker.QueryService("playerSocket") as PlayerSocket;
+				
+				m_loaderManager = m_framework.ServiceBroker.QueryService("LoaderManager") as ILoaderManager;
+				
+				initMenu();		
+				
+				if (m_watchDogService!=null)
+				{
+					m_watchDogService.addEventListener("watchdog_connection_status", onRefresh);
+				}
+				m_playerSocket.addEventListener("signage_server_status", onRefresh);
+				
+				invalidateProperties();		
+			}
+			
+			private function onRefresh(event:Event):void
+			{
+				invalidateProperties();
+			}
+			
+			private function get autoStart():Boolean
+			{
+				var auto:Boolean = false;
+				try 
+				{ 
+					if (!Capabilities.isDebugger)
+					{
+						auto = NativeApplication.nativeApplication.startAtLogin;
+					}
+				}
+				catch(err:Error) 
+				{	
+					/* ignore */	
+				}
+				return auto;
+			}
+			
+			public function setStatus(i_status:String):void
+			{
+				labelStatus.text = i_status;
+			}
+			
+
+			private function onUnregister():void
+			{
+				var unregisterCtrl:UnregisterCtrl = new UnregisterCtrl();
+				OkCancelDlg.CreateDlg(
+					UIComponent(m_framework.StateBroker.GetState("topWindow")), 
+					"Unregister",unregisterCtrl); 
+				unregisterCtrl.init(m_framework);
+			}
+
+            public function ping():void
+            {
+            	m_playerSocket.sendStatus();
+            }
+			
+			public function onStart():void
+			{
+				var stationPlayDlg:StationPlayDlg = new StationPlayDlg();
+				stationPlayDlg.framework = m_framework;
+				var okCancelDlg:OkCancelDlg = OkCancelDlg.CreateDlg(
+					UIComponent(m_framework.StateBroker.GetState("topWindow")), 
+					"Play Station", stationPlayDlg);
+				okCancelDlg.btnOK.label = "Play";
+				
+			}
+			
+			public function onStop():void
+			{
+				// Test Only WatchDogService(m_watchDogService).dispose();
+				
+				m_framework.EventBroker.dispatchEvent( new Event(STOP_EVENT) );
+			}
+			
+			public function onShowController():void
+			{
+				if (m_watchDogService!=null)
+				{
+					m_watchDogService.showController(cmdController.selected);
+				}
+			}
+			
+			public function importPlayer():void
+			{
+				ImportPlayerData.Create(m_framework);
+			}
+			
+			public function setting():void
+            {
+				/*M???
+            	var settingDlg:SettingDlg =  new SettingDlg();
+            	OkCancelDlg.CreateDlg(
+            		UIComponent(m_framework.StateBroker.GetState("topWindow")), 
+            		"Setting", 400,250, settingDlg);
+            	settingDlg.init(m_framework); 
+				*/
+            }
+            
+			
+			private function initMenu():void
+			{
+				/*M???
+				m_xmlPing = <Command id="cmdPing" icon="pingIcon" toolTip="Ping server" click="ping"/>;
+				m_xmlPing.@label = "ping";
+				m_xmlStart = <Command id="cmdStart" icon="startPcIcon" toolTip="Start SignagePlayer" click="onStart"/>;
+				m_xmlStart.@label = "start";
+				m_xmlStop = <Command id="cmdStop" icon="stopPcIcon" toolTip="Stop SignagePlayer" click="onStop"/>;
+				m_xmlStop.@label = "stop";
+				m_xmlSignageController =  <Command id="cmdController" icon="controllerIcon" type="check" toggled="false" toolTip="show/hide SignageController" click="onShowController"/>;
+				m_xmlSignageController.@label = "controller";
+				m_xmlSetting = <Command id="cmdSetting" icon="settingIcon" toolTip="SignagePlayer settings..." click="setting"/>;
+				m_xmlSetting.@label = "setting";
+				
+				m_xmlImportPlayer = <Command id="cmdImportPlayer" icon="importPlayerIcon" toolTip="Import SignagePlayer data..." click="importPlayer"/>;
+				m_xmlImportPlayer.@label = "import";
+				
+				
+				m_menuBarCollection = new XMLListCollection();
+				
+				m_menuBarCollection.addItem(m_xmlStart); 
+				m_menuBarCollection.addItem(m_xmlStop);
+				
+				m_menuBarCollection.addItem(m_xmlPing);
+				m_menuBarCollection.addItem(m_xmlSignageController);
+				m_menuBarCollection.addItem(m_xmlImportPlayer);
+				m_menuBarCollection.addItem(m_xmlSetting);
+				*/
+				updateButtons();
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_campaignBoardPlayer==null)
+					return;
+				labelVersion.text = m_framework.StateBroker.GetState("version") as String;
+				
+				if (m_framework.StateBroker.GetState("debug")==true)
+				{
+					labelVersion.text+="d";
+				}
+				
+				var modulesSharedObject:SharedObject = SharedObject.getLocal("modules", "/", false);
+				var moduleKey:String = "app-storage:/SignagePlayerAndroidModule.swf";
+				var moduleData:Object = modulesSharedObject.data[moduleKey];
+				if (moduleData!=null && moduleData.ver!=null)
+				{
+					labelVersion.text += " (" + 	moduleData.ver + ")";
+				}
+				
+				
+				
+				airVersion.text = NativeApplication.nativeApplication.runtimeVersion;
+
+				
+				quality.text = stage.quality + " " + stage.frameRate.toString();
+				
+				switch(m_playerSocket.connectionMode)
+				{
+					case 0:
+						signageServer.setStyle("color", 0xff2020);
+						signageServer.setStyle("fontWeight", "bold");
+						signageServer.text = "Not Connected";
+						break;
+
+					case 1:
+						signageServer.setStyle("color", 0x70ff70);
+						signageServer.setStyle("fontWeight", "bold");
+						signageServer.text = "Connected";
+						break;
+					
+					case 2:
+						signageServer.setStyle("color", 0xffff20);
+						signageServer.setStyle("fontWeight", "bold");
+						signageServer.text = "Polling every 60 sec";
+						break;
+				}
+
+				if (signageController!=null && m_watchDogService!=null)
+				{
+					if (m_watchDogService.watchdogConnection)
+					{
+						signageController.setStyle("color", 0x70ff70);
+						signageController.setStyle("fontWeight", "bold");
+						signageController.text = "Running";
+					}
+					else
+					{
+						signageController.setStyle("color", 0xff2020);
+						signageController.setStyle("fontWeight", "bold");
+						signageController.text = "Not running";
+					}
+				}
+				
+				var businessDomain:String = m_framework.StateBroker.GetState("businessDomain") as String;
+				labelServerUrl.text = "http://" + businessDomain.split("/")[0];
+				labelBusiness.text = m_framework.StateBroker.GetState("businessName") as String;
+				var branchStationId:int = int(m_framework.StateBroker.GetState("branchStationId"));
+				var hBranchStation:int = m_dataBaseManager.table_branch_stations.getHandle(branchStationId);
+				var recBranchStation:Rec_branch_station = m_dataBaseManager.table_branch_stations.getRecord(hBranchStation);
+				if (recBranchStation==null)
+					return;
+				labelStation.text = recBranchStation.station_name;
+				
+				var recCampaignBoard:Rec_campaign_board = m_dataBaseManager.table_campaign_boards.getRecord(recBranchStation.campaign_board_id);
+				if (recCampaignBoard==null)
+				{
+					labelStatus.text = "Not assigned";
+					labelStatus.setStyle("color", 0xff2020);
+					labelStatus.setStyle("fontWeight", "bold");
+					labelCampaignScreen.text = "None";
+					labelCampaignScreen.setStyle("color", 0xff2020);
+					labelCampaignScreen.setStyle("fontWeight", "bold");
+					labelCampaign.text = "None";
+					labelCampaign.setStyle("color", 0xff2020);
+					labelCampaign.setStyle("fontWeight", "bold");
+				}
+				else
+				{
+					labelStatus.text = "Ready";
+					labelStatus.setStyle("color", 0x000000);
+					labelStatus.setStyle("fontWeight", "normal");
+					
+					labelCampaignScreen.text = recCampaignBoard.campaign_board_name;
+					labelCampaignScreen.setStyle("color", 0x000000);
+					labelCampaignScreen.setStyle("fontWeight", "normal");
+					
+					var recCampaign:Rec_campaign = m_dataBaseManager.table_campaigns.getRecord(recCampaignBoard.campaign_id);
+					labelCampaign.text = recCampaign.campaign_name;
+					labelCampaign.setStyle("color", 0x000000);
+					labelCampaign.setStyle("fontWeight", "normal");
+				}
+			}
+			
+			public function updateButtons():void
+			{
+				if (m_campaignBoardPlayer==null)
+					return;
+				
+				if (m_campaignBoardPlayer.getPlayerStatus()=="Ready")
+				{
+					cmdStart.enabled = true;
+					cmdStop.enabled = true;
+					btnUnregister.enabled = true;
+					/*
+					m_xmlPing.@enabled = true;
+					m_xmlStart.@enabled = true;
+					m_xmlStop.@enabled = true;
+					m_xmlSetting.@enabled = true;
+					*/
+					
+				}
+				else
+				{
+					cmdStart.enabled = false;
+					cmdStop.enabled = true;
+					btnUnregister.enabled = false;
+					/*
+					m_xmlPing.@enabled = true;
+					m_xmlSetting.@enabled = false;
+					*/
+				}
+			}
+			
+			
+			/*M???
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				if (m_watchDogService!=null)
+				{
+					m_watchDogService.removeEventListener("watchdog_connection_status", onRefresh);
+				}
+				else
+				{
+					m_playerSocket.removeEventListener("signage_server_status", onRefresh);
+				}
+			}
+			*/
+			
+			
+		]]>
+	</fx:Script>
+
+	<s:states>
+		<s:State name="State_Mobile"/>
+		<s:State name="State_Desktop"/>
+	</s:states>
+	
+	<s:layout>
+		<s:VerticalLayout paddingTop="20" paddingLeft="20" paddingBottom="20"/>
+	</s:layout>
+	<s:HGroup gap="10">
+		<s:Button id="cmdStart" label="Start" click="onStart()"/>
+		<s:Button id="cmdStop" label="Stop" click="onStop()"/>
+		<s:Button id="cmdImport" label="Import" click="importPlayer()"/>
+		<s:ToggleButton id="cmdController" includeIn="State_Desktop"
+						label="Controller" selected="false"
+						toolTip="show/hide SignageController" click="onShowController()"/>
+	</s:HGroup>
+	<s:Scroller width="100%" height="100%">
+		<s:Group clipAndEnableScrolling="true">
+			<s:Form>
+				<s:FormItem label="App version:">
+					<s:Label id="labelVersion" text="NA"/>
+				</s:FormItem>
+				<s:FormItem label="Air version:">
+					<s:Label id="airVersion" text="NA"/>
+				</s:FormItem>
+				<s:FormItem label="Quality:">
+					<s:Label id="quality" text="NA"/>
+				</s:FormItem>
+				<s:FormItem label="Server status:">
+					<s:Label id="signageServer" text="NA"/>
+				</s:FormItem>
+				
+				<s:FormItem label="SignageController:">
+					<s:Label id="signageController" text="NA"/>
+				</s:FormItem> 
+				
+				<s:FormItem label="Server URL:">
+					<s:Label id="labelServerUrl" text="NA"/>
+				</s:FormItem>
+				<s:FormItem label="Business Name:">
+					<s:Label id="labelBusiness" text="NA"/>
+				</s:FormItem>
+				<s:FormItem label="Station Name:">
+					<s:Label id="labelStation" text="NA"/>
+				</s:FormItem>
+				<s:FormItem label="Campaign:">
+					<s:Label id="labelCampaign" text="NA"/>
+				</s:FormItem>
+				<s:FormItem label="Output:">
+					<s:Label id="labelCampaignScreen" text="NA"/>
+				</s:FormItem>
+				
+				<s:FormItem label="Status:">
+					<s:Label id="labelStatus" text="NA"/>		
+				</s:FormItem>
+				
+				<s:FormItem>
+					<s:Group width="100%" height="100%">
+							
+					</s:Group>
+				</s:FormItem>
+			</s:Form>
+			
+		</s:Group>
+	</s:Scroller>
+	<s:HGroup width="100%">
+		<s:Spacer width="100%"/>
+		<Controls:LinkButton id="btnUnregister" label="Unregister" click="onUnregister()" />	
+	</s:HGroup>
+	
+</s:BorderContainer>

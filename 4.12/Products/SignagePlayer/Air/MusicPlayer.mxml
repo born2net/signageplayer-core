@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer 
+	xmlns:fx="http://ns.adobe.com/mxml/2009" 
+	xmlns:s="library://ns.adobe.com/flex/spark" 
+	xmlns:mx="library://ns.adobe.com/flex/mx"
+	xmlns:Menu="Menu.*" 
+	xmlns:Controls="Controls.*"
+	xmlns:ms="*"
+	height="170" width="300">
+	
+	<fx:Script>
+		<![CDATA[
+			import flash.filesystem.File;
+			
+			import mx.core.UIComponent;
+			
+			private var m_framework:IFramework;
+			private var m_dataBaseManager:DataBaseManager
+			private var m_resourceService:IResourceService;
+			
+			private var m_dataReady:Boolean = false;
+			
+			private var m_sound:Sound;
+			private var m_soundChannel:SoundChannel;
+			
+			private var m_playlist:Array;
+			private var m_songQueue:Array;
+			private var m_playMode:String;
+			private var m_random:Boolean;
+			private var m_volume:Number = 1;
+			private var m_songName:String;
+			private var m_status:String;
+			
+			private var m_filesExist:Boolean = false;
+			
+			private var m_spectrum:ByteArray;
+			private const VISUALIZER_COLOR:Number = 0x336699;
+			
+			public function init(i_framework:IFramework):void
+			{
+				m_framework = i_framework;
+				m_resourceService = m_framework.ServiceBroker.QueryService("ResourceService") as IResourceService;
+				m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+				
+				var musicShared:SharedObject = SharedObject.getLocal("musicShared", "/", false); 
+				m_playlist = musicShared.data.playlist;
+				m_random = (musicShared.data.random==true);
+				m_volume = (musicShared.data.volume==null) ? 1 : musicShared.data.volume;
+				m_playMode = (musicShared.data.playMode==null) ? "stop" : musicShared.data.playMode;
+				if (m_playlist!=null && m_playlist.length>0)
+				{
+					buildSongQueue();
+				}
+				invalidateProperties();
+			}
+			
+			public function sync():void
+			{
+				if (m_dataReady==false)
+				{
+					m_dataReady = true;
+					if (m_playMode=="playing")
+					{
+						playNext();
+					}
+				}
+			}
+			
+
+			public function stopMusic(i_immediateAction:Boolean):void
+			{
+				var musicShared:SharedObject = SharedObject.getLocal("musicShared", "/", false);
+				musicShared.data.playMode = m_playMode = "stop";
+				musicShared.flush();
+				
+				if (i_immediateAction)
+				{
+					stop();
+				}
+			}			
+			
+			public function playMusic():void
+			{
+				var musicShared:SharedObject = SharedObject.getLocal("musicShared", "/", false);
+				musicShared.data.playMode = m_playMode = "playing";
+				musicShared.flush();
+				
+				playNext();
+			}
+			
+			public function skipMusicSong():void
+			{
+				var musicShared:SharedObject = SharedObject.getLocal("musicShared", "/", false);
+				musicShared.data.playMode = m_playMode ="playing";
+				musicShared.flush();
+				
+				stop();
+				playNext();
+			}		
+			
+			public function setMusicPlaylist(i_playlist:String, i_immediateAction:Boolean):void
+			{
+				if (i_playlist==null)
+				{
+					stop();
+					return;
+				}
+				try
+				{
+					m_playlist = i_playlist.split(",");
+					
+					var musicShared:SharedObject = SharedObject.getLocal("musicShared", "/", false);
+					if (musicShared!=null)
+					{
+						musicShared.data.playlist = m_playlist;
+						musicShared.data.playMode = m_playMode = "playing";
+						musicShared.flush();
+						buildSongQueue();
+						if (i_immediateAction)
+						{
+							stop();	
+						}
+						playNext();
+					}
+				}
+				catch(error:Error)
+				{
+					AlertEx.showOk(
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						error.message);
+				}
+			}
+			
+			public function selectMusicSong(i_musicSongId:int, i_immediateAction:Boolean):void
+			{
+				m_songQueue.unshift(i_musicSongId);
+				if (i_immediateAction)
+				{
+					stop();
+				}
+				playNext();
+			}
+			
+			public function setRandomMusic(i_random:Boolean, i_immediateAction:Boolean):void
+			{
+				var musicShared:SharedObject = SharedObject.getLocal("musicShared", "/", false);
+				musicShared.data.random = m_random = i_random;
+				musicShared.flush();
+				buildSongQueue();
+				if (i_immediateAction)
+				{
+					stop();
+				}
+				playNext();
+			}
+			
+			public function increaseMusicVolume(i_volume:Number):void
+			{
+				m_volume += i_volume;
+				m_volume = Math.min(1, Math.max(0, m_volume));
+				var musicShared:SharedObject = SharedObject.getLocal("musicShared", "/", false);
+				musicShared.data.volume = m_volume;
+				musicShared.flush();
+				
+				setVolume();
+			}
+			
+			private function buildSongQueue():void
+			{
+				try
+				{
+					m_songQueue = new Array();
+					for each(var song:String in m_playlist)
+					{
+						var resourceId:int = int(song);
+						if (m_random)
+						{
+							m_songQueue.push(resourceId);
+							var count:int = (Math.random() * Number(m_songQueue.length) / 2);
+							for(var i:int = 0; i<count; i++)
+							{
+								m_songQueue.push(m_songQueue.shift());
+							}
+						}
+						else
+						{
+							m_songQueue.push(resourceId);
+						}
+					}
+				}
+				catch(error:Error)
+				{
+					AlertEx.showOk(
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						error.message);
+				}
+			}
+			
+			private function playNext():void
+			{
+				try
+				{
+					if (m_soundChannel!=null)
+						return;
+						
+	
+					while(true)
+					{
+						if (m_songQueue==null || m_songQueue.length==0)
+						{
+							if (m_filesExist==false)  // prevent infinit loop that the high cpu.
+								break;
+							buildSongQueue();
+						}	
+						var resourceId:int = m_songQueue.shift();
+						var hResource:int = m_dataBaseManager.table_resources.getHandle(resourceId);
+						if (hResource!=-1)
+						{
+							var filename:String = m_resourceService.getPathFromHandle(hResource);
+							if (filename!=null)
+							{
+								m_filesExist = true;
+								m_sound = new Sound();
+								m_sound.addEventListener(Event.ID3, onSongInfo)
+								m_sound.load( new URLRequest(filename) );
+								m_soundChannel = m_sound.play();
+								
+								setVolume();
+								
+								m_soundChannel.addEventListener(Event.SOUND_COMPLETE, onSongCompleted);
+								m_status = "Playing";
+								invalidateProperties();
+								break;
+							}
+						}
+					}
+				}
+				catch(error:Error)
+				{
+					AlertEx.showOk(
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						error.message);
+				}
+			}
+			
+			private function onSongInfo(event:Event):void
+			{
+				var info:ID3Info = event.target.id3;
+				m_songName = info.songName;
+				invalidateProperties();
+			}
+			
+			private function onSongCompleted(event:Event):void
+			{
+				try
+				{
+					m_songName = "";
+					if (m_soundChannel!=null)
+					{
+						m_soundChannel.removeEventListener(Event.SOUND_COMPLETE, onSongCompleted);
+						m_soundChannel = null;
+						m_sound.removeEventListener(Event.ID3, onSongInfo)
+						m_sound = null;
+					}
+					
+					if (m_playMode=="playing")
+					{
+						playNext();
+					}
+					else
+					{
+						m_status = "Ready";
+					}
+					invalidateProperties();
+				}
+				catch(error:Error)
+				{
+					AlertEx.showOk(
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						error.message);
+				}
+			}
+			
+			private function stop():void
+			{
+				try
+				{
+					m_songName = "";
+					m_status = "Ready";
+					if (m_soundChannel!=null)
+					{
+						m_soundChannel.stop();
+						m_soundChannel.removeEventListener(Event.SOUND_COMPLETE, onSongCompleted);
+						m_soundChannel = null;
+						m_sound.removeEventListener(Event.ID3, onSongInfo)
+						m_sound = null;
+					}
+					invalidateProperties();
+				}	
+				catch(error:Error)
+				{
+					AlertEx.showOk(
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						error.message);
+				}
+			}
+			
+			private function setVolume():void
+			{
+				if (m_soundChannel!=null)
+				{
+					var transform:SoundTransform = m_soundChannel.soundTransform;
+					transform.volume = m_volume;
+					m_soundChannel.soundTransform = transform;
+					invalidateProperties();
+				}
+			}
+			
+			protected override function	commitProperties():void
+			{
+				super.commitProperties();
+				if (songName==null)
+					return;
+				
+				volume.text = (int(m_volume * 100 + 0.5)).toString();
+				songName.text = m_songName;
+				random.text = m_random ? "Yes" : "No";
+				statusMsg.text = m_status;
+				
+				if (m_playlist!=null && m_playlist.length>0)
+				{
+					numSongs.text = m_playlist.length.toString();
+					cmdStart.enabled = (m_playMode!="playing");
+					cmdStop.enabled =  (m_playMode=="playing");
+					cmdSkip.enabled = true;
+					cmdInc.enabled = true;
+					cmdDec.enabled = true;
+				}
+				else
+				{
+					numSongs.text = "0";
+					cmdStart.enabled = false;
+					cmdStop.enabled = false;
+					cmdSkip.enabled = false;
+					cmdInc.enabled = false;
+					cmdDec.enabled = false;
+				}
+			}
+			
+			/*
+			private function onEnterFrame(event:Event):void
+			{
+				if (m_playMode == "playing")
+				{
+					UpdateVisualizer();
+				}
+			}
+			*/
+			
+			/*
+			private function UpdateVisualizer():void
+			{			
+				m_spectrum = new ByteArray();				
+				Visualizer.graphics.clear();				
+				SoundMixer.computeSpectrum(m_spectrum,false,0);
+				
+				var f:Number;
+				var l:Number;
+				var k:int;
+                var i:int;
+                var j:int;
+				var ave:int;
+				
+                Visualizer.graphics.lineStyle(1, VISUALIZER_COLOR,1);
+               	Visualizer.graphics.beginFill(VISUALIZER_COLOR, 0.75);
+                
+                i=20;
+                for(l=0;l<2;l++)
+                {
+	                for(k=0;k<16;k++)
+	                {
+	                	f = 0;
+	                	for(j=0; j<16;j++)
+	                	{
+	                		f -= Math.abs(m_spectrum.readFloat());	
+	                	}
+		                
+	                    Visualizer.drawRoundRect(i, Visualizer.y + 15, 4, f*10);
+	                	i+=7;
+	                }
+	                i += 20;
+                }
+                Visualizer.graphics.endFill();
+			}
+			*/
+			
+			
+		]]>
+	</fx:Script>
+	<!--
+		<mx:UIComponent id="Visualizer" 
+						height="65" 
+						left="5" right="5" bottom="0"
+						alpha="0.25" />
+	-->
+	<s:layout>
+		<s:VerticalLayout paddingTop="20" paddingLeft="20" paddingBottom="20"/>
+	</s:layout>
+	
+	<s:HGroup gap="10">
+		<s:Button id="cmdStart" label="Start" click="playMusic()"/>
+		<s:Button id="cmdStop" label="Stop" click="stopMusic(true)"/>
+		<s:Button id="cmdSkip" label="Skip" click="skipMusicSong()"/>
+		<s:Button id="cmdInc" label="+" click="increaseMusicVolume(0.05)"/>
+		<s:Button id="cmdDec" label="-" click="increaseMusicVolume(-0.05)"/>
+	</s:HGroup>
+	
+	<s:Form>
+		<s:FormItem label="Song name:">
+			<s:Label id="songName"/>
+		</s:FormItem>
+		<s:FormItem label="Num of songs:">
+			<s:Label id="numSongs"/>
+		</s:FormItem>
+		<s:FormItem label="volume:">
+			<s:Label id="volume"/>
+		</s:FormItem>
+		<s:FormItem label="Random:">
+			<s:Label id="random"/>
+		</s:FormItem>
+		<s:FormItem label="Status:">
+			<s:Label id="statusMsg" text="Ready"/>
+		</s:FormItem>
+	</s:Form>
+</s:BorderContainer>

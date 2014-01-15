@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 implements="ViewStack.ISelectableList"
+		 creationComplete="onCreationComplete()">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.core.IVisualElement;
+			private var m_selectedIndex:int = -1;
+			
+			
+			private function onCreationComplete():void
+			{
+				for (var i:int=1;i<numElements;i++)
+				{
+					var item:IVisualElement = getElementAt(i);
+					item.visible = false;
+				}
+				m_selectedIndex = (numElements>0) ? 0 : -1;
+			}
+			
+			
+			public function get selectedIndex():int
+			{
+				return m_selectedIndex;
+			}
+			
+			public function set selectedIndex(i_selectedIndex:int):void
+			{
+				if (i_selectedIndex==m_selectedIndex)
+					return;
+				
+				if (m_selectedIndex!=-1)
+				{
+					getElementAt(m_selectedIndex).visible = false;
+				}
+				
+				getElementAt(i_selectedIndex).visible = (i_selectedIndex!=-1);
+
+				m_selectedIndex = i_selectedIndex;
+			}
+			
+			
+			
+			public function get selectedItem():Object
+			{
+				if (m_selectedIndex==-1)
+					return null;
+				if (m_selectedIndex<numElements)
+				{
+					return getItemAt(m_selectedIndex);
+				}
+				return null;
+			}
+
+			public function set selectedItem(i_selectedItem:Object):void
+			{
+				var index:int = getItemIndex(i_selectedItem);
+				selectedIndex = index;
+			}
+			
+			// IList
+			
+			public function get length():int
+			{
+				return numElements;
+			}
+			
+			public function addItem(item:Object):void
+			{
+				IVisualElement(item).visible = false;
+				addElement(item as IVisualElement);
+				if (numElements==1)
+				{
+					selectedIndex = 0;
+				}
+			}
+			
+			public function addItemAt(item:Object, index:int):void
+			{
+				addElementAt(item as IVisualElement, index);
+			}
+			
+			public function getItemAt(index:int, prefetch:int = 0):Object
+			{
+				return getElementAt(index);
+			}
+			
+			public function getItemIndex(item:Object):int
+			{
+				try
+				{
+					return getElementIndex(item as IVisualElement);
+				}
+				catch(error:Error)
+				{
+					return -1;
+				}
+				return -1;
+			}
+			
+			public function itemUpdated(item:Object, property:Object = null, 
+													 oldValue:Object = null, 
+													 newValue:Object = null):void
+			{
+				
+			}                         
+
+			public function removeAll():void
+			{
+				m_selectedIndex = -1;
+				removeAllElements();
+			}
+			
+			public function removeItemAt(index:int):Object
+			{
+				if (index<m_selectedIndex)
+				{
+					m_selectedIndex--;
+				}
+				else if (index==m_selectedIndex)
+				{
+					m_selectedIndex = -1;
+				}
+					
+				var item:Object = removeElementAt(index);
+				return item;
+			}
+			
+			public function removeItem(item:Object):void
+			{
+				var index:int = getItemIndex(item);
+				removeItemAt(index);
+			}
+			
+			public function setItemAt(item:Object, index:int):Object
+			{
+				var result:Object = removeElementAt(index);
+				addElementAt(item as IVisualElement,index);
+				return result;
+			}
+			
+			public function toArray():Array 
+			{
+				var result:Array = [];
+				for (var i:int =0;i<numElements;i++)
+				{
+					result.push(getElementAt(i));
+				}
+				return result;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+</s:Group>

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+	implements="IPage" 
+	label="{resourceManager.getString('player', 'clock.title')}"
+	width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				fontCtrl.addEventListener(FontCtrl.FONT_CHANGED, onFontChanged);
+				radioDateTime.validateNow();
+				radioDate.validateNow();
+				radioTime.validateNow();
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+					
+				fontCtrl.fontItem = BlockClockPlayer(m_playerLoader.player).fontItem;
+				clockFormatGroup.selectedValue = BlockClockPlayer(m_playerLoader.player).clockFormat;
+				clockMaskText.text =  BlockClockPlayer(m_playerLoader.player).clockMask;
+				clockMaskText.enabled = (clockFormatGroup.selectedValue==ClockFormat.CUSTOM);
+			} 
+			
+			private function onFontChanged(event:Event):void
+			{
+				BlockClockPlayer(m_playerLoader.player).fontItem = fontCtrl.fontItem;
+			}
+
+			private function clockFormat():void
+			{
+				BlockClockPlayer(m_playerLoader.player).clockFormat = String(clockFormatGroup.selectedValue);
+				invalidateProperties();
+			}
+			
+			private function onMaskChange():void
+			{
+				BlockClockPlayer(m_playerLoader.player).clockMask = clockMaskText.text;
+			}
+			
+		]]> 
+	</fx:Script>
+
+	<fx:Declarations>
+		<s:RadioButtonGroup id="clockFormatGroup" change="clockFormat()" />		
+	</fx:Declarations>
+	
+	<ms:layout>
+		<s:VerticalLayout paddingLeft="5" paddingRight="5" paddingTop="5"/>
+	</ms:layout>
+		
+	<s:Label text="Font:"/>
+	<ms:FontCtrl id="fontCtrl" width="100%"/>	
+
+	<s:RadioButton 
+		label="{resourceManager.getString('player', 'clock.radioDateTime')}"
+		id="radioDateTime" value="{ClockFormat.DATE_TIME}" groupName="clockFormatGroup" />
+	<s:RadioButton 
+		label="{resourceManager.getString('player', 'clock.radioDate')}"
+		id="radioDate" value="{ClockFormat.DATE}" groupName="clockFormatGroup"/>
+	<s:RadioButton 
+		label="{resourceManager.getString('player', 'clock.radioTime')}"
+		id="radioTime" value="{ClockFormat.TIME}" groupName="clockFormatGroup"/>
+	<s:RadioButton 
+		label="{resourceManager.getString('player', 'clock.radioCustom')}"
+		id="radioCustom" value="{ClockFormat.CUSTOM}" groupName="clockFormatGroup"/>
+	
+	<s:HGroup>
+		<s:Label  
+			text="{resourceManager.getString('player', 'clock.clockMaskText')}"/>
+		<s:TextInput id="clockMaskText" width="160" focusOut="onMaskChange()" enter="onMaskChange()"/>
+	</s:HGroup>
+	
+	<s:Line width="100%" height="1"/>
+
+	<s:RichText>
+		<s:text>
+Y Year              YY YYYY
+M Month in year     M MM MMM MMM
+D Day in month      D DD  
+E Days in week      E EE EEE EEEE 
+A AM/PM             AM or PM 
+J Hour in Day       0-23 
+H Hour in Day       1-24 
+K Hour in am/pm     0-11 
+L Hour in am/pm     1-12
+N Minute in hour    N NN
+S Seconds in minute SS  
+		</s:text>
+	</s:RichText>
+	
+</ms:PlayerPage>	
+

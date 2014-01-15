@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:BlockHtmlPlayer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" 
+					xmlns:ms="*"
+					resize="onResize()">
+	<fx:Script>
+		<![CDATA[
+			import mx.events.AIREvent;
+			
+			public override function reload():void
+			{
+				html.reload();
+			}
+		
+			public override function get propertyPages():Array
+			{
+				return [BlockHtmlPageAir];
+			}
+			
+			
+			
+			public override function onCommand(i_eventHandler:IEventHandler, i_eventParam:Object):void
+			{
+				html.htmlLoader.window.onCommand(i_eventHandler.commandName);
+			}
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				//html.addEventListener(Event.HTML_DOM_INITIALIZE,DOMInit);
+			}
+			
+			private function DOMInit(e:Event):void
+			{
+				           
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerUrl==null || m_playerUrl=="")
+					return;
+				html.location = m_playerUrl;
+			}
+			
+			private function onResize():void
+			{
+				if (html!=null)
+				{
+					html.width = Math.min(width, 4000);
+					html.height = Math.min(height, 4000);
+					html.validateNow();
+				}
+			}
+			
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				html.htmlLoader.loadString("");  // unload HTML (stop music)
+			}
+		]]>
+	</fx:Script> 
+
+	<mx:HTML id="html" horizontalScrollPolicy="off" verticalScrollPolicy="off"/>	
+</ms:BlockHtmlPlayer>

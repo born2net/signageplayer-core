@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"
+	label="{resourceManager.getString('player', 'stock.title')}"
+	width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			
+			
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_framework = Global.getFramework(this);
+				scenePickerCtrl.framework = m_framework;
+				scenePickerCtrl.addEventListener(Event.CHANGE, onSceneChanged);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				
+				symbolText.text = BlockStockTickerPlayer(m_playerLoader.player).symbols;
+				direction.selectedIndex = BlockStockTickerPlayer(m_playerLoader.player).vertical ? 1 : 0;
+				speed.value = BlockStockTickerPlayer(m_playerLoader.player).speed;
+				
+				var sceneText:String = resourceManager.getString('player', 'stock.sceneText')
+				var hPlayerData:int = BlockStockTickerPlayer(m_playerLoader.player).hPlayerData;
+				scenePickerCtrl.hPlayerData = hPlayerData;
+			}
+			
+     		private function onSceneChanged(event:Event):void
+     		{
+     			BlockStockTickerPlayer(m_playerLoader.player).hPlayerData = scenePickerCtrl.hPlayerData
+     		}
+     		
+     		private function onSymbolChanged():void
+     		{
+				var myPattern:RegExp = /[ \n\t\r]/g;
+				symbolText.text = symbolText.text.toLocaleUpperCase();  
+				symbolText.text = symbolText.text.replace(myPattern, "");
+				myPattern = /,/g;
+				symbolText.text = symbolText.text.replace(myPattern, ", ");
+     			BlockStockTickerPlayer(m_playerLoader.player).symbols = symbolText.text;
+     		}
+     		
+     		private function onDirection():void
+     		{
+     			BlockStockTickerPlayer(m_playerLoader.player).vertical = (String(direction.selectedItem.@value)=="1");
+     		}
+     		
+			private function onSpeed(event:Event):void
+			{
+				BlockStockTickerPlayer(m_playerLoader.player).speed = speed.value;
+			}
+			
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<fx:XMLList id="directionList">		
+			<Day 
+				label="{resourceManager.getString('player', 'stock.horizontal')}" 
+				value="0"/>
+			<Day 
+				label="{resourceManager.getString('player', 'stock.vertical')}"
+				value="1"/>
+		</fx:XMLList>
+	</fx:Declarations>
+
+	<ms:layout>
+		<s:VerticalLayout paddingLeft="10"/>
+	</ms:layout>
+	
+	<s:Form width="100%">
+		<s:Form>
+			<s:FormItem label="{resourceManager.getString('player', 'ScenePickerCtrl.scene')}"  width="100%">
+				<ms:ScenePicker id="scenePickerCtrl" width="100%"/>
+			</s:FormItem>	
+		</s:Form>
+		
+		<s:FormItem width="100%"
+			label="{resourceManager.getString('player', 'stock.direction')}">
+			<s:DropDownList id="direction"  width="100%"
+					labelField="@label"
+					change="onDirection()">
+				<s:dataProvider>
+					<s:XMLListCollection source="{directionList}"/>
+				</s:dataProvider>
+			</s:DropDownList>		
+		</s:FormItem>
+		<s:FormItem
+			label="{resourceManager.getString('player', 'stock.speed')}">
+			<s:HSlider id="speed" 
+					minimum="1" maximum="100" snapInterval="1"
+					change="onSpeed(event)"
+					width="100"/>
+		</s:FormItem>
+	</s:Form>
+	<s:Label
+		text="{resourceManager.getString('player', 'stock.symbolText')}"/>
+	
+	<s:TextArea id="symbolText" left="10" width="100%" height="100%"
+		focusOut="onSymbolChanged()"/>
+</ms:PlayerPage>	
+

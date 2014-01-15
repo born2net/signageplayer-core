@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" width="200" height="200"
+		 preinitialize="init()" xmlns:Controls="Controls.*" xmlns:mx="library://ns.adobe.com/flex/mx">
+
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			
+			import spark.events.IndexChangeEvent;
+			private var m_selectedDates:ArrayCollection = new ArrayCollection();
+			
+			private var m_calendarIList:CalendarIList = new CalendarIList();
+			
+			public function init():void
+			{
+				var d:Date = new Date();
+				setMonthAndYear(d.month, d.fullYear);
+			}
+			
+			public function setMonthAndYear(i_month:int, i_year:int):void
+			{
+				m_calendarIList.setMonthAndYear(i_month, i_year);
+				invalidateProperties();
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				list.dataProvider = m_calendarIList;
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				month.text = monthNames[m_calendarIList.month];
+				year.text = m_calendarIList.year.toString();
+				
+				var items:Vector.<Object> = new Vector.<Object>;
+				if (m_selectedDates!=null)
+				{
+					var item:Object;
+					var offset:int = 0;
+					while(true)
+					{
+						item = m_calendarIList.getItemAt(offset);
+						if (item.date.date==1)
+							break;
+						offset++;
+					}
+					
+					for each(var date:Date in m_selectedDates)
+					{
+						if (m_calendarIList.year==date.fullYear && m_calendarIList.month==date.month)
+						{
+							item = m_calendarIList.getItemAt(offset + date.date - 1);
+							items.push(item);
+						}
+					}
+				}
+				list.selectedItems = items;
+			}
+			
+			
+			public function set selectedDates(i_selectedDates:ArrayCollection):void
+			{
+				m_selectedDates = i_selectedDates;
+				invalidateProperties();
+				validateNow();
+			}
+		
+			public function get selectedDates():ArrayCollection
+			{
+				return m_selectedDates;
+			}			
+			
+			private static const monthNames:Vector.<String> = 
+				Vector.<String>([
+					"January",
+					"February",
+					"March",
+					"April",
+					"May",
+					"June",
+					"July",
+					"August",
+					"September",
+					"October",
+					"November",
+					"December"
+				]);			
+			
+			
+			private function prevMonth():void
+			{
+				if (m_calendarIList.month == 0)
+				{
+					m_calendarIList.setMonthAndYear(11, m_calendarIList.year - 1);
+				}
+				else
+				{
+					m_calendarIList.setMonthAndYear(m_calendarIList.month - 1, m_calendarIList.year);
+				}
+				invalidateProperties();
+			}
+			
+			private function nextMonth():void
+			{
+				if (m_calendarIList.month == 11)
+				{
+					setMonthAndYear(0, m_calendarIList.year + 1);
+				}
+				else
+				{
+					setMonthAndYear(m_calendarIList.month + 1, m_calendarIList.year);
+				}
+				invalidateProperties();
+			}			
+			
+			
+			protected function onMouseDown(event:MouseEvent):void
+			{
+				/*
+				if (event.ctrlKey || event.shiftKey)
+					return;
+				if (m_selectedDates.length==0)
+					return;
+				var date:Date = (m_selectedDates.removeItemAt(m_selectedDates.length-1)) as Date;
+				m_selectedDates = new ArrayCollection();
+				if (date!=null)
+				{
+					selectDate(date);
+				}
+				*/
+			}
+			
+			private function selectDate(i_date:Date):void
+			{
+				var index:int = 0;
+				var insert:int = -1;
+				for each(var date:Date in m_selectedDates)
+				{
+					if (i_date.time==date.time)
+					{
+						return;
+					}
+					else if (date.time<i_date.time)
+					{
+						insert = index;
+					}
+					index++;
+					
+				}
+				m_selectedDates.addItemAt(i_date, insert+1);
+			}
+			
+			protected function onListChange(event:IndexChangeEvent):void
+			{
+				if (list.selectedItems.length==1)
+				{
+					m_selectedDates = new ArrayCollection();
+				}
+				for each(var item:Object in list.selectedItems)
+				{
+					selectDate(item.date);
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:layout>
+		<s:VerticalLayout gap="0" paddingLeft="0" paddingRight="0"/>
+	</s:layout>
+	<s:BorderContainer width="100%" height="22"
+					   backgroundColor="0xF0F0F0">
+		<Controls:LinkButton label="&lt;" 
+							 width="26" left="2"
+							 click="prevMonth()"/>
+		<s:HGroup horizontalCenter="0" top="5">
+			<s:Label id="month" fontWeight="bold"/>
+			<s:Label id="year" fontWeight="bold"/>
+		</s:HGroup>
+		<Controls:LinkButton label="&gt;" 
+							 width="26" right="2"
+							 click="nextMonth()"/>
+	</s:BorderContainer>
+	
+	<s:BorderContainer width="100%" height="22"
+					   backgroundColor="0xF0F0F0">
+		<s:TileGroup width="100%" height="100%" y="5" x="8"
+					 horizontalGap="0"
+					 paddingLeft="0" paddingRight="0"
+					 requestedColumnCount="7" columnWidth="{(width+2)/7}" >
+			<s:Label text="S" fontWeight="bold"/>
+			<s:Label text="M" fontWeight="bold"/>
+			<s:Label text="T" fontWeight="bold"/>
+			<s:Label text="W" fontWeight="bold"/>
+			<s:Label text="Th" fontWeight="bold"/>
+			<s:Label text="F" fontWeight="bold"/>
+			<s:Label text="S" fontWeight="bold"/>
+		</s:TileGroup>
+	</s:BorderContainer>			
+	
+	<s:List id="list" allowMultipleSelection="true" borderVisible="true"
+			change="onListChange(event)" mouseDown="onMouseDown(event)"
+			width="100%" height="100%">
+		<s:layout>
+			<s:TileLayout 
+				paddingLeft="0" paddingRight="0" paddingTop="0" paddingBottom="0"
+				horizontalGap="0" verticalGap="0"
+				requestedColumnCount="7" requestedRowCount="6" 
+				columnWidth="{(list.width-2)/7}" rowHeight="{(list.height-2)/6}"/>
+		</s:layout>
+		<s:itemRenderer>
+			<fx:Component>
+				<s:ItemRenderer>
+					<s:Label id="labelDisplay" 
+							 width="100%" height="100%"
+							 textAlign="center" verticalAlign="middle"
+							 text="{data.dateLabel}" 
+							 color="{data.currentMonth ? 0 : 0x808080}" />
+				</s:ItemRenderer>
+			</fx:Component>
+		</s:itemRenderer>
+	</s:List> 
+	
+</s:Group>

@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*">
+	
+	<fx:Script>
+		<![CDATA[
+			private var m_dataBaseManager:DataBaseManager;
+			protected var m_playerTransitionService:IPlayerTransitionService;
+			protected var m_resourceService:IResourceService;
+			private var m_advertisingService:IAdvertisingService;
+			private var m_timer:Timer;
+			private var m_adStat:IAdExtStat;
+			private var m_hDefaultResource:int = -1;
+			private var m_playingDefaultResource:Boolean = false;
+			
+			private var m_playerTransition:IPlayerTransition;
+			private var m_startTime:Number = 0;
+			private var m_time:Number = 0;
+			
+		
+			public override function initModule():void
+			{
+				super.initModule();
+				m_advertisingService = m_framework.ServiceBroker.QueryService("AdvertisingService") as IAdvertisingService;
+				m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+				m_playerTransitionService = m_framework.ServiceBroker.QueryService("PlayerTransitionService") as IPlayerTransitionService;
+				m_resourceService = m_framework.ServiceBroker.QueryService("ResourceService") as IResourceService;
+				
+				m_timer = new Timer(5000, 1);
+				m_timer.addEventListener(TimerEvent.TIMER_COMPLETE, onTimer);
+			} 
+
+			
+			public function get hDefaultResource():int
+			{
+				return m_hDefaultResource;	
+			}
+
+			public function set hDefaultResource(i_hDefaultResource:int):void
+			{
+				m_playerLoader.modified = true;
+				m_hDefaultResource = i_hDefaultResource;
+			}
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				
+				if (XMLList(i_data.Advertizing.Resource).length()>0)
+				{
+					m_hDefaultResource = i_data.Advertizing.Resource.@hResource;
+				}
+				invalidateProperties();
+			}
+
+			public override function save():XML
+			{
+				var xmlAdvertizing:XML = <Advertizing/>
+				
+				var xmlResource:XML = <Resource/>;
+				xmlResource.@hResource = m_hDefaultResource;
+				xmlAdvertizing.appendChild(xmlResource);
+				
+				return xmlAdvertizing; 
+			}
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockAdvertisingPage];
+			}
+
+			public override function start():void
+			{
+				super.start();
+				m_startTime = 0;
+				m_time = 0;
+				nextPlay();
+			}
+			
+			public override function onFrame(i_time:Number):void
+			{
+				super.onFrame(i_time);
+				m_time = i_time;
+				if (m_playerTransition!=null)
+				{
+					m_playerTransition.tick(i_time - m_startTime);
+				}
+			}					
+			
+			
+			private function onTimer(event:TimerEvent):void
+			{
+				if (m_adStat!=null)
+				{
+					m_adStat.finishPlay();
+					m_adStat = null;
+				}
+				nextPlay();
+			}
+			
+			private function nextPlay():void
+			{
+				m_adStat = m_advertisingService.nextExtStat;
+				var domain:String;
+				var businessId:int
+				if (m_adStat==null)
+				{
+					if (m_playingDefaultResource==false)
+					{
+						m_playingDefaultResource = true;
+						
+						domain = m_framework.StateBroker.GetState("businessDomain") as String;
+						businessId = int(m_framework.StateBroker.GetState("businessId"));
+						m_dataBaseManager.selectDomainBusiness(domain, businessId);
+						
+						m_resourceService.selectDomainBusiness(domain, businessId);
+						
+						m_playerTransition.load(getPlayerData(m_hDefaultResource), 0);
+						
+						if (m_playerTransition.playerLoader.player!=null)
+						{
+							m_startTime = m_time;
+							m_playerTransition.playerLoader.start();
+						}						
+					}					
+					m_timer.delay = 15000;
+					m_timer.start();
+					return;
+				}
+				
+				m_adStat.beginPlay(width, height);
+				
+				m_playingDefaultResource = false;
+				
+				domain = m_adStat.adContent.adPackage.adDomainBusiness.adDomain.name;
+				businessId = m_adStat.adContent.adPackage.adDomainBusiness.businessId;
+				
+				m_dataBaseManager.selectDomainBusiness(domain, businessId);
+				m_resourceService.selectDomainBusiness(domain, businessId);
+				
+				var hResource:int = m_dataBaseManager.table_resources.getHandle(m_adStat.adContent.resourceId);
+				m_playerTransition.load(getPlayerData(hResource), 0);
+				if (m_playerTransition.playerLoader.player!=null)
+				{
+					m_startTime = m_time;
+					m_playerTransition.playerLoader.start();
+				}						
+				
+				
+				
+				
+				domain = m_framework.StateBroker.GetState("businessDomain") as String;
+				businessId = int(m_framework.StateBroker.GetState("businessId"));
+				m_dataBaseManager.selectDomainBusiness(domain, businessId);
+				m_resourceService.selectDomainBusiness(domain, businessId);				
+				
+				
+				
+				
+				m_timer.delay = m_adStat.adContent.duration * 1000;
+				m_timer.start();
+			}
+			
+			public function getPlayerData(i_hResource:int):XML
+			{
+				var xmlPlayerData:XML = <Player/>;
+				var recResource:Rec_resource = m_dataBaseManager.table_resources.getRecord(i_hResource);
+				if (recResource!=null)
+				{
+					var player:int = -1;
+					switch(recResource.resource_type)
+					{
+						case "flv":
+						case "mp4":
+						case "m4v":
+						case "mov":
+						case "3gp":
+						case "mpg":
+							player = 3100;
+							break;
+						case "jpg":
+						case "jpeg":
+						case "gif":
+						case "png":
+						case "swf":
+							player = 3130;
+							break;	
+					}
+					
+					
+					xmlPlayerData.@player = player;
+					var xmlData:XML = <Data/>;
+					var xmlResource:XML = <Resource/>;
+					xmlPlayerData.appendChild(xmlData);
+					xmlData.appendChild(xmlResource);
+					xmlResource.@resource = recResource.native_id;
+					xmlResource.@hResource = recResource.resource_id;
+				}
+				return xmlPlayerData;
+			}
+			
+			
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_playerTransition = m_playerTransitionService.createPlayerTransition(container);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerTransition==null)
+					return;
+				
+				m_startTime = m_time;
+			}
+			
+			private function onResize():void
+			{
+				if (m_playerTransition!=null)
+				{
+					m_playerTransition.updateDisplayList(unscaledWidth, unscaledHeight);
+				}
+				if (m_adStat!=null)
+				{
+					m_adStat.updatePlay(width, height);
+				}				
+			}
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				if (m_timer!=null)
+				{
+					m_timer.stop();
+					m_timer.removeEventListener(TimerEvent.TIMER_COMPLETE, onTimer);
+					m_timer = null;
+				}
+				if (m_adStat!=null)
+				{
+					m_adStat.finishPlay();
+					m_adStat = null;
+				}
+				
+			}
+		]]>
+	</fx:Script>	
+
+	<s:BorderContainer id="container" width="100%" height="100%" resize="onResize()"/>
+</ms:PlayerModule>	

@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+    xmlns:s="library://ns.adobe.com/flex/spark"
+    xmlns:mx="library://ns.adobe.com/flex/mx"
+	xmlns:local="*" autoDrawBackground="{XML(data).@separator!='true'}"
+    initialize="setupRollOutOverride()" xmlns:Menu="Menu.*"
+	height="20">
+
+    <s:states>
+        <s:State name="normal" />
+        <s:State name="hovered" />
+        <s:State name="selected" />
+    </s:states>
+
+    <fx:Script>
+		<![CDATA[
+			[Embed(source="../assets/checkIcon.png")]
+			public static const checkIcon:Class;
+			
+			public override function set data(value:Object):void
+			{ 
+				super.data = value;
+				checkImage.visible = (data.@toggled=="true");
+			}			
+			
+            private function setupRollOutOverride():void
+            {
+                // intercept rollout/rollover
+                addEventListener(MouseEvent.ROLL_OVER, itemRenderer_rollOverHandler, false, 100);
+                addEventListener(MouseEvent.ROLL_OUT, itemRenderer_rollOutHandler, false, 100);
+            }
+
+            /**
+             *  @private
+             */
+            private function anyButtonDown(event:MouseEvent):Boolean
+            {
+                var type:String = event.type;
+                return event.buttonDown || (type == "middleMouseDown") || (type == "rightMouseDown"); 
+            }
+            
+            /**
+             *  @private
+             *  Mouse rollOver event handler.
+             */
+            protected function itemRenderer_rollOverHandler(event:MouseEvent):void
+            {
+                if (!anyButtonDown(event))
+                    hovered = true;
+                event.stopImmediatePropagation();
+            }
+                        /**
+             *  @private
+             *  Mouse rollOut event handler.
+             */
+            protected function itemRenderer_rollOutHandler(event:MouseEvent):void
+            {
+                // the only ways to dismiss a submenu is:
+                // -clicking in it (change Event will close all menus
+                // -mouseDown outside the menu
+                // rolling onto a sibling
+                if (event.relatedObject == null || owner.contains(event.relatedObject))
+                    hovered = false;
+                event.stopImmediatePropagation();
+            }
+            
+            protected function submenu_rollOutHandler(event:MouseEvent):void
+            {
+                if (event.relatedObject == null || owner.contains(event.relatedObject))
+                    hovered = false;
+            }
+            
+            protected function dismissMenus(event:Event):void
+            {
+                var target:DisplayObject = event.target as DisplayObject;
+                while (target)
+                {
+                    if (target is SparkMenu)
+                        return;
+                    target = target.parent;
+                }
+                SparkMenu(owner).selectedIndex = -1;
+                hovered = false;
+                owner.dispatchEvent(event);
+            }
+                        
+            protected function menuItemSelected(event:Event):void
+            {
+                SparkMenu(owner).selectedIndex = -1;
+                hovered = false;
+                owner.dispatchEvent(event);
+            }
+            
+            override public function set selected(value:Boolean):void
+            {
+                if (data)
+                {
+                    if (value)
+                        owner.addEventListener(KeyboardEvent.KEY_DOWN, owner_keyDownHandler, false, 0, true);
+                    else
+                        owner.removeEventListener(KeyboardEvent.KEY_DOWN, owner_keyDownHandler);
+                    
+                    // don't allow separators to show selection
+                    if (data.@separator.toString() == "true")
+                        return;
+                    // don't allow submenu entries to show selection
+                    //if (dataProvider.length > 0)
+                    //    return;
+                }
+                super.selected = value;
+            }
+            
+            protected function owner_keyDownHandler(event:KeyboardEvent):void
+            {
+                if (event.keyCode == Keyboard.RIGHT)
+                {
+                    if (dataProvider.length > 0)
+                    {
+                        selected = false;
+                        hovered = true;
+                        menu.setFocus();
+                        menu.selectedIndex = 0;
+                    }
+                    else
+                        owner.dispatchEvent(new Event("menuRight"));
+                }
+            }
+            
+            protected function checkKeys(event:KeyboardEvent):void
+            {
+                if (event.keyCode == Keyboard.LEFT) 
+                {
+                    hovered = false;
+                    selected = true;
+                    SparkMenu(owner).setFocus();
+                }
+            }
+            
+            protected function redispatchMenuRight(event:Event):void
+            {
+                owner.dispatchEvent(event);
+            }
+            
+		]]>
+	</fx:Script>
+    <fx:Declarations>
+        <mx:XMLListCollection id="dataProvider" source="{XML(data).children()}" />
+    </fx:Declarations>
+    <s:Group visible="{XML(data).@separator.toString() != 'true'}" left="0" right="0" height="20">
+		<s:Image id="checkImage" source="{checkIcon}" left="0"/>
+        <s:BitmapImage left="9" top="0" id="icon" source="{(XML(data).@icon.toString().length > 1) ? this[XML(data).@icon.toString()] : null}" />
+        <s:Label id="labelDisplay" left="20" top="4" fontSize="12"/>
+        <s:Group id="menuIcon" visible="{dataProvider.length > 0}" right="0" >
+            <s:Path data="M 0 2 L 6 6 L 0 10 L 0 2" >
+                <s:fill>
+                    <s:SolidColor id="menuIconFill" color="0" />
+                </s:fill>
+            </s:Path>
+        </s:Group>
+    </s:Group>
+    <s:Group id="separator" visible="{XML(data).@separator.toString() == 'true'}" left="0" right="0" verticalCenter="0" >
+        <s:Rect left="0" right="0" height="1" >
+            <s:fill>
+                <s:SolidColor color="0x808080" />
+            </s:fill>
+        </s:Rect>
+    </s:Group>
+    <s:PopUpAnchor id="popUp"  displayPopUp.normal="false" 
+                   includeIn="hovered"
+                   displayPopUp.hovered="{dataProvider.length > 0}" 
+                   left="0" right="0" top="0" bottom="0" itemDestructionPolicy="auto"
+                   popUpPosition="right" popUpWidthMatchesAnchorWidth="false">
+        <Menu:SparkMenu id="menu" dataProvider="{dataProvider}"
+                skinClass="Menu.SparkMenuSkin" labelField="@label" 
+                mouseDownOutside="dismissMenus(event)"
+                change="menuItemSelected(event)"
+                keyDown="checkKeys(event)"
+                menuRight="redispatchMenuRight(event)"
+                rollOut="submenu_rollOutHandler(event)" />
+    </s:PopUpAnchor>
+</s:ItemRenderer>

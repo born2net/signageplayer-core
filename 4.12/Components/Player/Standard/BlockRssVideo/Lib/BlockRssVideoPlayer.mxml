@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+				 width="100" height="100" left="0" right="0" top="0" bottom="0">
+	
+	<fx:Script>
+		<![CDATA[
+			import org.osmf.events.TimeEvent;
+			//M??? import mx.events.VideoEvent;
+
+			protected var m_rssService:IRssService
+			protected var m_rssRequest:IRssRequest; 
+ 
+			protected var m_rssUrl:String = "http://rss.cnn.com/services/podcasting/cnnnewsroom/rss.xml"
+			protected var m_maintainAspectRatio:Boolean = true;
+			
+			protected var m_title:String;
+			protected var m_ItemIndex:int = -1;
+			protected var m_playing:Boolean = false;
+			protected var m_timer:Timer;
+
+
+			public override function get propertyPages():Array
+			{
+				return [BlockRssVideoPage];
+			}
+			
+			
+			public function get maintainAspectRatio():Boolean
+			{
+				return m_maintainAspectRatio;
+			}
+			
+			public function set maintainAspectRatio(i_maintainAspectRatio:Boolean):void
+			{
+				m_playerLoader.modified = true;
+				m_maintainAspectRatio = i_maintainAspectRatio;
+				if (resourceViewer!=null)
+				{
+					resourceViewer.maintainAspectRatio = m_maintainAspectRatio;
+				}
+			}
+
+			public function get rssUrl():String
+			{
+				return m_rssUrl;
+			}
+			
+			public function set rssUrl(i_rssUrl:String):void
+			{
+				if (m_rssUrl == i_rssUrl)
+					return;
+				m_playerLoader.modified = true;
+				m_rssUrl = i_rssUrl;
+				clear();
+				loadRss();
+			}
+
+
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			
+			public override function clear():void
+			{
+				super.clear();
+				m_title = null;
+				m_ItemIndex = -1;
+				
+				resourceViewer.clear();
+				
+				if (m_rssRequest!=null)
+				{
+					m_rssRequest.removeEventListener(RssEvent.RSS_RESULT, onRssResult);
+					m_rssRequest = null;
+				}
+				m_playing = false;
+			}
+			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Rss).length()>0)
+				{
+					m_rssUrl = String(i_data.Rss.@url);
+				}
+
+				if (XMLList(i_data.Rss.@maintainAspectRatio).length()>0)
+				{
+					m_maintainAspectRatio = (i_data.Rss.@maintainAspectRatio=="1");
+				}
+				
+				
+				
+				m_timer = new Timer(30000, 1)
+				m_timer.addEventListener(TimerEvent.TIMER_COMPLETE, onSwfComplete);
+				
+				loadRss();			
+			} 
+			
+			public override function save():XML
+			{
+				var xmlRss:XML = <Rss/>
+				xmlRss.@url = m_rssUrl;
+				xmlRss.@maintainAspectRatio = m_maintainAspectRatio ? "1" : "0";
+				return xmlRss; 
+			}   
+			
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_rssService = m_framework.ServiceBroker.QueryService("RssService") as IRssService;
+				
+				m_ItemIndex = -1;
+				m_keepPlaying = true;
+				
+				showBlockInfo("[Media Rss]");
+			}  
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				resourceViewer.addEventListener(org.osmf.events.TimeEvent.COMPLETE, onVideoComplete)
+				playNext();
+			}
+
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				resourceViewer.maintainAspectRatio = m_maintainAspectRatio;
+			}
+			
+			protected function loadRss():void
+			{
+				if (m_rssRequest==null)
+				{
+					m_rssRequest = m_rssService.createRssRequest(m_rssUrl, 1, 60 * 12 * 30);
+					m_rssRequest.addEventListener(RssEvent.RSS_RESULT, onRssResult);
+				}
+				m_rssRequest.request();
+			}
+			
+			protected function onRssResult(event:RssEvent):void
+			{
+				var rssRequest:IRssRequest = event.rssRequest;
+				if (rssRequest.result==null)
+					return;
+
+				m_rssRequest.shuffleItems();
+				m_ItemIndex = -1;
+				playNext();
+			}
+			
+			private function onVideoComplete(event:org.osmf.events.TimeEvent):void
+			{
+				mediaComplete();
+			} 
+			
+			
+			private function onSwfComplete(event:TimerEvent):void
+			{
+				mediaComplete();
+			}
+			
+			private function mediaComplete():void
+			{
+				resourceViewer.clear();
+				m_playing = false;
+				
+				if (m_keepPlaying)
+				{
+					playNext();
+				}
+				else
+				{
+					dispatchEvent( new PlayerCompleteEvent(PlayerCompleteEvent.PLAYER_COMPLETE, this) );	
+				}
+			}
+
+			protected function playNext():void
+			{
+				if (m_playing)
+					return;
+					
+				if (m_rssRequest==null || m_rssRequest.getItemCount()==0)
+					return;	
+					
+				m_ItemIndex++;
+				if (m_ItemIndex>=m_rssRequest.getItemCount())
+				{
+					loadRss();
+				} 
+				else
+				{
+					showBlockInfo(null);
+					var rssItem:IRssItem = m_rssRequest.getItemAt(m_ItemIndex);
+					var mediaPath:String = rssItem.getMediaPath();
+					if (mediaPath!=null)
+					{
+						var ext:String = mediaPath.substring(mediaPath.length-3);
+					    resourceViewer.setResource(mediaPath, ext, false, false);
+						resourceViewer.start();
+						m_playing = true;
+						if (ext=="jpg" || ext=="jpeg" || ext=="gif" || ext=="png" || ext=="swf")
+						{
+							if (rssItem.getMediaDuration()>0)
+							{
+								m_timer.delay = rssItem.getMediaDuration() * 1000;
+							}
+							
+							m_timer.start();
+						}
+					}
+					else
+					{   // in case Rss contain some Items with no media
+						m_timer.delay = 1000;
+						m_timer.start();
+					} 
+				}
+			}
+
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				resourceViewer.removeEventListener(org.osmf.events.TimeEvent.COMPLETE, onVideoComplete)
+				m_timer.removeEventListener(TimerEvent.TIMER_COMPLETE, onSwfComplete);
+			}
+			
+		]]>
+	</fx:Script>	
+
+<ms:layout>
+	<s:VerticalLayout/>
+</ms:layout>
+	
+	<ms:ResourceViewer id="resourceViewer"
+ 		width="100%" height="100%" left="0" right="0" top="0" bottom="0"/>
+</ms:PlayerModule>	

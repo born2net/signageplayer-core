@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml"
+	implements="IPage"
+	label="Location"
+	verticalScrollPolicy="off" horizontalScrollPolicy="off"
+	width="100%" height="100%">
+	
+	<mx:Script>
+		<![CDATA[
+			import com.yahoo.maps.api.MapTypes;
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			import com.yahoo.maps.webservices.geocoder.events.GeocoderEvent;
+			import com.yahoo.maps.webservices.geocoder.GeocoderResult;
+			import com.yahoo.maps.webservices.geocoder.GeocoderResultSet;
+			import com.yahoo.maps.api.core.location.Address;
+			
+			
+			private var m_playerLoader:IPlayerLoader;
+[Bindable] 	private var _geocoderResults:ArrayCollection;
+			private var _address:Address;
+			
+			public function set editor(i_editor:IEditor):void
+			{
+				m_playerLoader = i_editor as IPlayerLoader;
+			}
+			
+			public function get editor():IEditor
+			{
+				return m_playerLoader;
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				_geocoderResults = new ArrayCollection();
+				gResultPanel.visible=false;	
+				
+				BlockMapPlayer(m_playerLoader.player).addEventListener("event_map_updated", onMapUpdated);
+			}
+			
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				searchInput.text = BlockMapPlayer(m_playerLoader.player).search;
+				zoom.value = BlockMapPlayer(m_playerLoader.player).zoomLevel;
+				map.selected = (BlockMapPlayer(m_playerLoader.player).mapType == MapTypes.MAP);
+				satellite.selected = (BlockMapPlayer(m_playerLoader.player).mapType == MapTypes.SATELLITE);
+				hybird.selected = (BlockMapPlayer(m_playerLoader.player).mapType == MapTypes.HYBRID); 
+			}
+			
+			private function onMapUpdated(event:Event):void
+			{
+				invalidateProperties();
+			}
+			
+			private function getTextInput():void 
+			{
+				var searchStr:String = searchInput.text;
+				
+				searchInput.text = "Looking up address...";
+				
+				_address = new Address(searchStr);
+				_address.addEventListener(GeocoderEvent.GEOCODER_SUCCESS, handleGeocodeSuccess);
+				_address.geocode();
+			}
+			
+			private function handleGeocodeSuccess(event:GeocoderEvent):void 
+			{
+				var geocoderResults:GeocoderResultSet = _address.geocoderResultSet;
+				var results:Array = geocoderResults.results;
+				
+				// if we only have one result, set the location right away.
+				if(geocoderResults.found == 1) 
+				{
+					setLocation(geocoderResults.firstResult);
+				}
+				else if(geocoderResults.found > 1) 
+				{
+					// loop through each result and add an item to the suggest list.
+					_geocoderResults = new ArrayCollection();
+					var len:int = results.length;
+					for(var i:int=0; i<len; i++) 
+					{
+						var result:GeocoderResult = results[i];
+						
+						var data:Object = {
+							label: result.getLineAddress(),
+							data:result
+						}
+						
+						_geocoderResults.addItem(data);
+					}
+					
+					//show the suggestions panel
+					gResultPanel.visible=true;
+				}else{
+					// reset the text
+					searchInput.text = "";
+				}
+			}
+			
+			private function setLocation(geocoderResult:GeocoderResult):void
+			{
+				// set the zoom level, center latlon and set the text field with the full address.
+				BlockMapPlayer(m_playerLoader.player).zoomLevel = geocoderResult.zoomLevel; 
+				BlockMapPlayer(m_playerLoader.player).centerLatLon = geocoderResult.latlon;
+				searchInput.text = geocoderResult.getLineAddress();
+				BlockMapPlayer(m_playerLoader.player).search = searchInput.text; 
+			}
+			
+			private function handleListChange():void 
+			{
+				m_playerLoader.player.modified = true;
+				// get the selected geocoder result object
+				var selectedResult:GeocoderResult = geocoderResultsList.selectedItem.data as GeocoderResult;
+				setLocation(selectedResult);
+				
+				_geocoderResults.removeAll();
+				gResultPanel.visible=false;
+			}
+			
+			private function onMap():void
+			{
+				m_playerLoader.player.modified = true;
+				map.selected = true;
+				satellite.selected = false;
+				hybird.selected = false;
+				BlockMapPlayer(m_playerLoader.player).mapType = MapTypes.MAP;
+			}
+
+			private function onSatellite():void
+			{
+				m_playerLoader.player.modified = true;
+				map.selected = false;
+				satellite.selected = true;
+				hybird.selected = false;
+				BlockMapPlayer(m_playerLoader.player).mapType = MapTypes.SATELLITE;
+			}
+
+			private function onHybird():void
+			{
+				m_playerLoader.player.modified = true;
+				map.selected = false;
+				satellite.selected = false;
+				hybird.selected = true;
+				BlockMapPlayer(m_playerLoader.player).mapType = MapTypes.HYBRID;
+			}
+			
+			private function onZoom():void
+			{
+				m_playerLoader.player.modified = true;
+				BlockMapPlayer(m_playerLoader.player).zoomLevel = zoom.value;
+			}
+
+		]]>
+	</mx:Script>
+
+	<mx:TextInput id="searchInput" enter="getTextInput();" y="64" left="10" right="83"/>
+	<mx:Button y="64" label="Search" cornerRadius="1" click="getTextInput()" right="10"/>
+	<mx:Panel layout="absolute" id="gResultPanel" title="Results" left="10" right="10" top="94" bottom="10">
+		<mx:List left="0" right="0" top="0" bottom="0" id="geocoderResultsList" dataProvider="{_geocoderResults}" change="handleListChange();"/>
+	</mx:Panel>
+	<mx:HSlider id="zoom" x="55" y="44" width="166" minimum="1" maximum="16" snapInterval="1"
+		change="onZoom()"/>
+	<mx:Label x="10" y="38" text="Zoom"/>
+	<mx:Button id="map" x="10" y="8" label="Map" toggle="true" click="onMap()" cornerRadius="0"/>
+	<mx:Button id="satellite" x="67" y="8" label="Satellite" toggle="true" click="onSatellite()" cornerRadius="0"/>
+	<mx:Button id="hybird" x="148" y="8" label="Hybird" toggle="true" click="onHybird()" cornerRadius="0"/>
+</mx:Canvas>	
+

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:ms="*"
+		 width="400" height="300"
+		 backgroundColor="black">
+	<fx:Script>
+		<![CDATA[
+			import flash.filesystem.File;
+			
+			import mx.controls.SWFLoader;
+			import mx.managers.PopUpManager;
+			
+			
+			private static var m_splashWindow:SplashWindow;
+			private var m_swfLoader:SWFLoader;
+			
+			public static function Create(i_parent:DisplayObject):void
+			{
+				if (m_splashWindow!=null)
+					return;
+				m_splashWindow = SplashWindow(PopUpManager.createPopUp(i_parent, SplashWindow, true));
+				m_splashWindow.x=0;
+				m_splashWindow.y=0;
+				m_splashWindow.width = i_parent.width;
+				m_splashWindow.height = i_parent.height;
+			}
+			
+			
+			public static function Distroy():void
+			{
+				if (m_splashWindow!=null)
+				{
+					m_splashWindow.close();
+					PopUpManager.removePopUp(m_splashWindow);
+					m_splashWindow = null;
+				}
+			}
+			
+			private function close():void
+			{
+				if (m_swfLoader!=null)
+				{
+					m_swfLoader.unloadAndStop();
+					removeElement(m_swfLoader);
+					m_swfLoader = null;
+				}
+			}
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				
+				var file:File = File.applicationStorageDirectory.resolvePath("SplashScreen").resolvePath("Update.swf");
+				if (file.exists==false)
+					return;
+				
+				m_swfLoader = new SWFLoader();
+				m_swfLoader.percentHeight = 100;
+				m_swfLoader.percentWidth = 100;
+				m_swfLoader.setStyle("verticalCenter", 0);
+				m_swfLoader.setStyle("horizontalCenter", 0);
+				m_swfLoader.source  = "app-storage:/SplashScreen/Update.swf";
+				addElement(m_swfLoader);
+			}
+			
+			
+		]]>
+	</fx:Script>
+</s:BorderContainer>

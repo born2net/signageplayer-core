@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+	implements="IProviderItem">
+	
+	<fx:Script>
+		<![CDATA[
+			private var m_styleService:IStyleService;
+			private var m_field:String = StockField.SYMBOL;
+			private var m_rssStockProvider:IRssStockProvider;
+			private var m_stockSymbol:String;
+			
+			private var m_fontItem:IFontItem;
+			private var m_faces:Object = new Object();
+			private var m_invalidateItem:Boolean = false;
+			
+			private var m_negativeColor:uint = 0xff0000; // red
+
+			public override function get propertyPages():Array
+			{
+				return [BlockStockItemPage];
+			}
+
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.StockItem).length()>0)
+				{
+					m_field = i_data.StockItem.@field;
+					m_negativeColor = i_data.StockItem.@negativeColor;
+					if (XMLList(i_data.StockItem.Font).length()>0)
+					{
+						m_fontItem.load(i_data.StockItem.Font[0]);
+					}
+				}
+				invalidateItem();
+			} 
+
+			public override function save():XML
+			{
+				var xmlStockItem:XML = <StockItem/>;
+				xmlStockItem.@field = m_field;
+				xmlStockItem.@negativeColor = m_negativeColor;
+				xmlStockItem.appendChild( m_fontItem.save() );
+				return xmlStockItem; 
+			}
+
+
+			public override function start():void
+			{
+				super.start();
+				invalidateItem();
+			}
+
+
+			public override function stop():void
+			{
+				super.stop();
+			}
+			
+			
+			public function setDataProvider(i_dataProvider:IDataProvider, i_providerItem:String=null):void
+			{
+				m_rssStockProvider = i_dataProvider as IRssStockProvider;
+				m_stockSymbol = i_providerItem;
+				invalidateItem();
+			}
+
+			public function get field():String
+			{
+				return m_field;
+			}			
+			
+			public function set field(i_field:String):void
+			{
+				m_playerLoader.modified = true;
+				m_field = i_field;
+				invalidateItem();
+			}		
+
+			public function get negativeColor():uint
+			{
+				return m_negativeColor;
+			}			
+			
+			public function set negativeColor(i_negativeColor:uint):void
+			{
+				m_playerLoader.modified = true;
+				m_negativeColor = i_negativeColor;
+				invalidateItem();
+			}
+			
+			public function set fontItem(i_fontItem:IFontItem):void
+			{
+				m_playerLoader.modified = true;
+				m_fontItem = i_fontItem;
+				invalidateItem();				
+			}
+
+			public function get fontItem():IFontItem
+			{		
+				return m_fontItem;
+			}
+			
+			 
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				
+				m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+				m_fontItem = m_styleService.createFontItem();
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				if (m_styleService==null)
+				{
+					m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+					return; //???
+				}
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateItem)
+				{
+					m_invalidateItem = false;
+					
+					var text:String = null;
+
+					if (m_rssStockProvider==null)
+					{
+						switch(m_field)
+						{
+							case StockField.SYMBOL:
+								text = "Symbol";
+								break;
+							case StockField.LAST_TRADE:
+								text = "Last";
+								break;
+							case StockField.TRADE_DATE:
+								text = "Date";
+								break;
+							case StockField.TRADE_TIME:
+								text = "Time";
+								break;
+							case StockField.CHANGE:
+								text = "Change";
+								break;
+							case StockField.PERCENTAGE:
+								text = "change%";
+								break;
+							case StockField.OPEN:
+								text = "Open";
+								break;
+							case StockField.MAX:
+								text = "max";
+								break;
+							case StockField.MIN:
+								text = "Min";
+								break;
+							case StockField.VOLUME:
+								text = "Volume";
+								break;
+						}
+					}
+					else
+					{	
+						switch(m_field)
+						{
+							case StockField.SYMBOL:
+								text = m_stockSymbol;
+								break;
+							case StockField.LAST_TRADE:
+								text = m_rssStockProvider.getStockLastTrade(m_stockSymbol);
+								break;
+							case StockField.TRADE_DATE:
+								text = m_rssStockProvider.getStockTradeDate(m_stockSymbol);
+								break;
+							case StockField.TRADE_TIME:
+								text = m_rssStockProvider.getStockTradeTime(m_stockSymbol);
+								break;
+							case StockField.CHANGE:
+								text = m_rssStockProvider.getStockChange(m_stockSymbol);
+								break;
+							case StockField.PERCENTAGE:
+								text = m_rssStockProvider.getStockPercentage(m_stockSymbol);
+								break;
+							case StockField.OPEN:
+								text = m_rssStockProvider.getStockOpen(m_stockSymbol);
+								break;
+							case StockField.MAX:
+								text = m_rssStockProvider.getStockMax(m_stockSymbol);
+								break;
+							case StockField.MIN:
+								text = m_rssStockProvider.getStockMin(m_stockSymbol);
+								break;
+							case StockField.VOLUME:
+								text = m_rssStockProvider.getStockVolume(m_stockSymbol);
+								break;
+						}
+					}
+				}
+				
+				label.text = text;
+				applyStyles();
+			}
+			
+			private function applyStyles():void
+			{
+				if (m_rssStockProvider==null || m_rssStockProvider.isStockPositive(m_stockSymbol))
+				{
+					label.setStyle("color", m_fontItem.fontColor);
+				}
+				else
+				{
+					label.setStyle("color", m_negativeColor);
+				}
+				label.setStyle("fontFamily", m_fontItem.fontFamily);
+				label.setStyle("fontSize", m_fontItem.fontSize);
+				label.setStyle("fontWeight", m_fontItem.fontWeight);
+				label.setStyle("fontStyle", m_fontItem.fontStyle);
+				label.setStyle("textDecoration", m_fontItem.textDecoration);
+			}
+			
+			
+			private function invalidateItem():void
+			{
+				m_faces = new Object();
+				var face:String = m_fontItem.fontFamily;
+				m_faces[face] = face;
+				if (m_styleService.fontsCompleted(m_faces))
+				{
+					m_invalidateItem = true;
+					invalidateProperties();
+				}
+				else
+				{
+					m_styleService.addEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+				}
+			}
+			
+			private function onStyleComplete(event:ServiceStyleEvent):void
+			{
+				if (m_styleService.fontsCompleted(m_faces))
+				{
+					m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					m_invalidateItem = true;
+					invalidateItem();
+				}
+			}
+
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				if (m_styleService!=null)
+				{
+					m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					m_styleService = null;
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:RichText id="label" width="100%" height="100%"/>
+</ms:PlayerModule>	

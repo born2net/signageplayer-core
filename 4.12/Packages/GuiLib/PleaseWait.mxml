@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:ms="*"
+		   width="246" height="80"
+	cornerRadius="15" borderColor="#1790E5" borderStyle="solid" alpha="1.0">
+	
+
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			import mx.managers.PopUpManager;
+			
+			private static var m_pleaseWait:PleaseWait = null;
+			
+			public static function Create(i_parent:UIComponent):void
+			{
+				if (m_pleaseWait==null)
+				{
+					m_pleaseWait = PleaseWait(PopUpManager.createPopUp(i_parent, PleaseWait, true));
+				}
+			}
+			
+			public static function Remove():void
+			{
+				if (m_pleaseWait!=null)
+				{
+					PopUpManager.removePopUp(m_pleaseWait);
+					m_pleaseWait = null;
+				}
+			}
+			
+			public static function Update(i_text:String):void
+			{
+				if (m_pleaseWait!=null)
+				{
+					m_pleaseWait.msg.text = i_text;
+				}
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				x = (parent.width-width)/2;
+				y = (parent.height-height)/2;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:Label x="17" y="12" id="caption" text="Please wait..." fontSize="24" color="0"/>
+	<s:Label x="17" y="55" width="217" id="msg" text="" fontSize="9" color="0"/>
+</s:BorderContainer>

@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx">
+
+
+	<fx:Script>
+		<![CDATA[
+			import flash.events.Event;
+			import flash.filesystem.File;
+			import flash.net.SharedObject;
+			import flash.net.URLLoader;
+			import flash.net.URLLoaderDataFormat;
+			import flash.net.URLRequest;
+			import flash.utils.ByteArray;
+			
+			import mx.core.UIComponent;
+			import mx.events.ModuleEvent;
+			import mx.rpc.events.FaultEvent;
+			
+			import spark.components.Label;
+			
+			private var m_moduleUrl:String;
+			private var m_fileName:String;
+			private var m_versionUrl:String;
+			
+			private var m_version:String = null;
+			
+			
+			private var m_urlStream:URLStream;
+			private var m_fileStream:FileStream;
+			
+			private var m_binaryLoader:URLLoader;
+			private var m_loader:Loader;
+			private var m_factory:IFlexModuleFactory;
+			private var m_uiComponent:UIComponent;
+			
+			private var m_msg:Label;
+			
+			
+			public function get moduleUrl():String
+			{
+				return m_moduleUrl;
+			}
+
+			public function set moduleUrl(i_moduleUrl:String):void
+			{
+				m_moduleUrl = i_moduleUrl;
+			}
+
+			public function get fileName():String
+			{
+				return m_fileName;
+			}
+			
+			public function set fileName(i_fileName:String):void
+			{
+				m_fileName = i_fileName;
+			}
+
+			public function get versionUrl():String
+			{
+				return m_versionUrl;
+			}
+			
+			public function set versionUrl(i_versionUrl:String):void
+			{
+				m_versionUrl = i_versionUrl;
+			}
+			
+			
+			
+			public function load():void
+			{
+				checkVersion();
+			}
+			
+
+			private function checkVersion():void
+			{
+				m_msg.text = "Checking internet connection…1";
+				var myXMLURL:URLRequest = new URLRequest(m_versionUrl);
+				var myLoader:URLLoader = new URLLoader(myXMLURL);
+				myLoader.addEventListener(Event.COMPLETE, onXmlLoaded);
+				myLoader.addEventListener(IOErrorEvent.IO_ERROR, onXmlFail);
+			}
+			
+			
+			private function onXmlLoaded(event:Event):void
+			{
+				var myLoader:URLLoader = event.target as URLLoader;
+				myLoader.removeEventListener(Event.COMPLETE, onXmlLoaded);
+				myLoader.removeEventListener(IOErrorEvent.IO_ERROR, onXmlFail);
+				var xml:XML = new XML(myLoader.data);
+				var qname:QName = new QName("http://ns.adobe.com/air/framework/update/description/2.5", "versionNumber");
+				m_version = xml.descendants(qname).toString();
+				
+				downloadModule();
+			}
+			
+			
+			private function onXmlFail(event:IOErrorEvent):void
+			{
+				var myLoader:URLLoader = event.target as URLLoader;
+				myLoader.removeEventListener(Event.COMPLETE, onXmlLoaded);
+				myLoader.removeEventListener(IOErrorEvent.IO_ERROR, onXmlFail);
+				
+				downloadModule();
+			}
+
+			
+			
+			private function downloadModule():void
+			{ 
+				var file:File = new File(m_fileName);
+				
+				var download:Boolean = false;
+				if (file.exists)
+				{
+					if (m_version!=null)
+					{
+						var modulesSharedObject:SharedObject = SharedObject.getLocal("modules", "/", false);
+						
+						var moduleKey:String = m_fileName;
+						var moduleData:Object = modulesSharedObject.data[moduleKey];
+						if (moduleData==null || moduleData.ver!=m_version)
+						{
+							download = true;
+						}
+					}
+				}
+				else
+				{
+					download = true;
+				}
+				
+				if (download)
+				{
+					downloadFile();
+				}
+				else
+				{
+					loadBinary();
+				}
+			} 		
+			
+			
+			private function downloadFile():void
+			{
+				var file:File = new File(m_fileName+".tmp");
+				if (file.exists)
+				{
+					try
+					{
+						file.deleteFile();	
+					}
+					catch(e:Error)
+					{
+						m_msg.text = "Error: file is locked";
+						return;
+					}
+				}
+				
+				
+				m_fileStream = new FileStream();
+				m_fileStream.open(file, FileMode.WRITE);
+				
+				
+				m_urlStream = new URLStream();
+				m_urlStream.addEventListener(IOErrorEvent.IO_ERROR, onIOError);
+				m_urlStream.addEventListener(ProgressEvent.PROGRESS, onProgress);
+				m_urlStream.addEventListener(Event.COMPLETE, completeHandler);
+				var request:URLRequest = new URLRequest(m_moduleUrl);
+				
+				
+				
+				m_urlStream.load(request);
+			}
+			
+			private function onIOError(event:IOErrorEvent):void
+			{
+				m_msg.text = "Checking internet connection…2";
+				
+				m_urlStream.removeEventListener(IOErrorEvent.IO_ERROR, onIOError);
+				m_urlStream.removeEventListener(ProgressEvent.PROGRESS, onProgress);
+				m_urlStream.removeEventListener(Event.COMPLETE, completeHandler);
+				m_fileStream.close();
+				m_urlStream.close();
+				
+				try
+				{
+					var file1:File = new File(m_fileName+".tmp");
+					if (file1.exists)
+					{
+						file1.deleteFile();	
+					}
+				}
+				catch(e:Error)
+				{
+					//
+				}
+				
+				
+				var file:File = new File(m_fileName);
+				
+				var download:Boolean = false;
+				if (file.exists)
+				{
+					loadBinary();	
+				}
+				else
+				{
+					downloadFile();  // retry
+				}
+			}
+			
+			private function onProgress(event:ProgressEvent):void
+			{
+				m_msg.text = "Downloading " + int(event.bytesLoaded * 100 / event.bytesTotal) + "%";
+				
+				var bytes:ByteArray = new ByteArray();
+				m_urlStream.readBytes(bytes, 0, 0);
+				m_fileStream.writeBytes(bytes, 0, 0);
+			}
+			
+			private function completeHandler(event:Event):void 
+			{
+				m_urlStream.removeEventListener(IOErrorEvent.IO_ERROR, onIOError);
+				m_urlStream.removeEventListener(ProgressEvent.PROGRESS, onProgress);
+				m_urlStream.removeEventListener(Event.COMPLETE, completeHandler);
+				m_fileStream.close();
+				m_urlStream.close();
+				try
+				{
+					var file1:File = new File(m_fileName+".tmp");
+					var file2:File = new File(m_fileName);
+					file1.moveTo(file2, true);
+				}
+				catch(error:Error)
+				{
+					m_msg.text = "completeHandler Error";
+					return;
+				}        	
+				
+				if (m_version!=null)
+				{
+					var modulesSharedObject:SharedObject = SharedObject.getLocal("modules", "/", false);
+					var moduleData:Object = new Object();
+					moduleData.ver = m_version;
+					var moduleKey:String = m_fileName;
+					modulesSharedObject.data[moduleKey] = moduleData;
+					modulesSharedObject.flush();
+				}
+				
+				loadBinary();
+			}
+
+			
+			private function loadBinary():void
+			{
+				m_binaryLoader = new URLLoader(); 
+				m_binaryLoader.addEventListener(Event.COMPLETE, onModuleLoaderComplete); 
+				m_binaryLoader.dataFormat = URLLoaderDataFormat.BINARY; 
+				m_binaryLoader.load(new URLRequest(m_fileName)); 		
+			}
+			
+			
+			private function onModuleLoaderComplete(event:Event) : void 
+			{ 
+				m_binaryLoader.removeEventListener(Event.COMPLETE, onModuleLoaderComplete); 
+				var moduleBytes : ByteArray = ByteArray(URLLoader(event.target).data); 
+				m_binaryLoader = null;
+				
+				var securityDomain:SecurityDomain = null;
+				var c:LoaderContext = new LoaderContext();
+				c.applicationDomain = ApplicationDomain.currentDomain;
+				c.securityDomain = securityDomain;
+				if (securityDomain == null && Security.sandboxType == Security.REMOTE)
+					c.securityDomain = SecurityDomain.currentDomain;
+				
+				
+				
+				// If the AIR flag is available then set it to true so we can
+				// load the module without a security error.
+				if ("allowLoadBytesCodeExecution" in c)
+					c["allowLoadBytesCodeExecution"] = true;			
+				
+				
+				m_loader = new Loader();
+				
+				
+				m_loader.contentLoaderInfo.addEventListener(Event.INIT, initHandler);
+				m_loader.contentLoaderInfo.addEventListener(ProgressEvent.PROGRESS, progressHandler);
+				m_loader.contentLoaderInfo.addEventListener(IOErrorEvent.IO_ERROR, errorHandler);
+				m_loader.contentLoaderInfo.addEventListener(SecurityErrorEvent.SECURITY_ERROR, errorHandler);
+				
+				
+				
+				if (moduleBytes!=null)
+				{
+					if ("allowLoadBytesCodeExecution" in c)
+						c["allowLoadBytesCodeExecution"] = true;				
+					m_loader.loadBytes(moduleBytes, c);
+				}
+			} 
+			
+			
+			
+			private function initHandler(event:Event):void
+			{
+				try
+				{
+					m_factory = m_loader.contentLoaderInfo.content as IFlexModuleFactory;
+					m_loader.content.addEventListener(ModuleEvent.READY, onModuleReady);
+					m_loader.content.addEventListener(ModuleEvent.ERROR, onModuleError);
+				}
+				catch(error:Error)
+				{
+					// ???
+				}
+			}
+			
+			protected function onModuleError(event:ModuleEvent) : void
+			{
+				m_loader.content.removeEventListener(ModuleEvent.READY, onModuleReady);
+				removeAllEvents();	
+			}		
+			
+			
+			private function removeAllEvents():void
+			{
+				m_loader.contentLoaderInfo.removeEventListener(Event.INIT, initHandler);
+				m_loader.contentLoaderInfo.removeEventListener(ProgressEvent.PROGRESS, progressHandler);
+				m_loader.contentLoaderInfo.removeEventListener(IOErrorEvent.IO_ERROR, errorHandler);
+				m_loader.contentLoaderInfo.removeEventListener(SecurityErrorEvent.SECURITY_ERROR, errorHandler);
+			}			
+			
+			private function progressHandler(event:ProgressEvent):void
+			{
+			}
+			
+			
+			private function errorHandler(event:ErrorEvent):void
+			{
+				removeAllEvents();
+			}			
+			
+			private function onModuleReady(event:Event):void
+			{
+				m_loader.content.removeEventListener(ModuleEvent.READY, onModuleReady);
+				removeAllEvents();
+				
+				
+				m_uiComponent = m_factory.create() as UIComponent;
+				if (m_uiComponent!=null)
+				{
+					removeMsg();
+					m_uiComponent.percentHeight = 100;
+					m_uiComponent.percentWidth = 100;
+					cmp.addChild(m_uiComponent);
+					invalidateDisplayList();
+				}
+			}
+			
+			
+			public function writeMsg(i_msg:String):void
+			{
+				if (m_msg==null)
+				{
+					m_msg = new Label();
+					m_msg.setStyle("verticalCenter", 0);
+					m_msg.setStyle("horizontalCenter", 0);
+					m_msg.setStyle("color", 0xffffff);
+					addElement(m_msg);
+				}
+				m_msg.text = i_msg;
+			}
+			
+			public function removeMsg():void
+			{
+				if (m_msg!=null)
+				{
+					if (containsElement(m_msg))
+					{
+						removeElement(m_msg);
+					}
+					m_msg = null;
+				}
+			}
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (m_uiComponent!=null)
+				{
+					cmp.width = width;
+					cmp.height = height;
+					
+					m_uiComponent.width = width;
+					m_uiComponent.height = height;
+				}
+				
+			}
+		]]>
+	</fx:Script>
+	<mx:UIComponent id="cmp" width="100%" height="100%"/>
+</s:Group>

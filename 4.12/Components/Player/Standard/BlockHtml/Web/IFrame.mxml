@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:ms="*" 
+    render="callLater(onRender)">
+
+
+    <fx:Script>
+    	<![CDATA[
+    		import mx.events.FlexEvent;
+
+    	
+    
+	        private var m_source: String;
+	        private var m_id:int = (new Date().time % 1000000);
+	        
+	        
+	
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				ExternalInterface.call( "craeteIFrame", m_id );
+			}
+			
+			public function dispose():void
+			{
+				ExternalInterface.call( "distroyIFrame", m_id );
+			}
+			
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				ExternalInterface.call( "loadIFrame", m_id, m_source );
+				moveIFrame();
+			}
+			
+			private var a:int = 0;
+			private function onRender():void
+			{
+				trace("render"+(a++));
+				moveIFrame();
+			}
+			
+	        public function moveIFrame(): void 
+	        {
+	            var pt:flash.geom.Point= new Point(0,0);
+	            pt = this.localToGlobal(pt);            
+	            ExternalInterface.call( "moveIFrame", m_id, pt.x, pt.y, this.width, this.height );
+	        }
+	
+	        public function set source(i_source: String): void 
+	        {
+	            m_source = i_source;
+	            invalidateProperties();                
+	        }
+	
+	        public function get source(): String 
+	        {
+	            return m_source;
+	        }
+	
+	        override public function  set visible(visible: Boolean): void 
+	        {
+	            super.visible=visible;
+	            
+	            if (visible) 
+	            {
+	                moveIFrame();
+	                ExternalInterface.call( "showIFrame", m_id);
+	            }
+	            else
+	            {
+	                ExternalInterface.call( "setIFrameContent", m_id, "about:blank" );           
+	                ExternalInterface.call( "hideIFrame", m_id );
+	            }
+	        }
+		]]>
+    </fx:Script>
+
+</s:BorderContainer>

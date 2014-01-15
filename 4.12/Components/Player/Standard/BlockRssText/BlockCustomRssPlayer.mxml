@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:BlockRssPlayer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:ms="*"
+	implements="ICustomRssProvider">
+	  
+	<fx:Script>
+		<![CDATA[
+			private var m_playerLoaderService:IPlayerLoaderService;
+			private var m_playerTransitionService:IPlayerTransitionService;
+			
+
+			private var m_hPlayerData:int = -1;
+			
+			private var m_itemInterval:Number = 5;
+			private var m_timer:Timer;
+			private var m_time:Number = 0;
+			private var m_startTime:Number = 0;
+			
+			private var m_playerTransition:IPlayerTransition;
+			
+			public override function initModule():void
+			{
+				super.initModule();
+				m_playerLoaderService = m_framework.ServiceBroker.QueryService("PlayerLoaderService") as IPlayerLoaderService;
+				m_playerTransitionService = m_framework.ServiceBroker.QueryService("PlayerTransitionService") as IPlayerTransitionService;
+				m_rssService = m_framework.ServiceBroker.QueryService("RssService") as IRssService;
+				m_timer = new Timer(m_itemInterval * 1000); 
+				m_timer.addEventListener(TimerEvent.TIMER, onTimer);
+			}
+			
+			public override function clear():void
+			{
+				super.clear();
+			}
+
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+
+				if (XMLList(i_data.Rss.CustomRss).length()>0)
+				{
+					hPlayerData = i_data.Rss.CustomRss.Player.@hDataSrc;
+					//???m_playerDataId = i_data.Rss.CustomRss.Player.@src;
+					m_itemInterval = int(i_data.Rss.CustomRss.@itemInterval);
+					if (m_itemInterval==0)
+						m_itemInterval = 5;
+					m_timer.delay = m_itemInterval * 1000;	
+				}
+			}
+			
+			public override function save():XML
+			{
+				var xmlRss:XML = super.save();
+				
+				//???var recPlayerData:Rec_player_data = m_dataBaseManager.table_player_data.getRecord(m_hPlayerData);
+				//???m_playerDataId = recPlayerData.native_id;
+				//???  src={m_playerDataId}
+				var xmlCustomRss:XML = <CustomRss>
+										<Player hDataSrc={m_hPlayerData} />
+									</CustomRss>;
+				xmlCustomRss.@url = m_rssUrl;
+				xmlCustomRss.@itemInterval = m_itemInterval;
+				xmlRss.appendChild(xmlCustomRss);
+				return xmlRss; 
+			}   
+			
+			public override function start():void
+			{
+				super.start();
+				m_startTime = 0;
+				m_time = 0;
+				m_timer.start();
+			} 
+
+			public override function stop():void
+			{
+				super.stop();
+			} 
+								
+			public override function onFrame(i_time:Number):void
+			{
+				super.onFrame(i_time);
+				m_time = i_time;
+				if (m_playerTransition!=null)
+				{
+					m_playerTransition.tick(i_time - m_startTime);
+				}
+			}					
+								
+			public override function get propertyPages():Array
+			{
+				return [BlockCustomRssPage];
+			}
+			
+			public function get hPlayerData():int
+			{
+				return m_hPlayerData;
+			}
+			
+			public function set hPlayerData(i_hPlayerData:int):void
+			{
+				m_playerLoader.modified = true;
+				m_hPlayerData = i_hPlayerData;
+				//??? var recPlayerData:Rec_player_data = m_dataBaseManager.table_player_data.getRecord(m_hPlayerData);
+				//??? m_playerDataId = recPlayerData.native_id;
+				invalidateProperties();
+			}
+			
+			public function get itemInterval():Number
+			{
+				return m_itemInterval;
+			}
+			
+			public function set itemInterval(i_itemInterval:Number):void
+			{
+				m_playerLoader.modified = true;
+				m_itemInterval = i_itemInterval;
+				m_timer.delay = m_itemInterval * 1000;
+			}
+			
+			public function getRssItem():IRssItem
+			{ 
+				if (m_embeddedRssCollection!=null)
+				{
+					if (m_ItemIndex!=-1)
+					{
+						var xmlItem:XML = m_items[m_ItemIndex];
+						var rssItem:IRssItem = new EmbeddedItem(xmlItem);
+						return rssItem;
+					}
+				}	
+				else if (m_rssRequest!=null)
+				{
+					return m_rssRequest.getItemAt(m_ItemIndex);
+				}	
+				return null; 
+			}
+			
+			private function nextItem():void
+			{
+				if (m_embeddedRssCollection!=null)
+				{
+					if (m_ItemIndex<m_items.length()-1)
+					{
+						m_ItemIndex++;	
+					}
+					else
+					{
+						m_ItemIndex = 0;
+					}
+				}
+				else if (m_rssRequest!=null && m_rssRequest.getItemCount()!=0)
+				{
+					if (m_ItemIndex<m_rssRequest.getItemCount()-1)
+					{
+						m_ItemIndex++;	
+					}
+					else
+					{
+						m_ItemIndex = 0;
+					}
+					
+					if (m_ItemIndex>=m_rssRequest.getItemCount())
+					{
+						requestRss();
+					}
+				} 
+				invalidateProperties();
+			}
+
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_playerTransition = m_playerTransitionService.createPlayerTransition(container);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_hPlayerData==-1)
+				{
+					showBlockInfo("[No scene assigned]");
+					return;
+				}
+				
+				if (m_playerTransition==null)
+					return;
+				
+				showBlockInfo(null);
+				var xmlPlayer:XML = <Player />;
+				xmlPlayer.@hDataSrc = m_hPlayerData;
+				//??? xmlPlayer.@src = m_playerDataId;
+				m_playerTransition.load(xmlPlayer, 0);
+				if (m_playerTransition.playerLoader.player!=null)
+				{
+					IProviderItem(m_playerTransition.playerLoader.player).setDataProvider(this);
+					m_startTime = m_time;
+					m_playerTransition.playerLoader.start();
+				}
+				else
+				{
+					showBlockInfo("[No scene assigned]");  // as a result of deleted scene.
+				}
+				
+			}
+			
+			protected override function invalidateRss():void
+			{
+				m_ItemIndex = 0;
+				onResize();
+				invalidateProperties();
+			}
+			
+			 
+			private function onTimer(event:TimerEvent):void
+			{
+				nextItem();
+			}
+
+			private function onResize():void
+			{
+				if (m_playerTransition!=null)
+				{
+					m_playerTransition.updateDisplayList(unscaledWidth, unscaledHeight);
+					invalidateProperties();
+				}
+			}
+			
+		    protected override function onDispose():void
+		    {
+		    	super.onDispose();
+		    	if (m_playerTransition!=null)
+		    	{
+		    		m_playerTransition.clean();
+		    		m_playerTransition = null;
+		    	}
+				m_timer.removeEventListener(TimerEvent.TIMER_COMPLETE, onTimer);
+		    }
+		]]>
+	</fx:Script>	
+	<s:BorderContainer id="container" width="100%" height="100%" resize="onResize()" backgroundAlpha="0"
+					   borderVisible="false"/>
+</ms:BlockRssPlayer>	

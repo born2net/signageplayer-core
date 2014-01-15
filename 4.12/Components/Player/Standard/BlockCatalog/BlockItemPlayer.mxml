@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+	implements="IProviderItem">
+	 
+	<fx:Script>  
+		<![CDATA[
+			private var m_styleService:IStyleService;
+			private var m_field:String = CatalogField.ITEM_NAME;
+			private var m_catalogItemProvider:ICatalogItemProvider;
+
+			private var m_fontItem:IFontItem;
+			private var m_faces:Object = new Object();
+			private var m_invalidateItem:Boolean = false;
+			
+			
+			/************************************/
+			/* implements IProviderItem			*/
+			/************************************/	
+			public function setDataProvider(i_dataProvider:IDataProvider, i_providerItem:String=null):void
+			{
+				m_catalogItemProvider = i_dataProvider as ICatalogItemProvider;
+				invalidateItem();
+			}
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.CatalogItem).length()>0)
+				{
+					m_field 		= i_data.CatalogItem.@field;
+					if (m_field!=CatalogField.ITEM_RESOURCE_MAIN)
+					{  
+						if (XMLList(i_data.CatalogItem.Font).length()>0)
+						{
+							m_fontItem.load(i_data.CatalogItem.Font[0]);
+						}
+					}
+					else
+					{
+						m_invalidateItem = true;
+					}
+				}
+				
+				invalidateItem(); 
+			}
+			
+			public override function save():XML
+			{
+				var xmlCatalogItem:XML = <CatalogItem field={m_field} />;
+				if (m_field!=CatalogField.ITEM_RESOURCE_MAIN)
+				{  
+					xmlCatalogItem.appendChild( m_fontItem.save() );
+				}
+				return xmlCatalogItem;
+			}   
+			
+			public override function start():void
+			{
+				super.start();
+				invalidateItem();
+			}
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockCatalogItemPage];
+			}
+			
+			 
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+				m_fontItem = m_styleService.createFontItem();
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+
+			public function get field():String
+			{
+				return m_field;
+			}			
+			
+			public function set field(i_field:String):void
+			{
+				m_playerLoader.modified = true;
+				m_field = i_field;
+				invalidateItem();
+			}		
+
+
+			
+			public function set fontItem(i_fontItem:IFontItem):void
+			{
+				m_playerLoader.modified = true;
+				m_fontItem = i_fontItem;
+				invalidateItem();				
+			}
+
+			public function get fontItem():IFontItem
+			{		
+				return m_fontItem;
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateItem)
+				{
+					m_invalidateItem = false;
+				
+					var text:String = null;
+					
+					if (m_catalogItemProvider==null)
+					{
+						var blockInfo:String = null;
+						
+						switch(m_field)
+						{
+							case CatalogField.ITEM_NAME:
+								text = "name";
+								break;
+							case CatalogField.ITEM_INFO0:
+								text = "info 0";
+								break;
+							case CatalogField.ITEM_INFO1:
+								text = "info 1";
+								break;
+							case CatalogField.ITEM_INFO2:
+								text = "info 2";
+								break;
+							case CatalogField.ITEM_INFO3:
+								text = "info 3";
+								break;
+							case CatalogField.ITEM_RESOURCE_MAIN:
+								text = "resource";
+								break;
+						}
+						showBlockInfo(blockInfo);
+					}
+					else
+					{	
+						switch(m_field)
+						{				
+							case CatalogField.ITEM_NAME:
+								text = m_catalogItemProvider.getName();
+								break;
+							case CatalogField.ITEM_INFO0:
+								text = m_catalogItemProvider.getInfo(0);
+								break;
+							case CatalogField.ITEM_INFO1:
+								text = m_catalogItemProvider.getInfo(1);
+								break;
+							case CatalogField.ITEM_INFO2:
+								text = m_catalogItemProvider.getInfo(2);
+								break;
+							case CatalogField.ITEM_INFO3:
+								text = m_catalogItemProvider.getInfo(3);
+								break;
+							case CatalogField.ITEM_RESOURCE_MAIN:
+								var resUrl:String = m_catalogItemProvider.getResourcePath();
+								var resType:String = m_catalogItemProvider.getResourceType();
+								if (resUrl!=null && resType!=null)
+								{
+									resourceViewer.setResource(resUrl, resType, false, false);
+								}
+								break;
+						}
+					}
+				}
+				
+				if (text!=null)
+				{
+					label.visible = true;
+					resourceViewer.visible  = false;
+					resourceViewer.clear();
+					m_fontItem.applyStyles(label);
+					label.text = text;
+				}
+				else
+				{
+					label.visible = false;
+					resourceViewer.visible  = true;
+				}
+			}
+			
+			
+			private function invalidateItem():void
+			{
+				if (m_field==CatalogField.ITEM_RESOURCE_MAIN)
+				{
+					m_invalidateItem = true;
+					
+					invalidateProperties();
+				}
+				else
+				{
+					m_faces = new Object();
+					var face:String = m_fontItem.fontFamily;
+					m_faces[face] = face;
+					if (m_styleService.fontsCompleted(m_faces))
+					{
+						m_invalidateItem = true;
+						invalidateProperties();
+					}
+					else
+					{
+						m_styleService.addEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					}
+				}
+			}
+			
+			private function onStyleComplete(event:ServiceStyleEvent):void
+			{
+				if (m_styleService.fontsCompleted(m_faces))
+				{
+					m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					m_invalidateItem = true;
+					invalidateItem();
+				}
+			}
+			
+			
+			
+			protected override function onDispose():void
+			{
+				super.onDispose(); 
+				resourceViewer.clear();
+				m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+			}
+			
+		]]>
+	</fx:Script>	
+
+    <ms:ResourceViewer id="resourceViewer" 
+    	top="0" bottom="0" left="0" right="0" maintainAspectRatio="false" 
+		showProgressBar="false"/>
+	<s:RichText id="label" visible="false" 
+		top="0" bottom="0" left="0" right="0"/>
+</ms:PlayerModule>	

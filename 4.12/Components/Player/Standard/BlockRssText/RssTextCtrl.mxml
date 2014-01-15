@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:ms="*"
+	width="100%" height="300">
+	<fx:Script>
+		<![CDATA[
+			private var m_playerLoader:IPlayerLoader;
+			
+			
+			public function init(i_playerLoader:IPlayerLoader):void
+			{
+				m_playerLoader = i_playerLoader;
+				invalidateProperties();
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				titleFontCtrl.addEventListener(FontCtrl.FONT_CHANGED, onTitleFontChanged);
+				descriptionFontCtrl.addEventListener(FontCtrl.FONT_CHANGED, onDescriptionFontChanged);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				speed.value = BlockRssTextPlayer(m_playerLoader.player).speed;
+				scrollDirection.selectedIndex = BlockRssTextPlayer(m_playerLoader.player).vertical ? 1 : 0;
+				textDirection.selectedIndex = BlockRssTextPlayer(m_playerLoader.player).rtl ? 1 : 0;
+				titleFontCtrl.fontItem = BlockRssTextPlayer(m_playerLoader.player).titleFontItem;
+				descriptionFontCtrl.fontItem = BlockRssTextPlayer(m_playerLoader.player).descriptionFontItem;
+				descriptionFontCtrl.enabled = labelDescription.enabled = BlockRssTextPlayer(m_playerLoader.player).vertical;
+			}
+			
+			
+     		private function onScrollDirection():void
+     		{
+     			if (m_playerLoader.player==null)
+     				return;
+     			BlockRssTextPlayer(m_playerLoader.player).vertical = (String(scrollDirection.selectedItem.@value)=="1");
+     			descriptionFontCtrl.enabled = labelDescription.enabled = BlockRssTextPlayer(m_playerLoader.player).vertical;
+     		}
+     		
+			private function onSpeed(event:Event):void
+			{
+				BlockRssTextPlayer(m_playerLoader.player).speed = speed.value;
+			}
+			
+			
+			private function onTextDirection():void
+			{
+     			BlockRssTextPlayer(m_playerLoader.player).rtl = (String(textDirection.selectedItem.@value)=="1");
+			}   
+			
+			private function onTitleFontChanged(event:Event):void
+			{
+				BlockRssTextPlayer(m_playerLoader.player).titleFontItem = titleFontCtrl.fontItem;
+			} 
+
+			private function onDescriptionFontChanged(event:Event):void
+			{
+				BlockRssTextPlayer(m_playerLoader.player).descriptionFontItem = descriptionFontCtrl.fontItem;
+			}
+
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<fx:XMLList id="scrollDirectionList">		
+				<Day 
+					label="{resourceManager.getString('player', 'rss.horizontal')}" 
+					value="0"/>
+				<Day 
+					label="{resourceManager.getString('player', 'rss.vertical')}"
+					value="1"/>
+		</fx:XMLList>
+		<fx:XMLList id="textDirectionList">		
+				<Day 
+					label="{resourceManager.getString('player', 'rss.LTR')}" 
+					value="0"/>
+				<Day 
+					label="{resourceManager.getString('player', 'rss.RTL')}"
+					value="1"/>
+		</fx:XMLList>
+	</fx:Declarations>
+	
+	<s:Form width="100%">
+		<s:FormItem width="100%"
+			label="{resourceManager.getString('player', 'rss.direction')}">
+			<s:DropDownList id="scrollDirection"  width="100%"
+					labelField="@label"
+					change="onScrollDirection()">
+				<s:dataProvider>
+					<s:XMLListCollection source="{scrollDirectionList}"/>
+				</s:dataProvider>
+			</s:DropDownList>
+		</s:FormItem>
+		<s:FormItem width="100%"
+			label="{resourceManager.getString('player', 'rss.textDirection')}">
+			<s:DropDownList id="textDirection"  width="100%"
+					labelField="@label"
+					change="onTextDirection()">
+				<s:dataProvider>
+					<s:XMLListCollection source="{textDirectionList}"/>
+				</s:dataProvider>
+			</s:DropDownList>			
+		</s:FormItem>
+		<s:FormItem width="100%"
+			label="{resourceManager.getString('player', 'rss.speed')}">
+			<s:HSlider id="speed" 
+				minimum="1" maximum="100" snapInterval="1"
+				change="onSpeed(event)" 
+				width="80" x="123" y="108"/>
+		</s:FormItem>
+	</s:Form>
+
+	<s:Label text="{resourceManager.getString('player', 'rss.titleFontCtrl')}" 
+			 paddingLeft="10"/>
+	<ms:FontCtrl id="titleFontCtrl" width="100%"/>
+	
+	<s:Label id="labelDescription" text="{resourceManager.getString('player', 'rss.descriptionFontCtrl')}" 
+			 paddingLeft="10"/>
+	<ms:FontCtrl id="descriptionFontCtrl" width="100%"/>
+	
+</s:VGroup>

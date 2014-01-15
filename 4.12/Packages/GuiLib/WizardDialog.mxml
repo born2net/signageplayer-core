@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				xmlns:ms="*" 
+				xmlns:ViewStack="ViewStack.*"
+	close="exit()"
+	width="514" height="420" >
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			import mx.core.UIComponent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.NavigatorContent;
+			import spark.events.IndexChangeEvent;
+			
+			private var m_closeHandler:Function;
+[Bindable]	private var m_xmlListCollection:XMLListCollection = new XMLListCollection();
+			
+			
+			public static function Create(i_parent:Sprite, i_title:String, i_closeHandler:Function):WizardDialog
+			{
+				var wizardDialog:WizardDialog = WizardDialog(PopUpManager.createPopUp(i_parent, WizardDialog, true));
+				PopUpManager.centerPopUp(wizardDialog);
+				wizardDialog.title = i_title;
+				wizardDialog.m_closeHandler = i_closeHandler;
+				return wizardDialog;
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				updateButtons();
+			}
+			
+			public function addPage(i_label:String, i_description:String, i_page:NavigatorContent):void
+			{
+				viewStack.addItem(i_page);
+				var xmlPage:XML = <Page/>
+				xmlPage.@label = i_label;
+				xmlPage.@description = i_description;
+				m_xmlListCollection.addItem(xmlPage);
+				
+				if (m_xmlListCollection.length==1)
+				{
+					viewStack.selectedIndex = 0;
+					list.selectedIndex = 0;
+				}
+				
+				updateButtons();
+			}
+			
+			public function getPage(i_index:int):NavigatorContent
+			{
+				return viewStack.getItemAt(i_index) as NavigatorContent;
+			}
+			
+			public function get selectedPageIndex():int
+			{
+				return viewStack.selectedIndex;
+			}
+
+			public function set selectedPageIndex(i_selectedPageIndex:int):void
+			{
+				list.selectedIndex = viewStack.selectedIndex = i_selectedPageIndex;
+				updateButtons();
+			}
+			
+			private function onFinish():void
+			{
+				m_closeHandler(true);
+				PopUpManager.removePopUp(this);
+			}
+			
+			private function exit():void
+			{
+				m_closeHandler(false);
+				PopUpManager.removePopUp(this);
+			}
+			
+			private function updateButtons():void
+			{
+				next.enabled = viewStack.selectedIndex < viewStack.numElements-1;
+				previous.enabled = viewStack.selectedIndex>0;
+				finish.enabled = viewStack.selectedIndex == viewStack.numElements-1;
+				if (list.selectedItem!=null)
+				{
+					caption.text = list.selectedItem.@label;
+					description.text = list.selectedItem.@description;
+				} 
+			}	
+			
+			private function onNext():void
+			{
+				viewStack.selectedIndex++;
+				list.selectedIndex = viewStack.selectedIndex;
+				updateButtons();	
+			}
+			
+			private function onPrevious():void
+			{
+				viewStack.selectedIndex--;
+				list.selectedIndex = viewStack.selectedIndex;
+				updateButtons();	
+			}
+			
+			private function onListChanged(event:IndexChangeEvent):void
+			{
+				viewStack.selectedIndex = list.selectedIndex;
+				updateButtons();	
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:Label id="caption" height="44" fontSize="18" left="10" right="322" top="10"/>
+	<s:TextArea id="description" left="180" right="10" y="10" width="304" height="40" minHeight="0"
+				editable="false"/>	
+	<s:List id="list" top="62" bottom="35" width="162" left="10"
+		labelField="@label" change="onListChanged(event)"
+		dataProvider="{m_xmlListCollection}"/>
+	<ViewStack:SparkViewStack id="viewStack"
+				  top="62" bottom="35" left="180" right="10"/>
+	<s:Button id="finish" label="Finish" bottom="5" right="82" width="70" click="onFinish()"/>
+	<s:Button label="Cancel" bottom="5" right="5" width="70" click="exit()"/>
+	<s:Button id="next" label="Next &gt;" width="70" right="159" bottom="5" click="onNext()"/>
+	<s:Button id="previous" label="&lt; Previous" width="90" right="235" bottom="5" click="onPrevious()"/>
+</s:TitleWindow>

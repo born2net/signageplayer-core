@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:SignagePlayerMobile xmlns:fx="http://ns.adobe.com/mxml/2009" 
+						   xmlns:s="library://ns.adobe.com/flex/spark" 
+						   xmlns:mx="library://ns.adobe.com/flex/mx"
+						   xmlns:ms="*"
+						   width="400" height="300">
+	<fx:Script>
+		<![CDATA[
+			protected override function createCampaignBoardPlayer():CampaignBoardPlayer
+			{
+				var campaignBoardPlayer:CampaignBoardPlayer =  new CampaignBoardPlayeriOS(m_framework);
+				return campaignBoardPlayer;
+			}
+			
+			protected override function createModuleService():ModuleService
+			{
+				var mobile:Boolean = (m_environment=="mobile");
+				return new ModuleServiceEmbedded(m_framework, m_applicationDomain, m_debug);
+			}
+			
+			protected override function createStyleService():StyleService
+			{
+				return new StyleServiceEmbedded(m_framework, false);
+			}
+			
+			public override function showMainPanel(i_show:Boolean):void
+			{
+				super.showMainPanel(i_show);
+				if (m_mainPanel.btnQuit!=null)
+				{
+					m_mainPanel.btnQuit.visible = false;
+					m_mainPanel.btnQuit.width=0;
+				}
+			}
+			
+		]]>
+	</fx:Script>
+</ms:SignagePlayerMobile>

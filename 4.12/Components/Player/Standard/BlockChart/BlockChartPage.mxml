@@ -1,0 +1,475 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"
+	label="{resourceManager.getString('player', 'chart.title')}"
+	width="100%" height="100%" xmlns:Menu="Menu.*" xmlns:Navigator="Navigator.*" xmlns:Layout="Layout.*" xmlns:Accordion="Accordion.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.collections.XMLListCollection;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			
+			import spark.events.GridEvent;
+			import spark.events.IndexChangeEvent;
+			 
+			
+[Bindable]  private var m_columnMenuCollection:XMLListCollection;
+			private var m_xmlInsertColumnAbove:XML;
+			private var m_xmlInsertColumnBelow:XML;
+			private var m_xmlDeleteColumn:XML;
+[Bindable]  private var m_rowMenuCollection:XMLListCollection;			
+			private var m_xmlInsertRowAbove:XML;
+			private var m_xmlInsertRowBelow:XML;
+			private var m_xmlDeleteRow:XML;
+			private var m_xmlEditCsv:XML;
+[Bindable]  private var m_seriesMenuCollection:XMLListCollection;
+			private var m_xmlInsertSeriesAbove:XML;
+			private var m_xmlInsertSeriesBelow:XML;
+			private var m_xmlDeleteSeries:XML;
+			private var m_csvEditor:CsvEditor;
+			private var m_csvDlg:OkCancelDlg;
+			
+[Bindable]  public var m_columnCollection:XMLListCollection;
+[Bindable]  public var m_rowCollection:XMLListCollection;
+[Bindable]  public var m_seriesCollection:XMLListCollection;
+			 
+			 
+			
+[Bindable]  public var m_chartTypes:ArrayCollection;
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				
+				initMenu();
+				
+				m_chartTypes = new ArrayCollection();
+				m_chartTypes.addItem( { label:resourceManager.getString('player', 'chart.dataGrid'),
+                						data:"state_dataGrid"} );
+                m_chartTypes.addItem( {	label:resourceManager.getString('player', 'chart.pie'),
+                  	data:"state_pieChart"} ); 
+                m_chartTypes.addItem( {	label:resourceManager.getString('player', 'chart.area'),
+                  	data:"state_areaChart"} );
+                m_chartTypes.addItem( { label:resourceManager.getString('player', 'chart.bar'),
+                  	data:"state_barChart"} );
+                m_chartTypes.addItem( {	label:resourceManager.getString('player', 'chart.column'),
+                  	data:"state_columnChart"} );
+                m_chartTypes.addItem( {	label:resourceManager.getString('player', 'chart.line'),
+                  	data:"state_lineChart"} );
+                m_chartTypes.addItem( {	label:resourceManager.getString('player', 'chart.plot'),
+                  	data:"state_plotChart"} );
+                m_chartTypes.addItem( {	label:resourceManager.getString('player', 'chart.bubble'),
+                  	data:"state_bubbleChart"} );
+                m_chartTypes.addItem( {	label:resourceManager.getString('player', 'chart.candlestick'),
+                  	data:"state_candlestickChart"} );
+                m_chartTypes.addItem( {	label:resourceManager.getString('player', 'chart.HLOC'),
+                  	data:"state_hlocChart"} );
+			}
+			 
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				
+				var blockChartPlayer:BlockChartPlayer = BlockChartPlayer(m_playerLoader.player); 
+				m_columnCollection = blockChartPlayer.columnCollection;
+				m_rowCollection = blockChartPlayer.rowCollection;
+				m_seriesCollection = new XMLListCollection(blockChartPlayer.series);
+				populateSeriesColumns();
+				buildDataHeader();
+				for each(var chartType:Object in m_chartTypes)
+				{
+					if (blockChartPlayer.chartType==chartType.data)
+					{
+						comboChartType.selectedItem = chartType; 
+						break;
+					}
+				}
+				
+				updateButtons();
+			}
+			
+			private function onChartType(event:IndexChangeEvent):void
+			{
+				var chartType:String = DropDownList(event.target).selectedItem.data;
+				BlockChartPlayer(m_playerLoader.player).chartType = chartType;
+				populateSeriesColumns();
+			}
+			
+			public function onEditCsv():void
+			{
+				m_csvEditor = new CsvEditor();
+				m_csvEditor.csvText = BlockChartPlayer(m_playerLoader.player).csvText;
+				m_csvDlg = OkCancelDlg.CreateDlg(
+					UIComponent(m_framework.StateBroker.GetState("topWindow")), 
+					"CSV Editor", m_csvEditor);
+				m_csvDlg.addEventListener("event_dialog_ok", onCsvOk);
+			}
+			
+			private function onCsvOk(event:Event):void
+			{
+				m_csvDlg.removeEventListener("event_dialog_ok", onCsvOk);
+				BlockChartPlayer(m_playerLoader.player).csvText = m_csvEditor.csvText;
+				BlockChartPlayer(m_playerLoader.player).populateSeries();
+				m_playerLoader.modified = true;
+				invalidateProperties();
+				m_csvEditor = null;
+				m_csvDlg = null;
+			}
+			
+			private function initMenu():void
+			{
+				m_columnMenuCollection = new XMLListCollection();
+			    m_xmlInsertColumnAbove = <Command label="" toolTip="Insert above" icon="insertAboveIcon" click="onInsertColumnAbove"/>;
+			    m_xmlInsertColumnBelow = <Command label="" toolTip="insert below" icon="insertBelowIcon" click="onInsertColumnBelow"/>;
+				m_xmlDeleteColumn = <Command id="del" label="" toolTip="Delete" icon="deleteIcon" click="onDeleteColumn"/>;
+				m_columnMenuCollection.addItem(m_xmlInsertColumnAbove);
+				m_columnMenuCollection.addItem(m_xmlInsertColumnBelow);
+				m_columnMenuCollection.addItem(m_xmlDeleteColumn);
+
+				m_rowMenuCollection = new XMLListCollection();
+			    m_xmlInsertRowAbove = <Command label="" toolTip="Insert above" icon="insertAboveIcon" click="onInsertRowAbove"/>;
+			    m_xmlInsertRowBelow = <Command label="" toolTip="insert below" icon="insertBelowIcon" click="onInsertRowBelow"/>;
+				m_xmlDeleteRow = <Command id="del" label="" toolTip="Delete" icon="deleteIcon" click="onDeleteRow"/>;
+				m_xmlEditCsv = <Command label="" toolTip="Edit csv" icon="importIcon" click="onEditCsv"/>;
+				m_rowMenuCollection.addItem(m_xmlInsertRowAbove);
+				m_rowMenuCollection.addItem(m_xmlInsertRowBelow);
+				m_rowMenuCollection.addItem(m_xmlDeleteRow);
+				m_rowMenuCollection.addItem(m_xmlEditCsv);
+
+				m_seriesMenuCollection = new XMLListCollection();
+			    m_xmlInsertSeriesAbove = <Command label="" toolTip="Insert above" icon="insertAboveIcon" click="onInsertSeriesAbove"/>;
+			    m_xmlInsertSeriesBelow = <Command label="" toolTip="insert below" icon="insertBelowIcon" click="onInsertSeriesBelow"/>;
+				m_xmlDeleteSeries = <Command id="del" label="" toolTip="Delete" icon="deleteIcon" click="onDeleteSeries"/>;
+				m_seriesMenuCollection.addItem(m_xmlInsertSeriesAbove);
+				m_seriesMenuCollection.addItem(m_xmlInsertSeriesBelow);
+				m_seriesMenuCollection.addItem(m_xmlDeleteSeries);
+			}
+			
+			// columns
+			
+			public function onInsertColumnAbove():void
+			{
+				insertColumnAt(columnGrid.selectedIndex);
+			}
+			
+			public function onInsertColumnBelow():void
+			{
+				insertColumnAt(columnGrid.selectedIndex+1);
+			}
+			
+			private function insertColumnAt(i_index:int):void
+			{
+				if (i_index<0)
+					return;
+				var xmlColumn:XML = <Column colName="C1"/>
+				m_columnCollection.addItemAt(xmlColumn, i_index);
+				buildDataHeader();
+			} 
+
+			public function onDeleteColumn():void
+			{
+				if (columnGrid.selectedIndex!=-1)
+				{
+					m_columnCollection.removeItemAt(columnGrid.selectedIndex);	
+				}
+				updateButtons();
+			}
+
+			// rows
+
+			public function onInsertRowAbove():void
+			{
+				insertRowAt(dataGrid.selectedIndex);
+			}
+			
+			public function onInsertRowBelow():void
+			{
+				insertRowAt(dataGrid.selectedIndex+1);
+			}
+			
+			private function insertRowAt(i_index:int):void
+			{
+				if (i_index<0)
+					return;
+				
+				var xmlRow:XML = <Row/>
+				m_rowCollection.addItemAt(xmlRow, i_index);
+			}
+
+			public function onDeleteRow():void
+			{
+				if (dataGrid.selectedIndex!=-1)
+				{
+					m_rowCollection.removeItemAt(dataGrid.selectedIndex);
+				}
+				updateButtons();
+			}
+			
+			// series
+			
+			public function onInsertSeriesAbove():void
+			{
+				insertSeriesAt(seriesGrid.selectedIndex);
+			}
+			
+			public function onInsertSeriesBelow():void
+			{
+				insertSeriesAt(seriesGrid.selectedIndex+1);
+			}
+			
+			private function insertSeriesAt(i_index:int):void
+			{
+				if (i_index<0)
+					return;
+				
+				var xmlSeries:XML = <Series/>
+				m_seriesCollection.addItemAt(xmlSeries, i_index);
+			}
+			
+			public function onDeleteSeries():void
+			{
+				if (seriesGrid.selectedIndex!=-1)
+				{
+					m_seriesCollection.removeItemAt(seriesGrid.selectedIndex);
+				}
+				updateButtons();
+			}
+			
+			/////
+			
+			private function buildDataHeader():void
+			{
+				var columns:Array = new Array();
+				for each(var xmlColumn:XML in m_columnCollection)
+				{
+					var dataGridColumn:GridColumn = new GridColumn();
+					dataGridColumn.dataField = "@" + xmlColumn.@colName;
+					dataGridColumn.headerText = xmlColumn.@colName;
+					columns.push(dataGridColumn);
+				} 
+				//M??? dataGrid.columns = columns;
+			}
+			
+			private function populateSeriesColumns():void
+			{
+				var blockChartPlayer:BlockChartPlayer = BlockChartPlayer(m_playerLoader.player);
+				seriesColLabel.visible 	= true;
+				seriesColField1.visible = true;
+				switch(blockChartPlayer.chartType)
+				{
+					case "state_dataGrid":
+						seriesColField2.visible = false;
+						seriesColField3.visible = false;
+						seriesColField4.visible = false;
+						seriesColLabel.headerText = resourceManager.getString('player', 'chart.headerText');
+						seriesColField1.headerText = "field";
+						break;
+					case "state_pieChart":
+						seriesColField2.visible = false;
+						seriesColField3.visible = false;
+						seriesColField4.visible = false;
+						seriesColLabel.headerText = resourceManager.getString('player', 'chart.displayText');	
+						seriesColField1.headerText = "field";
+						break;
+					case "state_areaChart":
+					case "state_columnChart":
+					case "state_lineChart":
+					case "state_plotChart":
+						seriesColField2.visible = false;
+						seriesColField3.visible = false;
+						seriesColField4.visible = false;
+						seriesColLabel.headerText = resourceManager.getString('player', 'chart.displayText');	
+						seriesColField1.headerText = resourceManager.getString('player', 'chart.yField');
+						break;
+					case "state_barChart":
+						seriesColField2.visible = false;
+						seriesColField3.visible = false;
+						seriesColField4.visible = false;
+						seriesColLabel.headerText = resourceManager.getString('player', 'chart.displayText'); 	
+						seriesColField1.headerText = resourceManager.getString('player', 'chart.xField');
+						break;
+					case "state_bubbleChart":
+						seriesColField2.visible = true;
+						seriesColField3.visible = true;
+						seriesColField4.visible = false;
+						seriesColLabel.headerText = resourceManager.getString('player', 'chart.displayText');	
+						seriesColField1.headerText = resourceManager.getString('player', 'chart.xField');
+						seriesColField2.headerText = resourceManager.getString('player', 'chart.yField');
+						seriesColField3.headerText = resourceManager.getString('player', 'chart.radiusField');
+						break;
+					case "state_candlestickChart" :
+					case "state_hlocChart":
+						seriesColField2.visible = true;
+						seriesColField3.visible = true;
+						seriesColField4.visible = true;
+						seriesColLabel.headerText = resourceManager.getString('player', 'chart.displayText');	
+						seriesColField1.headerText = resourceManager.getString('player', 'chart.openField');
+						seriesColField2.headerText = resourceManager.getString('player', 'chart.closeField');
+						seriesColField3.headerText = resourceManager.getString('player', 'chart.highField');
+						seriesColField4.headerText = resourceManager.getString('player', 'chart.lowField');
+						break;
+				}
+			}
+			
+			private function onColumnEdit(event:GridEvent):void
+			{
+				event.preventDefault();
+				//M??? columnGrid.editedItemRenderer.data.@colName = TextInput(columnGrid.itemEditorInstance).text;
+				//M??? columnGrid.destroyItemEditor();
+				//M??? columnGrid.dataProvider.notifyItemUpdate(columnGrid.editedItemRenderer);
+				buildDataHeader();
+				m_playerLoader.modified = true;
+			}
+			
+			private function onDataGridEdit(event:GridEvent):void
+			{
+				m_playerLoader.modified = true;
+			}
+
+			private function onSeriesGridEdit(event:GridEvent):void
+			{
+				BlockChartPlayer(m_playerLoader.player).populateSeries();
+				m_playerLoader.modified = true;
+			}
+
+			private function onColumnGridChanged(event:Event):void
+			{
+				columnGrid.editable = false;
+			}
+			
+			private function onColumnGridClicked(event:Event):void
+			{
+				columnGrid.editable = true;
+				updateButtons();
+			}
+			
+			private function onRowGridChanged(event:Event):void
+			{
+				dataGrid.editable = false;
+			}
+			
+			private function onRowGridClicked(event:Event):void
+			{
+				dataGrid.editable = true;
+				updateButtons();
+			}
+
+			
+			private function onSeriesGridChanged(event:Event):void
+			{
+				seriesGrid.editable = false;
+			}
+			
+			private function onSeriesGridClicked(event:Event):void
+			{
+				seriesGrid.editable = true;
+				updateButtons();
+			}
+			
+			private function updateButtons():void
+			{
+				m_xmlDeleteColumn.@enabled = (columnGrid.selectedIndex!=-1); 
+				m_xmlDeleteRow.@enabled = (dataGrid.selectedIndex!=-1);
+				m_xmlDeleteSeries.@enabled = (seriesGrid.selectedIndex!=-1)
+			}
+			
+		]]>
+	</fx:Script> 
+	<ms:layout>
+		<s:VerticalLayout/>
+	</ms:layout>
+	
+	<s:Form width="100%">
+		<s:FormItem label="{resourceManager.getString('player', 'chart.comboChartType')}">
+			<s:DropDownList id="comboChartType" width="150"
+							dataProvider="{m_chartTypes}"
+							change="onChartType(event)"/>
+		</s:FormItem>
+	</s:Form>
+	
+	<Accordion:SparkAccordion 
+		width="100%" height="100%" >
+		<s:NavigatorContent
+			label="{resourceManager.getString('player', 'chart.columns')}"
+			width="100%" height="100%">
+			<s:layout>
+				<s:VerticalLayout gap="0"/>
+			</s:layout>
+			<Menu:SparkToolBar callbackObj="{this}" dataProvider="{m_columnMenuCollection}" width="100%"/>
+					
+			 <!--M???
+			 itemEditEnd="onColumnEdit(event)"
+			 change="onColumnGridChanged(event)"
+			 -->
+			<s:DataGrid id="columnGrid" width="100%" height="100%" 
+						dataProvider="{m_columnCollection}"
+						x="10" y="10"
+						
+						click="onColumnGridClicked(event)"	 >
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn dataField="@colName" 
+									  headerText="{resourceManager.getString('player', 'chart.columnName')}"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>
+		</s:NavigatorContent>
+		
+		<s:NavigatorContent width="100%" height="100%"
+							label="{resourceManager.getString('player', 'chart.series')}">
+			<s:layout>
+				<s:VerticalLayout gap="0"/>
+			</s:layout>
+			<Menu:SparkToolBar left="100" 
+					callbackObj="{this}" dataProvider="{m_seriesMenuCollection}" width="100%"/>
+			<!--M???
+			itemEditEnd="onSeriesGridEdit(event)"
+			change="onSeriesGridChanged(event)" 
+			-->
+			<s:DataGrid id="seriesGrid" width="100%" height="100%" 
+						dataProvider="{m_seriesCollection}"
+						x="10" y="10"
+						
+						click="onSeriesGridClicked(event)"	 >
+				
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn id="seriesColLabel" dataField="@label"/>
+						<s:GridColumn id="seriesColField1" dataField="@field1"/>
+						<s:GridColumn id="seriesColField2" dataField="@field2"/>
+						<s:GridColumn id="seriesColField3" dataField="@field3"/>
+						<s:GridColumn id="seriesColField4" dataField="@field4"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>
+		</s:NavigatorContent>
+		
+		<s:NavigatorContent width="100%" height="100%"
+							label="{resourceManager.getString('player', 'chart.data')}">
+			<s:layout>
+				<s:VerticalLayout gap="0"/>
+			</s:layout>
+			<Menu:SparkToolBar callbackObj="{this}" dataProvider="{m_rowMenuCollection}" width="100%"/>
+			<!--M???
+			itemEditEnd="onDataGridEdit(event)"
+			change="onRowGridChanged(event)" 
+			-->
+			<s:DataGrid id="dataGrid" x="10" y="10" width="100%" height="100%" 
+						dataProvider="{m_rowCollection}"
+						click="onRowGridClicked(event)"	 >
+			</s:DataGrid>
+		</s:NavigatorContent>
+	</Accordion:SparkAccordion>
+	
+</ms:PlayerPage>	
+

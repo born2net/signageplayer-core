@@ -1,0 +1,399 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:ms="*"
+		 left="0" right="0" top="0" bottom="0"
+		 height="500" width="600"
+		 clipAndEnableScrolling="true">
+	
+	<fx:Script>
+		<![CDATA[ 
+			import Controls.ProgressBar;
+			
+			import mx.controls.SWFLoader;
+			import mx.events.DragEvent;
+			
+			import org.osmf.events.MediaPlayerStateChangeEvent;
+			import org.osmf.events.TimeEvent;
+			import org.osmf.layout.ScaleMode;
+			import org.osmf.media.MediaPlayerState;
+			
+			import spark.components.VideoDisplay;
+			import spark.modules.ModuleLoader;
+			
+			private var m_videoDisplay:VideoDisplay;
+			private var m_swfLoader:SWFLoader;
+			private var m_trustLoader:TrustLoader;
+			private var m_moduleLoader:ModuleLoader;
+			private var m_sound:Sound;
+			private var m_soundChannel:SoundChannel;
+			
+			private var m_showProgressBar:Boolean = true;
+			private var m_progressBar:ProgressBar = null;
+			private var m_url:String;
+			private var m_resourceType:String;
+			private var m_trust:Boolean = false;
+			private var m_maintainAspectRatio:Boolean = true;
+			
+			
+			public function get showProgressBar():Boolean
+			{
+				return m_showProgressBar;
+			}
+			
+			public function set showProgressBar(i_showProgressBar:Boolean):void
+			{
+				m_showProgressBar = i_showProgressBar;
+			}
+
+			
+			
+			public function get videoDisplay():VideoDisplay
+			{
+				return m_videoDisplay;
+			}
+			
+			public function get swfLoader():SWFLoader
+			{
+				return m_swfLoader;
+			}
+			
+			
+			public function get trustLoader():TrustLoader
+			{
+				return m_trustLoader;
+			}
+			
+			public function get maintainAspectRatio():Boolean
+			{
+				return m_maintainAspectRatio;
+			}
+			
+			public function set maintainAspectRatio(i_maintainAspectRatio:Boolean):void
+			{
+				m_maintainAspectRatio = i_maintainAspectRatio;
+				if (m_videoDisplay!=null)
+				{
+					m_videoDisplay.scaleMode = m_maintainAspectRatio ? ScaleMode.LETTERBOX : ScaleMode.STRETCH;
+				}
+				else if (m_swfLoader!=null)
+				{
+					m_swfLoader.maintainAspectRatio = m_maintainAspectRatio;
+				}
+			}
+			
+			public function clear():void
+			{
+				m_url =  null;
+				if (m_videoDisplay!=null)
+				{
+					m_videoDisplay.removeEventListener(MediaPlayerStateChangeEvent.MEDIA_PLAYER_STATE_CHANGE, onVideoStateChange);
+					m_videoDisplay.removeEventListener(ProgressEvent.PROGRESS, onLoadProgress);
+					m_videoDisplay.removeEventListener(org.osmf.events.TimeEvent.COMPLETE, onVideoFinish)
+					/*???!!!
+					if (m_videoDisplay.playing || m_videoDisplay.state==mx.events.VideoEvent.BUFFERING) // Fix exception.
+					{
+					m_videoDisplay.stop();
+					}
+					m_videoDisplay.close();
+					*/
+					
+					try
+					{
+						m_videoDisplay.stop();
+						m_videoDisplay.source = null; // somtimes throw Exception: spark.components::VideoDisplay/cleanUpSource (Bug 966)
+						m_videoDisplay.validateNow();
+					}
+					catch(error:Error)
+					{
+						// Ignore 
+					}
+					
+					if (containsElement(m_videoDisplay))
+					{
+						removeElement(m_videoDisplay);
+					}
+					m_videoDisplay = null;
+				}
+				if (m_swfLoader!=null)
+				{    
+					m_swfLoader.removeEventListener(Event.COMPLETE, onLoadComplete);
+					m_swfLoader.removeEventListener(ProgressEvent.PROGRESS, onLoadProgress);
+					m_swfLoader.unloadAndStop(false);
+					m_swfLoader.validateNow();
+					if (containsElement(m_swfLoader))
+					{
+						removeElement(m_swfLoader);
+					}
+					
+					m_swfLoader = null;
+				}
+				
+				if (m_progressBar!=null)
+				{
+					if (containsElement(m_progressBar))
+					{
+						removeElement(m_progressBar);
+					}
+					m_progressBar = null;
+				}
+				
+				if (m_trustLoader!=null)
+				{
+					m_trustLoader.unloadAndStop(false);
+					if (containsElement(m_trustLoader))
+					{
+						removeElement(m_trustLoader);
+					}
+					m_trustLoader = null;
+				}
+				if (m_moduleLoader!=null)
+				{
+					m_moduleLoader.unloadModule();
+					m_moduleLoader = null;
+				}
+				
+				if (m_sound!=null)
+				{
+					if (m_soundChannel!=null)
+					{
+						m_soundChannel.stop();
+						m_soundChannel = null;
+					}
+					m_sound = null;
+				}
+			}
+			
+			public function setResource(i_url:String, i_ext:String, i_module:Boolean, i_trust:Boolean):void
+			{ 
+				m_url = i_url;
+				m_trust = i_trust;
+				
+				switch(i_ext)
+				{
+					case "flv":
+					case "mp4":
+					case "m4v":
+					case "mov":
+					case "3gp":
+					case "mpg":
+						m_resourceType = "video";
+						break;
+					case "jpg":
+					case "jpeg":
+					case "gif":
+					case "png":
+					case "swf":
+						m_resourceType = i_module ? "module" : "swf";
+						break;
+					case "mp3":
+						m_resourceType = "sound";
+						break; 		
+				}
+				
+				
+				if (m_url==null)
+					return;
+				
+				switch(m_resourceType)
+				{
+					case "video":
+						m_videoDisplay = new VideoDisplay();
+						m_videoDisplay.addEventListener(MediaPlayerStateChangeEvent.MEDIA_PLAYER_STATE_CHANGE, onVideoStateChange);
+						m_videoDisplay.addEventListener(ProgressEvent.PROGRESS, onLoadProgress);
+						m_videoDisplay.addEventListener(org.osmf.events.TimeEvent.COMPLETE, onVideoFinish)
+						m_videoDisplay.source = m_url;
+						m_videoDisplay.scaleMode = m_maintainAspectRatio ? ScaleMode.LETTERBOX : ScaleMode.STRETCH;
+						m_videoDisplay.percentHeight=100;
+						m_videoDisplay.percentWidth = 100;
+						
+						if (m_showProgressBar)
+						{
+							m_progressBar = new ProgressBar();
+							m_progressBar.y = height/2;
+							m_progressBar.x = (width-100)/2;
+							m_progressBar.width = 100;
+						}
+						break;
+					
+					case "swf":
+						if (m_trust)
+						{
+							m_trustLoader = new TrustLoader();
+							m_trustLoader.source = m_url;
+							invalidateDisplayList();
+						}
+						else
+						{
+							m_swfLoader = new SWFLoader();
+							
+							m_swfLoader.percentHeight=100;
+							m_swfLoader.percentWidth = 100; 
+							m_swfLoader.cacheAsBitmap=true;
+							m_swfLoader.maintainAspectRatio = m_maintainAspectRatio;
+							m_swfLoader.addEventListener(Event.COMPLETE, onLoadComplete);
+							
+							m_swfLoader.addEventListener(ProgressEvent.PROGRESS, onLoadProgress);
+							
+							
+							m_swfLoader.source = m_url;
+							
+							if (m_showProgressBar)
+							{
+								m_progressBar = new ProgressBar();
+								m_progressBar.y = height/2;
+								m_progressBar.x = (width-100)/2;
+								m_progressBar.width = 100;
+							}
+						}
+						break;
+					
+					case "module":
+						m_moduleLoader = new ModuleLoader();
+						m_moduleLoader.percentHeight=100;
+						m_moduleLoader.percentWidth = 100; 
+						m_moduleLoader.url = m_url;
+						break;
+					case "sound":
+						m_sound = new Sound();
+						m_sound.load( new URLRequest(m_url) );
+						m_soundChannel = m_sound.play();
+						break;	
+				}  
+				
+				invalidateProperties();
+			} 
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_videoDisplay!=null)
+				{
+					addElement(m_videoDisplay);
+				}
+				
+				if (m_swfLoader!=null)
+				{
+					addElement(m_swfLoader);
+				}
+				if (m_moduleLoader!=null)
+				{
+					addElement(m_moduleLoader);
+				}
+				if (m_trustLoader!=null)
+				{
+					addElement(m_trustLoader);
+				}
+				if (m_progressBar!=null)
+				{
+					addElement(m_progressBar);
+				}
+				
+			} 
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (m_trustLoader!=null)
+				{
+					m_trustLoader.width =  width;
+					m_trustLoader.height =  height;
+				}
+			}
+			
+			
+			private function onLoadProgress(event:ProgressEvent):void
+			{
+				if (m_progressBar!=null)
+				{
+					m_progressBar.value = event.bytesLoaded / event.bytesTotal;
+				}
+			}
+			
+			private function onVideoStateChange(event:MediaPlayerStateChangeEvent):void
+			{ 
+				if (event.state == MediaPlayerState.PLAYING)
+				{
+					
+					if (m_progressBar!=null)
+					{
+						if (containsElement(m_progressBar))
+						{
+							removeElement(m_progressBar);
+						}
+						m_progressBar = null;
+					} 
+					
+					
+					if (m_videoDisplay!=null)
+					{
+						m_videoDisplay.removeEventListener(MediaPlayerStateChangeEvent.MEDIA_PLAYER_STATE_CHANGE, onVideoStateChange);
+						m_videoDisplay.removeEventListener(ProgressEvent.PROGRESS, onLoadProgress);
+					}
+				}
+			}
+			
+			
+			private function onLoadComplete(event:Event):void
+			{
+				
+				if (m_progressBar!=null)
+				{
+					if (containsElement(m_progressBar))
+					{
+						removeElement(m_progressBar);
+					}
+					m_progressBar = null;
+				}
+				
+				if (m_swfLoader!=null)
+				{
+					m_swfLoader.removeEventListener(Event.COMPLETE, onLoadComplete);
+					m_swfLoader.removeEventListener(ProgressEvent.PROGRESS, onLoadProgress);
+				}
+			}
+			
+			private function onVideoFinish(event:org.osmf.events.TimeEvent):void
+			{
+				dispatchEvent( new org.osmf.events.TimeEvent(org.osmf.events.TimeEvent.COMPLETE) );   // Used by the BlockRssVideoPlayer
+			} 
+			
+			public function start():void
+			{
+				if (m_videoDisplay!=null)
+				{
+					m_videoDisplay.play(); 
+				}
+				if (m_swfLoader!=null)
+				{
+					m_swfLoader.source = m_url;
+				}
+			}
+			
+			public function stop():void
+			{
+				if (m_videoDisplay!=null)
+				{
+					m_videoDisplay.stop(); 
+				}
+				if (m_swfLoader!=null)
+				{
+					m_swfLoader.unloadAndStop(false);
+					m_swfLoader.validateNow();
+				}
+
+			}
+		]]>
+	</fx:Script>
+	
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	
+</s:Group>

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:GridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:ms="*"
+					clipAndEnableScrolling="true"
+					width="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			public override function prepare(hasBeenRecycled:Boolean):void 
+			{
+			}
+			
+			public override function discard(willBeRecycled:Boolean):void
+			{
+				
+			}
+			
+			private function ontypeChanged():void
+			{
+				data.@type = typeCombo.selectedItem.type;
+			}
+			
+			
+			public override function set data(value:Object):void
+			{
+				super.data = value;
+				if (data==null)
+					return;
+				
+				var itemType:String = data.@type;
+				for each(var item:Object in ArrayList(typeCombo.dataProvider).source)
+				{
+					if (item.type==itemType)
+					{
+						typeCombo.selectedItem = item;
+						break;
+					}
+				}
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:HorizontalLayout gap="20"/>
+	</s:layout>
+	
+	<s:DropDownList id="typeCombo" width="100%"
+					change="ontypeChanged()">
+		<s:dataProvider>
+			<s:ArrayList>
+				<fx:Object type="String" label="Text"/>
+				<fx:Object type="Email" label="Email"/>
+				<fx:Object type="Hidden" label="Hidden"/>
+			</s:ArrayList>
+		</s:dataProvider>
+	</s:DropDownList>
+</s:GridItemRenderer>
+
+

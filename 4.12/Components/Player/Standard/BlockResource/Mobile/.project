@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>BlockResourceMobile</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>com.adobe.flexbuilder.project.flexbuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
+			<name>com.adobe.flexbuilder.project.apollobuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>com.adobe.flexbuilder.project.apollonature</nature>
+		<nature>com.adobe.flexbuilder.project.flexnature</nature>
+		<nature>com.adobe.flexbuilder.project.actionscriptnature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>[source path] CachingService-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/CachingService/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Editor-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Editor/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Framework-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Framework/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] GuiLib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/GuiLib</location>
+		</link>
+		<link>
+			<name>[source path] GuiSpark</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/GuiSpark</location>
+		</link>
+		<link>
+			<name>[source path] Lib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Player/Lib</location>
+		</link>
+		<link>
+			<name>[source path] Player-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Player/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] PlayerService-Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/PlayerService/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Web</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Components/Player/Standard/BlockResource/Web</location>
+		</link>
+		<link>
+			<name>[source path] interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/interfaces</location>
+		</link>
+	</linkedResources>
+</projectDescription>

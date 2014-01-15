@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:ms="*"
+		 width="400" height="200"
+	implements="IDialog">
+	
+	<fx:Script>
+		<![CDATA[
+			private var m_okCancelDlg:OkCancelDlg;
+			private var m_framework:IFramework;
+		
+			public function setOkCancelDlg(i_okCancelDlg:OkCancelDlg):void
+			{
+				m_okCancelDlg = i_okCancelDlg;
+			}
+			
+			public function set framework(i_framework:IFramework):void
+			{
+				m_framework = i_framework;
+			}
+			
+			public function onOk():void
+			{
+				if (btnSync.selected)
+				{
+					m_framework.EventBroker.dispatchEvent( new Event(ReadyCtrl.SYNC_AND_PLAY_EVENT) );
+				}
+				else
+				{
+					m_framework.EventBroker.dispatchEvent( new Event(ReadyCtrl.START_EVENT) );
+				}
+				m_okCancelDlg.close();
+			}
+			
+			public function onCancel():void
+			{
+				m_okCancelDlg.close();
+			}
+			
+			public function onButton(i_name:String):void
+			{
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<s:CheckBox id="btnSync" x="10" y="10" label="Update station" selected="true"/>
+</s:Group>

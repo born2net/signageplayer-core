@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+	implements="IProviderItem">
+	 
+	<fx:Script> 
+		<![CDATA[
+			import mx.formatters.DateFormatter;
+			
+			private var m_weatherStyleId:int 		= 0;
+			private var m_field:String			= WeatherField.DAY_NAME;
+			private var m_day:int 				= -1; //-1=current, 0=Today, 1=Tomorow...
+							
+			private var m_styleService:IStyleService;							
+			private var m_rssWeatherProvider:IRssWeatherProvider;
+			
+			
+			private var m_fontItem:IFontItem;
+			private var m_faces:Object = new Object();
+			private var m_invalidateItem:Boolean = false;
+
+			
+			
+			/************************************/
+			/* implements IProviderItem			*/
+			/************************************/	
+			public function setDataProvider(i_dataProvider:IDataProvider, i_providerItem:String=null):void
+			{
+				m_rssWeatherProvider = i_dataProvider as IRssWeatherProvider;
+				invalidateItem();
+			}
+
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.WeatherItem).length()>0)
+				{
+					m_field 		= i_data.WeatherItem.@field;
+					m_day 			= i_data.WeatherItem.@day;
+					if (m_field==WeatherField.BITMAP || m_field==WeatherField.VECTOR)
+					{
+						m_field==WeatherField.IMAGE;
+					}					
+					if (m_field!=WeatherField.IMAGE)
+					{  
+						if (XMLList(i_data.WeatherItem.Font).length()>0)
+						{
+							m_fontItem.load(i_data.WeatherItem.Font[0]);
+						}
+					}
+				}
+				
+				if (XMLList(i_data.WeatherItem.WeatherStyle).length()>0)
+				{
+					m_weatherStyleId = int(i_data.WeatherItem.WeatherStyle.@id);
+				}
+				invalidateItem(); 
+			}
+			
+			public override function save():XML
+			{
+				var xmlWeatherItem:XML = <WeatherItem field={m_field} day={m_day} />;
+				if (m_field!=WeatherField.IMAGE)
+				{  
+					xmlWeatherItem.appendChild( m_fontItem.save() );
+				}
+				else
+				{
+					var xmlWeatherStyle:XML = <WeatherStyle/>;
+					xmlWeatherStyle.@id = m_weatherStyleId;
+					xmlWeatherItem.appendChild(xmlWeatherStyle);
+				}
+				return xmlWeatherItem;
+			}   
+			
+			public override function start():void
+			{
+				super.start();
+				invalidateItem();
+			}
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockItemWeatherPage];
+			}
+			
+			 
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_styleService = m_framework.ServiceBroker.QueryService("StyleService") as IStyleService;
+				
+				m_fontItem = m_styleService.createFontItem();
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			
+			public function get weatherStyleId():int
+			{
+				return m_weatherStyleId;
+			}			
+			
+			public function set weatherStyleId(i_weatherStyleId:int):void
+			{
+				m_playerLoader.modified = true;
+				m_weatherStyleId = i_weatherStyleId;
+				invalidateItem();
+			}		
+			
+			public function get field():String
+			{
+				return m_field;
+			}			
+			
+			public function set field(i_field:String):void
+			{
+				m_playerLoader.modified = true;
+				m_field = i_field;
+				invalidateItem();
+			}		
+
+
+			public function get day():int
+			{
+				return m_day;
+			}			
+			
+			public function set day(i_day:int):void
+			{
+				m_playerLoader.modified = true;
+				m_day = i_day;
+				invalidateItem();
+			}
+			
+			public function set fontItem(i_fontItem:IFontItem):void
+			{
+				m_playerLoader.modified = true;
+				m_fontItem = i_fontItem;
+				invalidateItem();				
+			}
+
+			public function get fontItem():IFontItem
+			{		
+				return m_fontItem;
+			}
+			
+			public function get weatherList():XMLList
+			{
+				return m_styleService.weatherList;
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateItem)
+				{
+					m_invalidateItem = false;
+					
+					var text:String = null;
+					
+					if (m_rssWeatherProvider==null)
+					{
+						var blockInfo:String = null;
+						switch(m_field)
+						{
+							case WeatherField.DAY_NAME:
+								text = "day";
+								break;
+							case WeatherField.CONDITION:
+								text = "condition";
+								break;
+							case WeatherField.TEMPERATURE:
+								text = "tmp";
+								break;
+							case WeatherField.LOW:
+								text = "low";
+								break;
+							case WeatherField.HIGH:
+								text = "high";
+								break;
+							case WeatherField.IMAGE:
+								text = "[image]";
+								break;
+						}
+						showBlockInfo(blockInfo);
+					}
+					else
+					{	
+						switch(m_field)
+						{					
+							case WeatherField.DAY_NAME:
+								text = m_rssWeatherProvider.getDayName(m_day);
+								break;
+							case WeatherField.CONDITION:
+								text = (m_day==-1) ? m_rssWeatherProvider.getCurCondition() : m_rssWeatherProvider.getDayCondition(m_day);
+								break;
+							case WeatherField.TEMPERATURE:
+								text = (m_day==-1) ? m_rssWeatherProvider.getCurTemp() : "ERR";
+								break;
+							case WeatherField.LOW:
+								text = (m_day==-1) ? "ERR" : m_rssWeatherProvider.getDayLow(m_day);
+								break;
+							case WeatherField.HIGH:
+								text = (m_day==-1) ? "ERR" : m_rssWeatherProvider.getDayHigh(m_day);
+								break;
+							case WeatherField.IMAGE:
+								imageArea.source = (m_day==-1) ? m_rssWeatherProvider.getCurImage(m_weatherStyleId) : m_rssWeatherProvider.getDayImage(m_day, m_weatherStyleId); 
+								break;
+						}
+					}
+				}
+				if (text!=null)
+				{
+					label.visible = true;
+					imageArea.visible  = false;
+					imageArea.unloadAndStop();
+					m_fontItem.applyStyles(label);
+					label.text = text;
+				}
+				else
+				{
+					label.visible = false;
+					imageArea.visible  = true;
+				}
+
+			}
+			
+			
+			private function invalidateItem():void
+			{
+				if (m_field==WeatherField.IMAGE)
+				{
+					m_invalidateItem = true;
+					invalidateProperties();
+				}
+				else
+				{
+					m_faces = new Object();
+					var face:String = m_fontItem.fontFamily;
+					m_faces[face] = face;
+					if (m_styleService.fontsCompleted(m_faces))
+					{  
+						m_invalidateItem = true;
+						invalidateProperties();
+					}
+					else
+					{
+						m_styleService.addEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					}
+				}
+			}
+			
+			private function onStyleComplete(event:ServiceStyleEvent):void
+			{
+				if (m_styleService.fontsCompleted(m_faces))
+				{
+					m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					m_invalidateItem = true;
+					invalidateItem();
+				}
+			}
+
+			
+			protected override function onDispose():void
+			{
+				super.onDispose(); 
+				imageArea.unloadAndStop();
+				if (m_styleService!=null)
+				{
+					m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+					m_styleService = null;
+				}
+			}
+			
+		]]>
+	</fx:Script>	
+
+ 
+	<s:SWFLoader id="imageArea" 
+		top="0" bottom="0" left="0" right="0" />
+	<s:RichText id="label" visible="false" 
+				top="0" bottom="0" left="0" right="0"/>
+</ms:PlayerModule>	

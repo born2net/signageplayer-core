@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   implements="IPage"
+				   creationPolicy="all">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			protected var m_framework:IFramework;			
+			protected var m_playerLoader:IPlayerLoader;
+			
+			public function set editor(i_editor:IEditor):void
+			{
+				m_playerLoader = i_editor as IPlayerLoader;
+			}
+			
+			public function get editor():IEditor
+			{
+				return m_playerLoader;
+			}
+			
+
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_framework = Global.getFramework(this);
+			}
+			
+		]]>
+	</fx:Script>
+</s:NavigatorContent>

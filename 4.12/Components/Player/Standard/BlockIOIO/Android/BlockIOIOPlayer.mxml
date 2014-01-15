@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*">
+	
+	<fx:Script>
+		<![CDATA[
+			import flashx.textLayout.formats.Direction;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.CollectionEvent;
+			
+			import spark.components.ToggleButton;
+			import spark.primitives.Path;
+		
+			private var m_cachingService:ICachingService;
+			private var m_playerLoaderService:IPlayerLoaderService;
+			private var m_nativeExtension:INativeExtension;
+			private var m_cachingItem:ICachingItem;
+			private var m_nativeInstance:INativeInstance;
+			
+			
+[Bindable]	private var m_pinCollection:ArrayCollection;
+			
+			public override function initModule():void
+			{ 
+				super.initModule();
+				m_cachingService = m_framework.ServiceBroker.QueryService("CachingService") as ICachingService;
+				m_playerLoaderService = m_framework.ServiceBroker.QueryService("PlayerLoaderService") as IPlayerLoaderService;
+				m_nativeExtension = m_framework.ServiceBroker.QueryService("NativeExtension") as INativeExtension;
+				
+				if (m_nativeExtension!=null)
+				{
+					m_nativeExtension.addEventListener("DATA_CHANGED", onStatus);
+				}
+				
+				
+				var ioioSharedObject:SharedObject = SharedObject.getLocal("ioio", "/", false);
+				
+				
+				m_pinCollection = new ArrayCollection();
+				m_pinCollection.addEventListener(CollectionEvent.COLLECTION_CHANGE, onPinCollection);
+				for(var i:int=0;i<40;i++)
+				{
+					var pin:Object = new Object();
+					pin.label = i.toString();
+					pin.name = "ioio" + i.toString();
+					pin.id = i;
+					pin.mode = "none";
+					if (ioioSharedObject.data!=null && ioioSharedObject.data.values!=null)
+					{
+						pin.value = int(ioioSharedObject.data.values[i]);
+					}
+					else
+					{
+						pin.value = 0;
+					}
+					m_pinCollection.addItem(pin);
+				}				
+			} 
+			
+			
+			private function onPinCollection(event:CollectionEvent):void
+			{
+				if (m_playerLoader!=null)
+				{
+					m_playerLoader.modified = true;
+				}
+			}
+			
+			public function onStatus(event:StatusEvent):void 
+			{ 
+				if (m_nativeInstance!=null)
+				{
+					var array:Array = m_nativeInstance.callFunction("readIO") as Array;
+					if (array!=null)
+					{
+						for(var pinId:int=0;pinId<40;pinId++)
+						{
+							var pin:Object = m_pinCollection.getItemAt(pinId);
+							if (pin.mode=="digitalIn")
+							{
+								var oldValue:Boolean = pin.value;
+								pin.value = array[pinId];
+								if (pin.value!=oldValue)
+								{
+									m_playerLoaderService.sendEvent(pin.name, "change", pin.value);
+									
+									status.text = pin.name + "=" + pin.value;
+								}
+							}
+						}
+						invalidateList();
+					}
+				}
+				/*
+				if (event.code=="ioio")
+				{
+					// read ioio input
+					status.text = "event2";
+				}
+				*/
+			}	
+			 
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			} 
+			
+			
+			public function pinCollection():ArrayCollection
+			{
+				return m_pinCollection;
+			}
+			
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				
+				for each(var xmlPin:XML in i_data.IOIO.*)
+				{
+					var i:int = int(xmlPin.@id);
+					var pin:Object = m_pinCollection.getItemAt(i);
+					pin.mode = String(xmlPin.@mode);
+					if (XMLList(xmlPin.@digitalOutType).length()>0)
+					{
+						pin.digitalOutType = String(xmlPin.@digitalOutType);
+					}
+					if (XMLList(xmlPin.@digitalInType).length()>0)
+					{
+						pin.digitalInType = String(xmlPin.@digitalInType);
+					}
+				} 
+				
+				
+				m_nativeInstance = m_framework.StateBroker.GetState("IOIONativeInstance") as INativeInstance;
+				if (m_nativeInstance==null)
+				{
+					var fileName:String = "IOIO.apk";
+					m_cachingItem = m_cachingService.getCachingItem("NativeExtentions", fileName);
+					m_cachingItem.addEventListener(Event.COMPLETE, onCachingItemComplete);
+					m_cachingItem.addEventListener(IOErrorEvent.IO_ERROR, onCachingItemFail);				
+					m_cachingItem.url = "http://" + ERI.domain + "/Code/IOIO.apk";
+					m_cachingItem.cache(true);
+					status.text = "Load...";
+				}
+				else
+				{
+					setupIOIO();
+				}
+			}
+			
+			
+			private function onCachingItemComplete(i_event:Event):void
+			{
+				status.text = "Complete";
+				i_event.target.removeEventListener(Event.COMPLETE, onCachingItemComplete);
+				i_event.target.removeEventListener(IOErrorEvent.IO_ERROR, onCachingItemFail);
+				
+				if (m_cachingItem.source!=null)
+				{
+					if (m_nativeExtension!=null)
+					{
+						var file:String = "/mnt/sdcard/" + m_cachingItem.source.substring(23);
+						m_nativeInstance = m_nativeExtension.createInstance(file, "ioio.MyIO");
+						
+						m_framework.StateBroker.SetState(this, "IOIONativeInstance", m_nativeInstance);
+						
+						setupIOIO();
+					} 
+					
+				}
+			}
+			
+			private function onCachingItemFail(i_event:Event):void
+			{
+				status.text = "Fail";
+				i_event.target.removeEventListener(Event.COMPLETE, onCachingItemComplete);
+				i_event.target.removeEventListener(IOErrorEvent.IO_ERROR, onCachingItemFail);
+			}
+			
+		
+			private function setupIOIO():void
+			{
+				for each(var pin:Object in m_pinCollection.source)
+				{
+					if (pin.mode=="digitalOut")
+					{
+						m_nativeInstance.callFunction("setIOPin", pin.id, "digitalOut", pin.digitalOutType);
+					}
+					else if (pin.mode=="digitalIn")
+					{
+						m_nativeInstance.callFunction("setIOPin", pin.id, "digitalIn", pin.digitalInType);
+					}
+					else
+					{
+						m_nativeInstance.callFunction("setIOPin", pin.id, "none", "");
+					}
+				}	
+				
+				m_nativeInstance.callFunction("invalidateSetup");
+			}
+			
+			
+			public override function save():XML
+			{
+				var xmlIOIO:XML = <IOIO/>
+				for each(var pin:Object in m_pinCollection.source)
+				{
+					if (pin.mode=="none")
+						continue;
+					
+					var xmlPin:XML = <Pin/>;
+					xmlPin.@id = pin.id;
+					xmlPin.@mode = pin.mode;
+					if (pin.mode=="digitalOut")
+					{
+						xmlPin.@digitalOutType = pin.digitalOutType;
+					}
+					else if (pin.mode=="digitalIn")
+					{
+						xmlPin.@digitalInType = pin.digitalInType;
+					}
+					xmlIOIO.appendChild(xmlPin);
+				}					
+					
+				return xmlIOIO; 
+			}    
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockIOIOPage];
+			}
+			
+			
+			public override function onCommand(i_commandName:String, i_commandParams:XML, i_eventParam:Object):void
+			{
+				if (i_commandName=="write")
+				{
+					var xmlParam:XML = i_commandParams.Param[0];
+					var pinId:int = int(xmlParam.@pin);
+					var writeValue:String = xmlParam.@write;
+					
+					var pin:Object = m_pinCollection.getItemAt(pinId);
+					
+					if (writeValue=="value")
+					{
+						if (m_nativeInstance!=null)
+						{
+							pin.value = int(i_eventParam);
+							m_nativeInstance.callFunction("writeIO", pinId, pin.value);
+						}						
+					}
+					else
+					{
+						if (m_nativeInstance!=null)
+						{
+							pin.value = int(writeValue);
+							m_nativeInstance.callFunction("writeIO", pinId, pin.value);
+						}
+					}
+					
+					invalidateList();
+				}
+			}
+
+			
+			 
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+			}
+			
+			public function invalidateList():void
+			{
+				var _itemRenderer:IFactory = pinList.itemRenderer;
+				pinList.itemRenderer = null;
+				pinList.itemRenderer = _itemRenderer;
+			}
+			
+			 
+			protected override function onDispose():void
+			{
+				super.onDispose(); 
+				
+				
+				var values:Object = new Object();
+				for(var pinId:int=0;pinId<40;pinId++)
+				{
+					var pin:Object = m_pinCollection.getItemAt(pinId);
+					values[pinId] = pin.value;
+				}
+				var ioioSharedObject:SharedObject = SharedObject.getLocal("ioio", "/", false);
+				ioioSharedObject.data.values = values;
+				ioioSharedObject.flush();
+				
+				if (m_nativeExtension!=null)
+				{
+					m_nativeExtension.removeEventListener("DATA_CHANGED", onStatus);
+				}
+				
+				if (m_pinCollection!=null)
+				{
+					m_pinCollection.removeEventListener(CollectionEvent.COLLECTION_CHANGE, onPinCollection);
+					m_pinCollection = null;
+				}
+			}
+		]]> 
+	</fx:Script> 
+	<ms:layout>
+		<s:VerticalLayout gap="20"/>
+	</ms:layout>
+	<s:Label id="status" text="status" color="0x00ff00"/>
+	<s:List id="pinList" dataProvider="{m_pinCollection}"
+			itemRenderer="PinRenderer"
+			width="100%" height="100%">
+		<s:layout>
+			<s:TileLayout/>
+		</s:layout>
+	</s:List>
+</ms:PlayerModule>	

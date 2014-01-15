@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+		   width="320" height="132" 
+		   gap="10" paddingLeft="10" paddingTop="10"
+		   clipAndEnableScrolling="true">
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.Sort;
+			import mx.collections.SortField;
+			import mx.collections.XMLListCollection;
+			import mx.collections.ArrayCollection;
+			import mx.effects.Effect;
+			import spark.components.RadioButton;
+			
+			public static const ACTIVE_POINT_CHANGED:String = "event_active_point_changed";
+			
+			private var m_playerEffect:PlayerEffect;
+[Bindable]	private var m_easingCollection:ArrayCollection;	
+			private var m_invalidateRadioContainer:Boolean = true;
+			private var m_showOffButton:Boolean =  true;	
+			private var m_showDynamicButton:Boolean = true;
+		
+			public function set playerEffect(i_playerEffect:PlayerEffect):void
+			{  
+				m_playerEffect = i_playerEffect; 
+				invalidateProperties();
+			}
+			
+			public function set showOffButton(i_showOffButton:Boolean):void
+			{
+				m_showOffButton = i_showOffButton;
+				m_invalidateRadioContainer =  true;
+				invalidateProperties();
+			}
+
+			public function set showDynamicButton(i_showDynamicButton:Boolean):void
+			{
+				m_showDynamicButton = i_showDynamicButton;
+				m_invalidateRadioContainer =  true;
+				invalidateProperties();
+			}
+		
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_easingCollection = new ArrayCollection();
+				for each(var easing:Object in PlayerAction.EASING)
+				{
+					var item:Object = new Object();
+					item.id = easing.id;
+					item.label = resourceManager.getString('customer', 'easing.'+item.id)
+					m_easingCollection.addItem(item);
+				}
+				var sort:Sort = new Sort();
+				var sortField:SortField = new SortField("id");
+			    sort.fields = [sortField];
+			    m_easingCollection.sort = sort;
+			    m_easingCollection.refresh();
+			}
+
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateRadioContainer)
+				{
+					m_invalidateRadioContainer = false;
+					radioContainer.removeAllElements();
+					var radioButton:RadioButton;
+					
+					if (m_showOffButton)
+					{
+						radioButton = new RadioButton();
+						radioButton.groupName="propType";
+						radioButton.value="Off"; 
+						radioButton.label = resourceManager.getString('customer', 'PlayerActiveCtrl.off');
+						radioContainer.addElement(radioButton);
+					}
+					
+					radioButton = new RadioButton();
+					radioButton.groupName="propType";
+					radioButton.value="Fixed"; 
+					radioButton.label = resourceManager.getString('customer', 'PlayerActiveCtrl.static');
+					radioContainer.addElement(radioButton);
+
+					if (m_showDynamicButton)
+					{
+						radioButton = new RadioButton();
+						radioButton.groupName="propType";
+						radioButton.value="Dynamic"; 
+						radioButton.label = resourceManager.getString('customer', 'PlayerActiveCtrl.dynamic');
+						radioContainer.addElement(radioButton);
+					}
+				}
+				
+				
+				updateButtons();		
+			}
+			
+			private function notifyEffectPage():void
+			{
+				dispatchEvent(new Event(ACTIVE_POINT_CHANGED) );
+			}
+			
+			public function updateButtons():void
+			{
+				if (m_playerEffect==null)
+				{
+					propType.selectedValue = "Off";
+					height = 32;
+					//repeat.visible = false;
+				}
+				else
+				{
+					propType.selectedValue = (m_playerEffect.count>1) ? "Dynamic" : "Fixed";
+					var enableDynamic:Boolean = (propType.selectedValue=="Dynamic");
+					height = enableDynamic ? 132: 32;
+					//repeat.visible = false; //??? next version: repeat.visible = enableDynamic; 
+					
+					var enableFixed:Boolean = false;
+					if (m_playerEffect.index>0)
+					{
+						enableFixed = true;
+						delay.value = m_playerEffect.action.delay;
+						duration.value = m_playerEffect.action.duration;
+					}
+					else
+					{
+						enableFixed = false;
+						delay.value = 0;;
+						duration.value = 0;
+					}
+					label2.enabled = label3.enabled = label4.enabled = delay.enabled = duration.enabled = easing.enabled = enableFixed;
+					pointIndex.text = (m_playerEffect.index+1).toString();
+					totalPoints.text = m_playerEffect.count.toString();
+					
+					
+					if (m_playerEffect.action!=null)
+					{
+						var itemId:int = m_playerEffect.action.easingId; 
+						for each(var item:Object in m_easingCollection)
+						{
+							if (item.id==itemId)
+							{
+								easing.selectedItem = item;
+								break;
+							}
+						}
+					}
+					else
+					{
+						easing.selectedIndex = -1;
+					}
+				}
+			}
+
+			private function decrementPoint():void
+			{
+				if (m_playerEffect.index>0)
+					m_playerEffect.index--;
+				notifyEffectPage();	
+				updateButtons();
+			}
+			
+			private function incrementPoint():void
+			{
+				if (m_playerEffect.index<m_playerEffect.count-1) 
+					m_playerEffect.index++;
+				notifyEffectPage();	
+				updateButtons();	
+			}
+			
+			private function decrementTotal():void
+			{
+			}
+
+			private function incrementTotal():void
+			{
+			}
+			
+			private function onDelayChanged(event:Event):void
+			{
+				if (m_playerEffect.action==null)
+					return;
+				m_playerEffect.action.delay = delay.value;
+			}
+
+			private function onDurationChanged(event:Event):void
+			{
+				if (m_playerEffect.action==null)
+					return;				
+				m_playerEffect.action.duration = duration.value;
+			}
+			
+			private function onEasingChanged(event:Event):void
+			{
+				if (m_playerEffect.action==null)
+					return;				
+				m_playerEffect.action.easingId = easing.selectedItem.id;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:RadioButtonGroup id="propType" change="updateButtons()"/>
+	</fx:Declarations>
+	
+	 
+	<s:HGroup id="radioContainer"/>
+	<s:HGroup>
+		<s:Label verticalAlign="middle" height="22"
+			text="{resourceManager.getString('customer', 'PlayerActiveCtrl.pointNum')}"/>
+		<s:HGroup gap="0">
+			<s:Button label="&lt;" toolTip=""
+				width="22"
+				click="decrementPoint()"/>	
+			<s:TextInput id="pointIndex" editable="false" width="34" height="22"/>
+			<s:Button label="&gt;" toolTip=""
+				width="22" click="incrementPoint()"/>
+		</s:HGroup>
+		<s:Label id="label1" text="of:" verticalAlign="middle" height="22"/>
+		<s:Label id="totalPoints" text="1" verticalAlign="middle" height="22"/>
+	</s:HGroup>
+	<s:HGroup>
+		<s:Label id="label2"  
+			text="{resourceManager.getString('customer', 'PlayerActiveCtrl.delay')}"
+			verticalAlign="middle" height="22"/>
+		<ms:NumericStepperEx id="delay" width="56" 
+				minimum="0" maximum="100000" 
+				change="onDelayChanged(event)"/>
+		<s:Label id="label3" 
+			text="{resourceManager.getString('customer', 'PlayerActiveCtrl.duration')}"
+			verticalAlign="middle" height="22"/>
+		<ms:NumericStepperEx id="duration"
+				minimum="0" maximum="100000"
+				change="onDurationChanged(event)"/>				
+	</s:HGroup>
+	<s:HGroup>
+		<s:Label id="label4"  
+			text="{resourceManager.getString('customer', 'PlayerActiveCtrl.easing')}"
+			verticalAlign="middle" height="22"/>	
+		<s:DropDownList id="easing" x="68" y="94" width="201"
+				dataProvider="{m_easingCollection}" labelField="label"
+				change="onEasingChanged(event)"
+				/>	
+	</s:HGroup>
+<!--		
+	<s:Button visible="false" x="228" y="40" label="+" width="22" click="decrementTotal()"/>
+	<s:Button visible="false" x="258" y="40" label="-" width="22" click="incrementTotal()"/>
+	
+	<s:CheckBox x="228" y="10" 
+		label="{resourceManager.getString('customer', 'PlayerActiveCtrl.repeat')}"
+		id="repeat"/>
+-->	
+</s:VGroup>

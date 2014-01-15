@@ -1,0 +1,2122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:SignagePlayerBase xmlns:fx="http://ns.adobe.com/mxml/2009" 
+						 xmlns:s="library://ns.adobe.com/flex/spark" 
+						 xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:ms="*"
+						 implements="ISignagePlayerService"
+						 width="100%" height="100%"
+						 resize="onResize()">
+	<fx:Script>
+		<![CDATA[
+			import flash.desktop.NativeApplication;
+			import flash.filesystem.File;
+			
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.soap.WebService;
+			
+			import spark.primitives.Rect;
+
+			
+			public static const StageQualityMap:Array = ["LOW", "MEDIUM", "HIGH" ];
+			
+			private var m_pressTimer:Timer = null;
+
+			private var m_invalidateStyles:Boolean = true;
+			
+			
+			protected var m_moduleDownloadMode:String = "";
+			protected var m_mainPanel:MainPanel;
+			protected var m_localConnection:LocalConnection;
+			protected var m_persistent:Persistent;
+			protected var m_watchDogService:WatchDogService;
+			
+			
+			
+			protected var m_cryptoService:ICryptoService;
+			protected var m_rssService:RssServiceAir;		
+			protected var m_viewerService:IViewerService;
+			
+			protected var m_cachingService:ICachingService;
+			
+			
+			protected var m_webServer:IWebServer;
+			
+			//ZWave protected var m_nativeExtension:INativeExtension;
+			protected var m_nativeController:INativeInstance;
+			
+			// ???Zwave protected var m_zwaveService:IZWaveService;
+			
+			
+			
+			
+			protected var m_GetBusinessInfo:PostService;
+			protected var m_LoadResellerInfo:PostService;
+			
+			
+			protected var m_screensRect:Rectangle;
+			
+			
+			protected var m_playerSocket:PlayerSocket;
+			
+			
+			
+			protected var m_hBranchStation:int = -1;
+			
+			protected var m_settingVersion:String = "1.0";
+			protected var m_waitTimer:Timer;
+			
+			protected var m_splashLoader:URLDownloader2;
+			
+			
+			private var m_GetLastChangelistId:PostService;
+			private var m_GettingLastChangelistId:Boolean = false;
+
+			protected var m_musicPlayer:MusicPlayer;
+			
+			protected var m_playAfterSync:Boolean = true;
+			
+			
+			protected var m_checkChangelistTimer:Timer;
+			
+			protected var m_campaignOutputAssigned:Boolean = false;
+
+			
+			protected var m_shoudDebugAlert:Boolean = false;
+			
+			
+			private function updateScreensRect():void
+			{
+				var screen:Screen;
+				m_screensRect = new Rectangle();
+				try
+				{
+					for each(screen in Screen.screens)
+					{
+						m_screensRect.top = Math.min(m_screensRect.top, screen.bounds.top);
+						m_screensRect.bottom = Math.max(m_screensRect.bottom, screen.bounds.bottom);
+						m_screensRect.left = Math.min(m_screensRect.left, screen.bounds.left);
+						m_screensRect.right = Math.max(m_screensRect.right, screen.bounds.right);
+					}
+					
+					if (stage!=null)
+					{
+						var long1:Number = Math.max(m_screensRect.width, m_screensRect.height);
+						var short1:Number = Math.min(m_screensRect.width, m_screensRect.height);
+						
+						var long2:Number = Math.max(stage.width, stage.height);
+						var short2:Number = Math.min(stage.width, stage.height);
+						
+						var long3:Number = Math.max(long1, long2);
+						var short3:Number = Math.max(short1, short2);
+						
+						m_screensRect.width = long3;
+						m_screensRect.height = short3;
+					}
+					
+				}
+				catch(e:Error)
+				{
+					AlertEx.showOk(this, e.message, "updateScreensRect");
+				}
+			}
+			
+
+			public function get stationId():int
+			{
+				if (m_hBranchStation==-1)
+					return -1;
+				var recBranchStation:Rec_branch_station = m_dataBaseManager.table_branch_stations.getRecord(m_hBranchStation);
+				return recBranchStation.native_id;
+			}
+
+			
+			public function get stationName():String
+			{
+				if (m_hBranchStation==-1)
+					return null;
+				var recBranchStation:Rec_branch_station = m_dataBaseManager.table_branch_stations.getRecord(m_hBranchStation);
+				return recBranchStation.station_name;
+			}
+			
+			
+			protected function createViewerService():IViewerService
+			{
+				return new ViewerService(m_framework, this);
+			}
+			
+			protected override function createModuleService():ModuleService
+			{
+				var mobile:Boolean = (m_environment=="mobile");
+				return new ModuleServiceAir(m_framework, m_applicationDomain, mobile, m_debug, m_moduleDownloadMode);
+			}
+			
+			
+			protected function get userDirectory():Boolean
+			{
+				return false;
+			}
+			
+			protected override function createCachingService():ICachingService
+			{
+				var cachingServiceAir:CachingServiceAir = new CachingServiceAir(userDirectory);
+				cachingServiceAir.load();
+				return cachingServiceAir; 
+			}
+			
+			
+			protected override function createResourceService():IResourceService
+			{
+				return new ResourceServiceAir(m_framework, userDirectory); 
+			}
+			
+			
+			protected function createZWaveService():IZWaveService
+			{
+				return null;
+			}
+			
+			
+			protected override function init():void
+			{
+				var cloud:Boolean = false;
+				var file:File = new File("app:/config.xml");
+				if (file.exists)
+				{
+					var fileStream:FileStream = new FileStream();
+					fileStream.open(file, FileMode.READ);
+					var xmlConfig:XML = XML(fileStream.readUTFBytes(fileStream.bytesAvailable));
+					fileStream.close();
+					
+					m_debug = (xmlConfig.@debug=="1")
+					cloud = (xmlConfig.@cloud=="1");
+					m_moduleDownloadMode = String(xmlConfig.@moduleDownloadMode);
+				}
+				
+				
+				super.init();
+				
+				updateAppVersion();
+				
+				m_framework.StateBroker.addEventListener(StateBrokerEvent.STATE_SET, onStateUpdate);
+				
+				
+				m_framework.StateBroker.SetState(this, "debug", m_debug);
+				m_framework.StateBroker.SetState(this, "airPlayer", true); //??? workaround
+				
+				stage.addEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
+				stage.addEventListener(Event.RESIZE, onStageResized);
+				
+				m_framework.StateBroker.SetState(this, "topWindow", this);
+				m_framework.StateBroker.SetState(this, "parentApplication", parentApplication);
+				
+				var so:SharedObject = SharedObject.getLocal("MediaSignage", "/", false);
+				var businessId:int = (so.data.businessId==null) ? -1 : int(so.data.businessId);
+				var branchStationId:int = (so.data.branchStationId==null) ? -1 : int(so.data.branchStationId);
+				
+				var masterDomain:String;
+				
+				m_persistent = new Persistent();
+				m_framework.ServiceBroker.RegisterService("Persistent", m_persistent);
+				
+				if (so.data.settingVersion==null || so.data.settingVersion!=m_settingVersion)
+				{
+					so.data.settingVersion = m_settingVersion;
+					so.flush();
+					setDefault();
+				}
+				
+				m_cryptoService = new CryptoService(m_framework);
+				m_framework.ServiceBroker.RegisterService("CryptoService", m_cryptoService);
+				
+				m_playerSocket = new PlayerSocket(m_framework, onPlayerCommand);
+				m_framework.ServiceBroker.RegisterService("playerSocket", m_playerSocket);
+
+				updateScreensRect();
+				m_viewerService = createViewerService(); 
+				m_framework.ServiceBroker.RegisterService("ViewerService", m_viewerService);
+				
+				var rect:Rectangle = new Rectangle(0, 0, width, height);
+				m_viewerService.setTotalRect(rect);
+				
+				m_checkChangelistTimer = new Timer(10000, 1);
+				m_checkChangelistTimer.addEventListener(TimerEvent.TIMER_COMPLETE, onCheckLastChangelistId);
+
+				
+				
+				
+				
+				
+				if (businessId!=-1 && branchStationId!=-1)
+				{
+					masterDomain = ERI.domain;
+					if (masterDomain==null)
+					{
+						if (cloud)
+						{
+							masterDomain = ERI.domain = "galaxy.signage.me";
+						}
+					}
+					
+					
+					
+					var domain:String = masterDomain.substr(masterDomain.lastIndexOf('.', masterDomain.lastIndexOf('.')-1)+1);
+					var persistFolder:File = File.applicationStorageDirectory.resolvePath(domain).resolvePath("business" + businessId.toString());
+					m_persistent.setPath(persistFolder.nativePath);
+					m_persistent.load("globals");
+					
+					//ERI.domain = masterDomain = "198.64.147.5";
+					initMasterDomain();
+				}
+				else
+				{
+					showMainPanel(true);
+					m_mainPanel.currentState = "State_Domain";
+					m_mainPanel.validateNow();
+					if (cloud)
+					{
+						m_mainPanel.domainCtrl.domain = "galaxy.signage.me";
+					}
+					m_mainPanel.domainCtrl.addEventListener("master_domain_connected", onMasterDomainConnected);
+					
+				}
+				
+				
+			}
+			
+			
+			private function updateAppVersion():void
+			{
+				var appXML:XML = NativeApplication.nativeApplication.applicationDescriptor;
+				var ns:Namespace = appXML.namespace();
+				var appVersion:String = appXML.ns::versionLabel;
+				m_framework.StateBroker.SetState(this, "version", appVersion);
+			}
+			
+			
+			private function onMasterDomainConnected(event:Event):void
+			{
+				m_mainPanel.domainCtrl.removeEventListener("master_domain_connected", onMasterDomainConnected);
+				initMasterDomain();	
+			}
+			
+			
+			protected function createDebugLog():IDebugLog
+			{
+				var debugLog:IDebugLog = new DebugLog(m_framework, m_shoudDebugAlert);
+				debugLog.setParam("air", NativeApplication.nativeApplication.runtimeVersion);
+				debugLog.setParam("spaceAvailable", File.applicationStorageDirectory.spaceAvailable.toString());
+				return debugLog;
+			}			
+			
+			protected function initMasterDomain():void
+			{
+				var masterDomain:String = ERI.domain;
+				var masterUrl:String = "http://" + masterDomain + "/";
+				m_framework.StateBroker.SetState(this, "MasterUrl", masterUrl);
+				
+				m_masterServerUrl = "http://" + masterDomain + "/WebService/";
+				//m_masterServerUrl = "http://" + masterDomain + "/WebService2/";
+				
+				m_framework.StateBroker.SetState(this, "MasterServerUrl", m_masterServerUrl);
+				
+				
+				m_debugLog = createDebugLog();
+				m_debugLog.setParam("application", "SignagePlayerAir");
+				if (stage!=null)
+				{
+					try
+					{
+						DebugLog(m_debugLog).initDebug(stage);
+					}
+					catch(err:Error)
+					{
+						// Ignore
+					}
+				}					
+				m_framework.ServiceBroker.RegisterService("DebugLog", m_debugLog);
+				m_debugLog.addEventListener(DebugLogEvent.MESSAGE, onDebugLog);
+				
+				
+				
+				m_webServer = new WebServerAir();
+				m_framework.ServiceBroker.RegisterService("WebServer", m_webServer);
+				
+				
+				
+				m_webServer.addCallback("/sendLocalMouse", onSendLocalMouse);
+				
+				/*ZWave???
+				m_nativeExtension = new NativeExtensionService();
+				m_framework.ServiceBroker.RegisterService("NativeExtension", m_nativeExtension);
+				m_nativeExtension.addEventListener("DATA_CHANGED", onNativeExtension)
+				*/
+				
+				
+				m_watchDogService = createWatchDogService();
+				if (m_watchDogService!=null)
+				{
+					m_watchDogService.addEventListener("monitor_status_changed", onMonitorStatusChanged);
+					m_watchDogService.addEventListener("capture_screen_event", onCaptureScreen);
+					m_framework.ServiceBroker.RegisterService("WatchDogService", m_watchDogService);
+				}
+				
+				
+				m_rssService = new RssServiceAir();
+				m_framework.ServiceBroker.RegisterService("RssService", m_rssService);
+				m_rssService.load();
+				
+				
+				
+				m_GetBusinessInfo = new PostService(m_masterServerUrl+"LoginService.asmx", "GetBusinessInfo2", "i_businessId");
+				m_GetBusinessInfo.addEventListener(ResultEvent.RESULT, onBusinessInfoResult);
+				m_GetBusinessInfo.addEventListener(FaultEvent.FAULT, onBusinessInfoFail);
+				m_LoadResellerInfo = new PostService(m_masterServerUrl+"LoginService.asmx", "LoadResellerInfo2", "i_encryptedData");
+				m_LoadResellerInfo.addEventListener(ResultEvent.RESULT, onResellerInfo);
+				
+				
+				m_framework.EventBroker.addEventListener(LoginCtrl.LOGGED_IN_EVENT, onLoggedIn);
+				m_framework.EventBroker.addEventListener(RegistrationCtrl.REGISTERED_EVENT, onRegistered);
+				
+				m_framework.EventBroker.addEventListener(ReadyCtrl.START_EVENT, onStart);
+				m_framework.EventBroker.addEventListener(ReadyCtrl.STOP_EVENT, onStop);
+				m_framework.EventBroker.addEventListener(ReadyCtrl.SYNC_AND_PLAY_EVENT, onSyncAndPlay);
+				
+				
+				m_framework.EventBroker.addEventListener(UnregisterCtrl.REMOVE_STATION_EVENT, onRemoveStation);
+				m_framework.EventBroker.addEventListener(UnregisterCtrl.READY_EVENT, onReady);
+				
+				
+				m_campaignBoardPlayer = createCampaignBoardPlayer();
+				showMainPanel(true);
+				m_mainPanel.campaignBoardPlayer = m_campaignBoardPlayer;
+				m_musicPlayer = m_mainPanel.musicPlayer;
+				
+				m_viewerService = m_framework.ServiceBroker.QueryService("ViewerService") as IViewerService;
+				
+				/*???!!!
+				TitleBar(titleBar).closeButton.addEventListener(MouseEvent.MOUSE_DOWN,
+				button_mouseDownHandler);
+				*/
+				
+				
+				loadStyles();
+			}
+			
+			
+			private function onNativeExtension(i_event:StatusEvent):void
+			{
+				/*???Zwave
+				if (i_event.code=="zwave.notify")
+				{
+					m_zwaveService.onNotify(i_event.level);
+				}
+				else if (i_event.code=="zwave.controllCommand")
+				{
+					m_zwaveService.onControllCommand(i_event.level);
+				}
+				*/
+			}
+			
+			
+			protected function createNativeController():void
+			{
+				
+			}
+			
+			private function loadStyles():void
+			{
+				m_styleService.addEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+				
+				m_styleService.loadFont("Arial");
+				m_styleService.load("Styles/" + StyleService.SDK_VER + "/Themes/PlayerStyles.swf", true);
+				m_styleService.load("Styles/" + StyleService.SDK_VER + "/Themes/AirPlayerIcons.swf", false);
+			}
+			
+			
+			private function isStyleComplete():Boolean
+			{
+				return 	m_styleService.isCompleted("Styles/" + StyleService.SDK_VER + "/Themes/PlayerStyles.swf") &&
+					m_styleService.isCompleted("Styles/" + StyleService.SDK_VER + "/Themes/AirPlayerIcons.swf");
+			} 
+			
+			
+			private function onStyleComplete(event:ServiceStyleEvent):void
+			{
+				if (m_invalidateStyles && isStyleComplete())  
+				{		
+					m_invalidateStyles = false;
+					onStylesLoaded();
+				}	
+			}
+			
+			
+			private function onStylesLoaded():void
+			{
+				var so:SharedObject = SharedObject.getLocal("MediaSignage", "/", false);
+				var businessId:int = (so.data.businessId==null) ? -1 : int(so.data.businessId);
+				if (businessId==-1)
+				{
+					so.data.branchStationId = -1;
+					so.flush();
+				}
+				var branchStationId:int = (so.data.branchStationId==null) ? -1 : int(so.data.branchStationId);
+				
+				if (businessId!=-1 && branchStationId!=-1)
+				{
+					m_GetBusinessInfo.call(businessId);
+				}
+				else
+				{
+					m_cryptoService.masterEncrypt(loadResellerInfo, ERI.resellerId);
+				}
+				
+			}
+			
+			
+			
+			private function onStageResized(i_event:Event):void
+			{
+				if (m_mainPanel!=null)
+				{
+					m_mainPanel.invalidateDisplayList();
+				}
+			}
+			
+			
+			private function onMouseDown(event:MouseEvent):void
+			{
+				removePressEvents();
+				if (m_mainPanel!=null && m_mainPanel.currentState=="State_Ready" && m_mainPanel.visible==false)
+				{
+					var kioskMode:Boolean = (m_framework.StateBroker.GetState("kioskMode") == true);
+					if (kioskMode==false)
+					{
+						stage.addEventListener(MouseEvent.MOUSE_UP, onMouseUp);
+						m_pressTimer = new Timer(2000, 1);
+						m_pressTimer.addEventListener(TimerEvent.TIMER_COMPLETE, onPressComplete);
+						m_pressTimer.start();
+					}
+				}
+			}
+			
+			private function onPressComplete(event:TimerEvent):void
+			{
+				removePressEvents();
+				showMainPanel(true);
+			}
+			
+			private function onMouseUp(event:MouseEvent):void
+			{
+				removePressEvents();
+			}
+			
+			private function removePressEvents():void
+			{
+				stage.removeEventListener(MouseEvent.MOUSE_UP, onMouseUp);
+				if (m_pressTimer!=null)
+				{
+					m_pressTimer.stop();
+					m_pressTimer.removeEventListener(TimerEvent.TIMER_COMPLETE, onPressComplete);
+				}
+			}
+			
+			
+			
+			
+			
+			
+			
+			protected override function initTableData():void
+			{
+				super.initTableData();
+				
+				// ???Zwave m_zwaveService.loadConfig();
+				
+				if (m_musicPlayer!=null)
+				{
+					m_musicPlayer.sync();
+				}
+				
+				savePersistent();
+				
+				
+				//ZWave ??? m_playerEventService.compile();
+				
+				
+				start();
+			}
+			
+			
+			protected override function start():void
+			{
+				if (m_campaignOutputAssigned==false)
+				{
+					showSplashScreen(false);
+					return;
+				}
+				
+				if (m_playAfterSync==false)
+				{
+					showSplashScreen(false);
+					return;
+				}
+				
+				super.start();
+				showSplashScreen(false);
+				
+				setStatus("Playing");
+				showMainPanel(false);
+				updateButtons();
+			}
+			
+			
+			protected override function stop():void
+			{
+				super.stop();
+				
+				saveCaching();
+				
+				setStatus("Ready");
+				showMainPanel(true);
+				updateButtons();
+			}			
+			
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				
+			}	
+			
+			private function onResize():void
+			{
+				if (m_viewerService!=null)
+				{
+					/*
+					var so:SharedObject = SharedObject.getLocal("MediaSignage", "/", false);
+					var businessId:int = (so.data.businessId==null) ? -1 : int(so.data.businessId);
+					if (businessId==324928 || businessId==315757)
+					{
+						AlertEx.showOk(this, m_screensRect.width.toString() + "," + m_screensRect.height.toString() + "\n\n\n"); 
+					}
+					*/
+					m_viewerService.setTotalRect(m_screensRect);
+				}
+			}
+			
+			
+			protected function createMainPanel():void
+			{
+				m_mainPanel = MainPanel.Create(this, m_framework);
+			}
+			
+			public function showMainPanel(i_show:Boolean):void
+			{
+				if (i_show)
+				{
+					if (m_mainPanel==null)
+					{
+						createMainPanel();
+					}
+					m_mainPanel.visible = true;
+				}
+				else
+				{
+					if (m_mainPanel!=null)
+					{
+						m_mainPanel.visible = false;
+					}
+				}
+			}
+			
+			
+			
+			private function downloadSplashScreen():void
+			{
+				var xmlResellerInfo:XML = m_framework.StateBroker.GetState("resellerInfo") as XML;
+				if (xmlResellerInfo==null)
+					return;
+				
+				
+				var path:File = File.applicationStorageDirectory.resolvePath("SplashScreen");
+				/*
+				var splashFile:File = path.resolvePath("Update.swf");
+				if (splashFile.exists)
+				return;
+				*/
+				
+				var resellerId:int = int(xmlResellerInfo.@businessId);
+				
+				var source:String = "http://" + ERI.domain + "/Resources/Resellers/"+ resellerId.toString() +"/";
+				var fileName:String = "Update.swf";
+				
+				if (m_splashLoader==null)
+				{
+					m_splashLoader = new URLDownloader2(source, path.nativePath, fileName);
+					m_splashLoader.download();
+				}
+			}
+			
+			protected override function createStyleService():StyleService
+			{
+				return new StyleServiceAir(m_framework, false);
+			}
+
+			
+			protected function createWatchDogService():WatchDogService
+			{
+				return new WatchDogService(m_framework, true);
+			}
+			
+			protected function createCampaignBoardPlayer():CampaignBoardPlayer
+			{
+				return null;
+			}
+			
+			protected function onResellerInfo(event:ResultEvent):void
+			{
+				m_framework.StateBroker.SetState(this, "resellerInfo", XML(event.result));
+				m_mainPanel.currentState = "State_Login";
+			}
+			
+			
+			private function savePersistent():void
+			{
+				if (m_persistent==null)
+					return;
+				
+				var so:SharedObject = SharedObject.getLocal("Persistent", "/", false);
+				var changelistId:int = (so.data.changelistId==null) ? -1 : int(so.data.changelistId);
+				var lastChangelist:int = m_dataBaseManager.lastChangelist;
+				
+				if (changelistId!=lastChangelist)
+				{
+					try
+					{
+						so.data.changelistId = lastChangelist;
+						so.flush();
+						
+						m_persistent.save("globals");
+						if (m_campaignBoardPlayer!=null)
+						{ 
+							var recCampaignBoard:Rec_campaign_board = m_dataBaseManager.table_campaign_boards.getRecord(m_campaignBoardPlayer.hCampaignBoard);
+							if (recCampaignBoard.native_id!=-1)
+							{
+								m_persistent.save("output"+recCampaignBoard.native_id.toString());
+							}
+						}
+					}
+					catch(ed:Error)
+					{
+					}
+				}
+				
+			}
+			
+			private function saveCaching():void
+			{
+				if (m_cachingService!=null)
+				{
+					CachingServiceAir(m_cachingService).save();
+				}
+				if (m_rssService!=null)
+				{
+					m_rssService.save();
+				}
+			}
+			
+			
+			private function setDefault():void
+			{
+				try 
+				{ 
+					if (!Capabilities.isDebugger)
+					{
+						NativeApplication.nativeApplication.startAtLogin = true;
+					}
+				}
+				catch(err:Error) // Ignore error when in Debug Mode 
+				{	
+					/* ignore */	
+				}
+			}
+			
+			
+			public function onPlayerCommand(i_command:String, i_args:Array):void
+			{
+				var immediateAction:Boolean;
+				var filename:String;
+				var homeId:uint;
+				var nodeId:uint;
+				var id0:uint;
+				var value:String;
+				
+				switch(i_command)
+				{
+					case "ping":
+						m_playerSocket.sendStatus();
+						break;
+					
+					case "captureScreen":
+						filename = i_args[0];
+						var quality:Number = Number(i_args[1]);
+						if (m_watchDogService!=null)
+						{
+							m_watchDogService.captureScreen(filename, 1);
+						}
+						break;
+					case "captureScreen2":
+						filename = i_args[0];
+						var scale:Number = Number(i_args[1]);
+						if (m_watchDogService!=null)
+						{
+							m_watchDogService.captureScreen(filename, scale);
+						}
+						break;
+					
+					case "stopMusic":
+						immediateAction = (i_args[0]=="1");
+						m_mainPanel.musicPlayer.stopMusic(immediateAction);
+						break;		
+					
+					case "playMusic":
+						m_mainPanel.musicPlayer.playMusic();
+						break;
+					
+					case "skipMusicSong":
+						m_mainPanel.musicPlayer.skipMusicSong();
+						break;
+					
+					case "setMusicChannel":
+						var musicChannel:int = int(i_args[0]);
+						immediateAction = (i_args[1]=="1");
+						setMusicChannel(musicChannel, immediateAction);
+						break;
+					
+					case "selectMusicSong":
+						var musicSongId:int = int(i_args[0]);
+						immediateAction = (i_args[1]=="1");
+						selectMusicSong(musicSongId, immediateAction);
+						break;
+					
+					case "setRandomMusic":
+						var random:Boolean  = (i_args[0]=="1");
+						immediateAction = (i_args[1]=="1");
+						m_mainPanel.musicPlayer.setRandomMusic(random, immediateAction);
+						break;
+					
+					case "increaseMusicVolume":
+						var volume:Number = Number(i_args[0]);
+						m_mainPanel.musicPlayer.increaseMusicVolume(volume);	
+						break;
+					
+					case "start":
+						m_playAfterSync = true;
+						start();
+						break;
+					
+					case "stop":
+						m_playAfterSync = false;
+						stop();
+						break;
+					
+					case "event":
+						var playerName:String = i_args[0] as String;
+						var param:String = i_args[1] as String;
+						m_playerEventService.sendEvent(playerName, "click", param);
+						break;
+					
+					case "mouse":
+						var eventName:String = i_args[0] as String;
+						var deltaX:int = i_args[1] as int;
+						var deltaY:int = i_args[2] as int;
+						if (m_nativeController!=null)
+						{
+							var a:Object = m_nativeController.callFunction(eventName, deltaX, deltaY);
+						}
+						break;
+					
+					/*???Zwave
+					case "zwave":
+					{
+						var commandName:String = i_args[0] as String;
+						if (commandName=="requestConfig")
+						{
+							m_zwaveService.sendConfig();
+						}
+						else if (commandName=="searchHomes")
+						{
+							m_zwaveService.findHomes();
+						}
+						else if (commandName=="beginControllerCommand")
+						{
+							homeId = uint(i_args[1]);
+							var controllerCommand:String = i_args[2] as String;
+							nodeId = uint(i_args[3]);
+							m_zwaveService.beginControllerCommand(homeId, controllerCommand, nodeId);
+						}
+						else if (commandName=="cancelControllerCommand")
+						{
+							homeId = uint(i_args[1]);
+							m_zwaveService.cancelControllerCommand(homeId);
+						}
+						else if (commandName=="setValueId")
+						{
+							homeId = uint(i_args[1]);
+							id0 = uint(i_args[2]);
+							value = String(i_args[3]);
+							m_zwaveService.setValueId(homeId, id0, value);
+						}
+					}
+						break;
+					*/
+					case "checkUpdates":
+						checkAirAndAppUpdates(true); // Check for latest build.
+						break;
+					
+					case "sync":
+						resync();
+						break;
+					
+					case "syncAndStart":
+						m_playAfterSync = true;
+						resync();
+						break;
+					
+					case "rebootPlayer":
+						rebootPlayer();
+						break;
+					
+					case "rebootStation":
+						rebootStation();
+						break;
+					
+					case "clearCaching":
+						clearCaching();
+						break;
+					/*
+					case "unregister":
+						unregister();
+						break;
+					*/
+				}
+			}
+			
+			
+			private function onSendLocalMouse(i_data:Object):Object
+			{
+				var ret:Object = new Object();
+				
+				var key:String = m_framework.StateBroker.GetState("stationKey") as String;
+				if (i_data.key==key)
+				{
+					var eventName:String = i_data.event;
+					var deltaX:int = int(i_data.deltaX);
+					var deltaY:int = int(i_data.deltaY);
+					if (m_nativeController!=null)
+					{
+						var a:Object = m_nativeController.callFunction(eventName, deltaX, deltaY);
+					}			
+				}
+				return ret;	
+			}
+			
+			private function resync():void
+			{
+				if (m_campaignOutputAssigned)
+				{
+					showSplashScreen(true);
+				}
+				stop();
+				
+				
+				m_dataBaseManager.clearAll();
+				if (m_campaignBoardPlayer!=null)
+				{
+					m_campaignBoardPlayer.dispose();
+				}
+				m_campaignBoardPlayer = createCampaignBoardPlayer();
+				m_campaignBoardPlayer.init();				
+				
+				sync();						
+			}
+			
+			
+			public function showSplashScreen(i_show:Boolean):void
+			{
+				
+			}	
+
+			
+			
+			protected function checkAirAndAppUpdates(i_latest:Boolean):void
+			{
+				
+			}
+			
+			
+			private function loadResellerInfo(i_encryptRequest:IEncryptRequest):void
+			{
+				if (i_encryptRequest.status=="success")
+				{
+					m_LoadResellerInfo.call(i_encryptRequest.output);
+				}
+				else
+				{
+					var so:SharedObject = SharedObject.getLocal("MediaSignage", "/", false);
+					var businessId:int = (so.data.businessId==null) ? -1 : int(so.data.businessId);
+					if (businessId==-1)
+					{
+						AlertEx.showOk(
+							UIComponent(m_framework.StateBroker.GetState("topWindow")),
+							"Cannot connect to the server. Be sure to check your internet connection and try again", "Registration Error");
+					}
+				}
+			}
+			
+			
+			
+			
+			
+			private function onWebServiceFault(event:FaultEvent):void
+			{
+				if (m_debugLog!=null)
+				{
+					m_debugLog.addError("SignagePlayerAir:\n"+event.toString());
+				}
+			}
+			
+			private function onDebugLog(event:DebugLogEvent):void
+			{
+				if (event.messageType=="error")
+				{
+					if (m_watchDogService!=null)
+					{
+						m_watchDogService.applyError();
+					}
+				}
+			}
+			
+			private function onBusinessInfoFail(event:FaultEvent):void
+			{
+				m_framework.StateBroker.SetState(this, "internetConnection", false);
+				
+				var xmlBusinessInfo:XML = m_persistent.getValueAsXML("globals", "businessInfo");
+				if (xmlBusinessInfo==null) // Nothing in caching
+				{
+					m_GetBusinessInfo.post(3); // retry
+					return;
+				}
+				applyBusinessInfo(xmlBusinessInfo);	
+			}		
+			
+			private function onBusinessInfoResult(event:ResultEvent):void
+			{
+				var xmlBusinessInfo:XML = new XML(event.result);
+				if (xmlBusinessInfo.name()=="BusinessInfo")
+				{
+					m_framework.StateBroker.SetState(this, "internetConnection", true);
+					m_persistent.setValue("globals", "businessInfo", xmlBusinessInfo);
+					
+				}
+				else // Restricted internet connection
+				{
+					m_framework.StateBroker.SetState(this, "internetConnection", false);
+					xmlBusinessInfo = m_persistent.getValueAsXML("globals", "businessInfo");
+					if (xmlBusinessInfo==null)
+					{
+						m_GetBusinessInfo.post(3);
+						return;
+					}
+				}
+				applyBusinessInfo(xmlBusinessInfo);
+			}
+			
+			private function applyBusinessInfo(i_xmlBusinessInfo:XML):void
+			{
+				var applicationId:int = int(i_xmlBusinessInfo.@applicationId);
+				if (applicationId==1 || applicationId==3)  // admin, reseller
+				{
+					AlertEx.showOk (
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						"Player can not be registered to a Reseller account. please create a new Customer account and register the player to that account", "Registration fail");
+					enabled = true;
+					return;
+				}
+				
+				
+				var accountStatus:int = int(i_xmlBusinessInfo.@accountStatus);
+				var so:SharedObject = SharedObject.getLocal("MediaSignage", "/", false);
+				
+				if (accountStatus==0)
+				{
+					so.data.businessId = null;
+					so.data.branchStationId = null;
+					so.flush();
+					AlertEx.showOk (
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						"Please verify you email first", "Email Verification");
+					
+					if (m_debugLog!=null)
+					{
+						m_debugLog.addWarning("SignagePlayerAir.mxml onBusinessInfo(), accountStatus==0");
+					}
+					
+					enabled = true;
+					return;
+				}
+				else if (accountStatus==1)
+				{
+					so.data.businessId = null;
+					so.data.branchStationId = null;
+					so.flush();
+					
+					if (m_debugLog!=null)
+					{
+						m_debugLog.addWarning("SignagePlayerAir.mxml onBusinessInfo(), accountStatus==1");
+					}
+					
+					AlertEx.showOk (
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						"Account is beening created.\nPlease try again later", "Account was not completed");
+					enabled = true;
+					return;
+				}
+				
+				
+				if (XMLList(i_xmlBusinessInfo.ResellerInfo.BusinessInfo).length()>0)
+				{
+					m_framework.StateBroker.SetState(this, "resellerInfo", XML(i_xmlBusinessInfo.ResellerInfo.BusinessInfo[0]));
+					
+					
+					
+					
+					downloadSplashScreen();
+				}
+				
+				
+				
+				var styleService:StyleService = m_framework.ServiceBroker.QueryService("StyleService") as StyleService;		
+				if (XMLList(i_xmlBusinessInfo.Weathers).length()>0)
+				{
+					styleService.setWeathers(i_xmlBusinessInfo.Weathers.*)
+				}
+				
+				
+				
+				if (i_xmlBusinessInfo.name()=="BusinessInfo")
+				{
+					m_moduleService.setAppStoreList(i_xmlBusinessInfo.Apps.App);					
+					
+					var businessDomain:String = i_xmlBusinessInfo.SourceInfo.@businessDomain;
+					var businessId:int = int(i_xmlBusinessInfo.@businessId);
+					
+					m_dataBaseManager.createDataBase(businessDomain, businessId);
+					
+
+					
+					setBusinessParams(
+						int(i_xmlBusinessInfo.SourceInfo.@id),
+						businessId,
+						String(i_xmlBusinessInfo.@name),
+						String(i_xmlBusinessInfo.SourceInfo.@businessDomain),
+						String(i_xmlBusinessInfo.SourceInfo.@businessDbName));
+					
+					
+					m_moduleService.init(businessDomain, "1.0"); //???
+					m_framework.ServiceBroker.RegisterService("ModuleService", m_moduleService);
+
+
+					m_cachingService = createCachingService();
+					m_framework.ServiceBroker.RegisterService("CachingService", m_cachingService);
+					
+					
+					m_resourceService = createResourceService();
+					m_framework.ServiceBroker.RegisterService("ResourceService", m_resourceService);
+					
+					
+					
+					m_loaderManager = createLoaderManager();
+					m_framework.ServiceBroker.RegisterService("LoaderManager", m_loaderManager);
+
+					
+					m_advertisingService = new AdvertisingService(m_framework);
+					m_framework.ServiceBroker.RegisterService("AdvertisingService", m_advertisingService);
+					
+					
+					
+					
+					
+					var xmlResellerInfo:XML = m_framework.StateBroker.GetState("resellerInfo") as XML;
+					if (XMLList(xmlResellerInfo.InstalledApps).length()>0)
+					{
+						m_moduleService.registerAppList(xmlResellerInfo.InstalledApps[0]);
+					}
+					else
+					{
+						m_moduleService.registerAppList(AppStore.installedApps);
+					}				
+					
+					m_moduleService.setModules(4, true);
+					
+					
+					
+					/// ugly
+					NativeApplication.nativeApplication.addEventListener(Event.NETWORK_CHANGE, onNetworkChange);
+					
+
+					m_GetLastChangelistId = new PostService("http://"+businessDomain+"/WebService/DataBaseService.asmx", "GetLastChangelistId", "i_businessId", "i_businessDbName");
+					m_GetLastChangelistId.addEventListener(FaultEvent.FAULT, onLastChangelistIdFail);
+					m_GetLastChangelistId.addEventListener(ResultEvent.RESULT, onLastChangelistIdResult);
+					
+					
+					
+					
+					
+					
+					
+					
+					m_playerLoaderService = createPlayerLoaderService();
+					m_framework.ServiceBroker.RegisterService("PlayerLoaderService", m_playerLoaderService);
+
+					
+					m_playerEventService = createPlayerEventService();
+					m_framework.ServiceBroker.RegisterService("PlayerEventService", m_playerEventService);
+					
+					
+					/* ZWave???
+					if (m_nativeExtension.isSupported())
+					{
+						createNativeController();
+						m_zwaveService = createZWaveService();
+						m_framework.ServiceBroker.RegisterService("ZWaveService", m_zwaveService);
+					}
+					*/
+					
+					
+					
+					
+					m_campaignBoardPlayer.init();										
+					
+					
+					m_framework.StateBroker.SetState(this, "socketDomain", String(i_xmlBusinessInfo.SourceInfo.@socketDomain));
+					
+					
+					m_mainPanel.musicPlayer.init(m_framework);
+					
+					
+					var branchStationId:int = (so.data.branchStationId==null) ? -1 : int(so.data.branchStationId);
+					if (branchStationId!=-1)
+					{
+						m_playerSocket.init(); 
+					}
+					
+					
+					
+					stop();
+					sync();
+
+				}
+				else 
+				{
+					enabled = true;
+					so.data.businessId = -1;
+					so.data.branchStationId = -1;
+					so.flush();
+					m_mainPanel.currentState = "State_Login"
+				}
+			}
+			
+			protected override function createLoaderManager():LoaderManager
+			{
+				return new LoaderManager(m_framework, true);
+			}
+			 
+			
+			private function onNetworkChange(event:Event):void
+			{
+				m_debugLog.addInfo("onNetworkChange");
+				m_framework.StateBroker.SetState(this, "internetConnection", false); // set InternetConnection to false untill response.
+				
+				if (m_checkChangelistTimer!=null)
+				{
+					m_checkChangelistTimer.reset();
+					m_checkChangelistTimer.start();
+				}
+			}	
+			
+			
+			private function onCheckLastChangelistId(event:TimerEvent):void
+			{
+				if (m_GettingLastChangelistId==false)
+				{
+					m_debugLog.addInfo("onCheckLastChangelistId");
+					m_GettingLastChangelistId = true;
+					var businessId:int = int(m_framework.StateBroker.GetState("businessId"));
+					var businessDbName:String = String(m_framework.StateBroker.GetState("businessDbName"));			
+					m_GetLastChangelistId.call(businessId, businessDbName);
+				}
+			}
+			
+			private function onLastChangelistIdFail(event:FaultEvent):void
+			{
+				m_debugLog.addWarning("onLastChangelistIdFail");
+				
+				m_GettingLastChangelistId = false;
+				
+				m_framework.StateBroker.SetState(this, "internetConnection", false);
+			}		
+			
+			private function onLastChangelistIdResult(event:ResultEvent):void
+			{
+				m_debugLog.addInfo("onLastChangelistIdResult");
+				m_GettingLastChangelistId = false;
+				
+				m_framework.StateBroker.SetState(this, "internetConnection", true);
+				
+				
+				var xmlResult:XML = XML(event.result);
+				var nedwChangelist:int = int(xmlResult.toString());
+				var lastChangelist:int = m_dataBaseManager.lastChangelist;
+				if (nedwChangelist>lastChangelist)
+				{
+					resync();
+				}
+			}
+
+			
+			protected function setStatus(i_status:String):void
+			{
+				if (m_debugLog!=null)
+				{
+					m_debugLog.addInfo("setStatus() " + i_status);
+				}
+				
+				if (m_playerSocket)
+				{
+					m_playerSocket.setStatus(i_status);
+				}
+				if (m_mainPanel.readyCtrl!=null)
+				{
+					m_mainPanel.readyCtrl.setStatus(i_status);				
+				}
+				if (m_watchDogService!=null)
+				{
+					m_watchDogService.logMessage(i_status);
+					
+					if (m_watchDogService.shuttingDown)
+					{
+						m_playerSocket.send("turnOffStation");
+					}
+				}
+			}
+			
+
+			private function sync():void
+			{
+				m_debugLog.addInfo("sync() begin");
+				try
+				{
+					setStatus("Loading...");
+					
+					m_loaderManager = m_framework.ServiceBroker.QueryService("LoaderManager") as LoaderManager;
+					m_resourceService = m_framework.ServiceBroker.QueryService("ResourceService") as IResourceService;
+					
+					var tableRequest:ITableRequest = m_loaderManager.CreateTableRequest();
+					tableRequest.add("branch_stations", "");
+					tableRequest.add("station_ads", "");
+					tableRequest.add("ad_rates", "");
+					tableRequest.add("campaigns", "");
+					tableRequest.add("campaign_boards", "");
+					tableRequest.add("boards", "");
+					
+					setToMyBusiness();	
+					m_loaderManager.persistRequest("globals", "campaign_board", tableRequest, false, true, true, false, onTableData1);
+				}
+				catch(e:Error)
+				{
+					m_debugLog.addInfo("sync() Error");
+					m_debugLog.addException(e);
+				}
+				m_debugLog.addInfo("sync() end");
+			} 
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			protected function onTableData1(i_transaction:ITransaction):void
+			{
+				var testPoint:int = 0;
+				
+				try
+				{
+					enabled = true;
+					if (i_transaction.result==false)
+					{
+						AlertEx.showOk (
+							UIComponent(m_framework.StateBroker.GetState("topWindow")),
+							"Can not Login while data is still submiting to the server\nPlease try aign later.", "Warning");
+						if (m_debugLog!=null)
+						{
+							m_debugLog.addWarning("Can not Login while data is still submiting to the server\nPlease try aign later.");
+						}
+						return;
+					}
+					testPoint = 1;
+					setStatus("Ready");
+					
+					var soMediaSignage:SharedObject = SharedObject.getLocal("MediaSignage", "/", false);
+					var branchStationId:int = (soMediaSignage.data.branchStationId==null) ? -1 : int(soMediaSignage.data.branchStationId);
+					if (branchStationId==-1)
+					{
+						m_mainPanel.currentState = "State_Registration";
+						if (m_debugLog!=null)
+						{
+							m_debugLog.addInfo("Registration");
+						}
+					}
+					else 
+					{
+						m_hBranchStation = m_dataBaseManager.table_branch_stations.getHandle(branchStationId);
+						var recBranchStation:Rec_branch_station = m_dataBaseManager.table_branch_stations.getRecord(m_hBranchStation);
+						
+						if (recBranchStation==null)
+						{
+							if (ITransactionRequest(i_transaction).online)
+							{
+								AlertEx.showOk (UIComponent(m_framework.StateBroker.GetState("topWindow")), "This station has been deleted.\nPlease restart it to re-register\n", "station deleted", alertClickHandler);
+							}
+							else
+							{
+								rebootPlayer();  // will keep rebooting untill internet is back
+							}
+							return;
+						}
+						
+						testPoint = 2;
+						if (m_debugLog!=null)
+						{
+							m_debugLog.setParam("stationId", branchStationId.toString());
+						}
+						if (recBranchStation!=null)
+						{
+							if (stage!=null)
+							{
+								var soStage:SharedObject = SharedObject.getLocal("Stage", "/", false);
+								soStage.data.frameRate = stage.frameRate = recBranchStation.frame_rate;
+								soStage.data.quality = stage.quality = StageQualityMap[ recBranchStation.quality ];
+								soStage.flush();
+							}
+							
+							
+							if (m_advertisingService!=null)
+							{
+								var recStationAd:Rec_station_ad = m_dataBaseManager.table_station_ads.getRecord(m_hBranchStation);
+								if (recStationAd!=null && recStationAd.ad_rate_id!=-1)
+								{
+									var recAdRate:Rec_ad_rate = m_dataBaseManager.table_ad_rates.getRecord(recStationAd.ad_rate_id);
+									if (recAdRate!=null)
+									{
+										AdvertisingService(m_advertisingService).setStationRates(recAdRate.ad_rate_map, 
+											recAdRate.hour_rate0, recAdRate.hour_rate1, recAdRate.hour_rate2, recAdRate.hour_rate3);
+									}
+									
+								}
+							}							
+							
+							if (m_viewerService!=null)
+							{
+								ViewerService(m_viewerService).transitionEnabled = recBranchStation.transition_enabled;
+							}
+							
+							
+							if (m_webServer)
+							{
+								if (recBranchStation.lan_server_enabled)
+								{
+									m_webServer.bind(recBranchStation.lan_server_ip, recBranchStation.lan_server_port);
+								}
+								else
+								{
+									m_webServer.close();
+								}
+							}
+							
+							testPoint = 3;
+							
+							if (m_debugLog!=null)
+							{
+								m_debugLog.setParam("stationName", recBranchStation.station_name);
+							}
+							m_framework.StateBroker.SetState(this, "branchStationId", branchStationId);
+							m_mainPanel.currentState = "State_Ready";
+							m_playerSocket.start();
+							
+							
+							
+							var hCampaignBoard:int = recBranchStation.campaign_board_id;
+							var recCampaignBoard:Rec_campaign_board = m_dataBaseManager.table_campaign_boards.getRecord(hCampaignBoard);
+							if (recCampaignBoard!=null)
+							{
+								testPoint = 4;
+								m_campaignOutputAssigned = true;
+								m_persistent.load("output"+ recCampaignBoard.native_id);
+								
+								
+								if (recCampaignBoard.campaign_id!=-1)
+								{
+									var recCampaign:Rec_campaign = m_dataBaseManager.table_campaigns.getRecord(recCampaignBoard.campaign_id);
+									if (recCampaign!=null)
+									{
+										m_debugLog.setParam("campaignName", recCampaign.campaign_name);
+									}
+								}
+								if (recCampaignBoard.board_id!=-1)
+								{
+									var recBoard:Rec_board = m_dataBaseManager.table_boards.getRecord(recCampaignBoard.board_id);
+									if (recBoard!=null)
+									{
+										m_debugLog.setParam("boardName", recBoard.board_name);
+									}
+								}
+								
+								
+								testPoint = 5;
+								
+								setStatus("Init");
+								testPoint = 6;
+								validateNow();
+								testPoint = 7;
+								if (m_mainPanel.readyCtrl!=null)
+								{ 
+									testPoint = 8;
+									m_mainPanel.readyCtrl.invalidateProperties();
+									testPoint = 9;
+								}
+								testPoint = 10;
+								if (m_watchDogService!=null)
+								{ 
+									testPoint = 11;
+									m_watchDogService.setStationMode(recBranchStation.station_mode);
+									testPoint = 12;
+								}
+								testPoint = 13;
+								syncPlayerData();
+								testPoint = 14;
+							}
+							else
+							{
+								testPoint = 15;
+								m_campaignOutputAssigned = false;
+								setStatus("Not assigned");
+								showSplashScreen(false);
+								testPoint = 16;
+							} 
+						}
+						
+					}
+					
+					testPoint = 17;
+				}
+				catch(e:Error)
+				{
+					if (m_debugLog!=null)
+					{
+						m_debugLog.addInfo("onTableData1() Error testPoint="+testPoint.toString());
+						m_debugLog.addException(e);
+					}
+				}
+			}
+			
+			private function alertClickHandler():void 
+			{
+				unregister();
+			}
+			
+			
+			private function unregister():void
+			{
+				if (m_campaignBoardPlayer!=null)
+				{
+					stop();
+				}
+				
+				try
+				{
+					File.applicationStorageDirectory.deleteDirectory(true);
+				}
+				catch(e:Error)
+				{
+					// Ignore
+				}
+				NativeApplication.nativeApplication.exit(0);
+			}
+			
+			
+			private function syncPlayerData():void
+			{
+				m_debugLog.addInfo("syncPlayerData() begin");
+				try
+				{
+					var so:SharedObject = SharedObject.getLocal("MediaSignage", "/", false);
+					var branchStationId:int = (so.data.branchStationId==null) ? -1 : int(so.data.branchStationId);
+					
+					m_hBranchStation = m_dataBaseManager.table_branch_stations.getHandle(branchStationId);
+					var recBranchStation:Rec_branch_station = m_dataBaseManager.table_branch_stations.getRecord(m_hBranchStation);
+					if (recBranchStation.campaign_board_id!=-1)
+					{
+						if (m_watchDogService!=null)
+						{
+							m_watchDogService.exceedMemAction = recBranchStation.reboot_exceed_mem_action;
+							m_watchDogService.exceedMemValue = recBranchStation.reboot_exceed_mem_value;
+							m_watchDogService.rebootTimeAction = recBranchStation.reboot_time_action;
+							m_watchDogService.rebootTimeValue = recBranchStation.reboot_time_value;
+							m_watchDogService.errorAction = recBranchStation.reboot_error_action;
+							
+							
+							m_watchDogService.setPowerSaving(recBranchStation.power_mode, 
+								[
+									{on:recBranchStation.power_on_day1, off:recBranchStation.power_off_day1},
+									{on:recBranchStation.power_on_day2, off:recBranchStation.power_off_day2},
+									{on:recBranchStation.power_on_day3, off:recBranchStation.power_off_day3},
+									{on:recBranchStation.power_on_day4, off:recBranchStation.power_off_day4},
+									{on:recBranchStation.power_on_day5, off:recBranchStation.power_off_day5},
+									{on:recBranchStation.power_on_day6, off:recBranchStation.power_off_day6},
+									{on:recBranchStation.power_on_day7, off:recBranchStation.power_off_day7},
+								]);				
+						}
+						
+						//??? m_loaderManager.resetLastChangelistId();
+						
+						if (recBranchStation.campaign_board_id==-1)
+						{
+							return;
+						}
+						m_campaignBoardPlayer.setSignageParams(recBranchStation.campaign_board_id);
+						
+						var recCampaignBoard:Rec_campaign_board = m_dataBaseManager.table_campaign_boards.getRecord(recBranchStation.campaign_board_id);
+						m_campaign_board_id = recCampaignBoard.native_id;
+						var recCampaign:Rec_campaign = m_dataBaseManager.table_campaigns.getRecord(recCampaignBoard.campaign_id);
+						m_campaign_id = recCampaign.native_id;
+						var recBoard:Rec_board = m_dataBaseManager.table_boards.getRecord(recCampaignBoard.board_id);
+						m_board_id = recBoard.native_id;
+						reqData();
+					}
+				}
+				catch(e2:Error)
+				{
+					m_debugLog.addInfo("syncPlayerData() Error");
+					m_debugLog.addException(e2);
+				}
+				m_debugLog.addInfo("syncPlayerData() end");
+			}
+			
+			
+			
+			
+			private function onLoggedIn(i_event:Event):void
+			{
+				m_debugLog.addInfo("onLoggedIn()");
+				enabled = false;
+				var businessId:int = int(m_framework.StateBroker.GetState("businessId"));
+				//m_webService.GetBusinessInfo(businessId);
+				m_GetBusinessInfo.call(businessId);
+			}
+			
+			
+			private function onRegistered(event:Event):void
+			{
+				try
+				{
+					m_debugLog.addInfo("onRegistered()");
+					var so:SharedObject = SharedObject.getLocal("MediaSignage", "/", false);
+					var businessId:int = int(m_framework.StateBroker.GetState("businessId"));
+					var branchStationId:int = int(m_framework.StateBroker.GetState("branchStationId"));
+					if (businessId!=-1 && branchStationId!=-1)
+					{
+						so.data.businessId = businessId;
+						so.data.branchStationId = branchStationId;
+						so.flush();
+						so.close();
+						
+						var masterDomain:String = ERI.domain;
+						var domain:String = masterDomain.substr(masterDomain.lastIndexOf('.', masterDomain.lastIndexOf('.')-1)+1);
+						var persistFolder:File = File.applicationStorageDirectory.resolvePath(domain).resolvePath("business" + businessId.toString());
+						m_persistent.setPath(persistFolder.nativePath);
+						
+						
+						
+						
+						var businessDbName:String = String(m_framework.StateBroker.GetState("businessDbName"));
+						m_playerSocket.init();
+						m_playerSocket.start();
+						m_mainPanel.currentState="State_Ready";
+						m_playAfterSync = false;
+						
+						
+						
+						sync();  // sync will call syncPlayerData();					
+					}
+					else
+					{
+						AlertEx.showOk(
+							UIComponent(m_framework.StateBroker.GetState("topWindow")),
+							"businessId="+businessId+"\nbranchStationId="+branchStationId, "onRegistered fail");
+					}
+				}
+				catch(error:Error)
+				{
+					AlertEx.showOk(
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						error.message);
+				}
+			}
+			
+			private function onReady(event:Event):void
+			{
+				m_mainPanel.currentState="State_Ready";
+			}
+			
+			private function onStart(event:Event):void // from Player Button
+			{
+				m_playAfterSync = true;
+				start();
+			}
+			
+			private function onStop(event:Event):void // from Player Button
+			{
+				//m_watchDogService.showTaskBar(true);
+				m_playAfterSync = false;
+				stop();
+			}
+			
+			
+			private function onSyncAndPlay(event:Event):void // from Player Button (check box in Dialog)
+			{
+				m_playAfterSync = true;
+				stop();
+				sync();
+			}
+			
+
+			private function onRemoveStation(event:Event):void
+			{
+				m_debugLog.addInfo("onRemoveStation()");
+				enabled = false;
+				m_resourceService.clearCaching();
+				m_playerSocket.dispose();
+				var so:SharedObject = SharedObject.getLocal("MediaSignage", "/", false);
+				var branchStationId:int = (so.data.branchStationId==null) ? -1 : int(so.data.branchStationId);
+				m_hBranchStation = m_dataBaseManager.table_branch_stations.getHandle(branchStationId);
+				if (m_hBranchStation!=-1)
+				{
+					m_dataBaseManager.table_branch_stations.openForDelete(m_hBranchStation);
+					
+					var tableRequest:ITableRequest = m_loaderManager.CreateTableRequest();
+					tableRequest.add("branch_stations", "");
+					m_loaderManager.request(tableRequest, true, true, true, onSyncAndSubmit);
+				}
+				else
+				{
+					if (m_debugLog!=null)
+					{
+						m_debugLog.addWarning("Fail to unregister station");
+					}
+				}
+			}
+			
+			private function onSyncAndSubmit(i_result:Boolean):void
+			{
+				m_debugLog.addInfo("onSyncAndSubmit()");
+				if (i_result==false)
+				{
+					enabled = true;
+					if (m_debugLog!=null)
+					{
+						m_debugLog.addWarning("Unregister Fail");
+					}
+					return;
+				}
+				m_loaderManager.submit(onSubmitDone);
+			}
+			
+			
+			public function onSubmitDone(i_result:Boolean, i_messageTitle:String=null, i_messageText:String=null):void
+			{
+				m_debugLog.addInfo("onSubmitDone()");
+				if (i_result==false)
+				{
+					enabled = true;
+					AlertEx.showOk (
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						i_messageText, i_messageTitle);
+					if (m_debugLog!=null)
+					{
+						m_debugLog.addWarning(i_messageText);
+					}
+					return;
+				}
+				
+				unregister();
+			}
+			
+			public function updateButtons():void
+			{
+				if (m_mainPanel.readyCtrl!=null)
+				{
+					m_mainPanel.readyCtrl.updateButtons();
+				}
+			}
+			
+			
+			
+			
+			private function onMonitorStatusChanged(event:Event):void
+			{
+				if (m_watchDogService!=null)
+				{
+					if (m_watchDogService.monitorStandBy)
+					{
+						stop();
+						showMainPanel(false);
+					}
+					else
+					{
+						rebootPlayer();
+					}
+				}
+			}
+			
+			private function onCaptureScreen(event:Event):void
+			{
+				trace("onCaptureScreen 222"); 
+			}
+			
+			private function setMusicChannel(i_musicChannel:int, i_immediateAction:Boolean):void
+			{
+				var keys:Array = m_dataBaseManager.table_music_channel_songs.getAllPrimaryKeys();
+				var playlist:String =  null;
+				for each(var hMusicChannelSong:int in keys)
+				{
+					var recMusicChannelSong:Rec_music_channel_song = m_dataBaseManager.table_music_channel_songs.getRecord(hMusicChannelSong);
+					var recMusicChannel:Rec_music_channel = m_dataBaseManager.table_music_channels.getRecord(recMusicChannelSong.music_channel_id);
+					if (i_musicChannel==recMusicChannel.native_id)
+					{
+						var recResource:Rec_resource = m_dataBaseManager.table_resources.getRecord(recMusicChannelSong.resource_id);
+						if (playlist==null) 
+						{
+							playlist = recResource.native_id.toString();
+						}
+						else
+						{
+							playlist += "," + recResource.native_id.toString();
+						}
+					}
+				}
+				m_mainPanel.musicPlayer.setMusicPlaylist(playlist, i_immediateAction);
+			}
+			
+			private function selectMusicSong(i_musicSongId:int, i_immediateAction:Boolean):void
+			{
+				var hMusicChannelSong:int = m_dataBaseManager.table_music_channel_songs.getHandle(i_musicSongId);
+				var recMusicChannelSong:Rec_music_channel_song = m_dataBaseManager.table_music_channel_songs.getRecord(hMusicChannelSong);
+				var recResource:Rec_resource = m_dataBaseManager.table_resources.getRecord(recMusicChannelSong.resource_id);
+				m_mainPanel.musicPlayer.selectMusicSong(recResource.native_id, i_immediateAction);			
+			}
+			
+			private function button_mouseDownHandler(event:Event):void
+			{
+				if (m_watchDogService!=null)
+				{
+					//m_watchDogService.showTaskBar(true);
+					m_watchDogService.showController(true);
+				}
+			}
+			
+			
+			private function onStateUpdate(event:StateBrokerEvent):void
+			{
+				if (event.stateName=="CachingStatus")
+				{
+					var cachingStatus:Array = m_framework.StateBroker.GetState("CachingStatus") as Array;
+					m_playerSocket.setCachingStatus(cachingStatus[0], cachingStatus[1], cachingStatus[2]); 
+				}
+			}
+			
+			
+			private function rebootPlayer():void
+			{
+				m_debugLog.addInfo("rebootPlayer()");
+				setStatus("Reboot player...");
+				if (m_watchDogService!=null)
+				{
+					m_watchDogService.rebootPlayer();
+					m_watchDogService = null;
+				}
+			}	
+			
+			private function rebootStation():void
+			{
+				m_debugLog.addInfo("rebootStation()");
+				setStatus("Reboot station...");
+				if (m_watchDogService!=null)
+				{
+					m_watchDogService.rebootStation();
+					m_watchDogService = null;
+				}
+			}
+			
+			private function clearCaching():void
+			{
+				m_debugLog.addInfo("clearCaching()");
+				setStatus("Clear caching...");
+				stop();
+				m_resourceService.clearCaching();
+				rebootPlayer();
+			}
+			
+			
+			public function clearAllCaching():void
+			{
+				try
+				{
+					m_debugLog.addInfo("clearAllCaching()");
+					var businessId:int = int(m_framework.StateBroker.GetState("businessId"));
+					if (businessId>1)
+					{
+						var businessFile:File = File.applicationStorageDirectory;
+						businessFile = businessFile.resolvePath("business" + businessId.toString());
+						businessFile.deleteDirectory(true);
+					}
+				}
+				catch(e1:Error)
+				{
+					// ignore
+				}
+				
+				try
+				{
+					var rssFile:File = File.applicationStorageDirectory.resolvePath("Rss");
+					rssFile.deleteDirectory(true);
+				}
+				catch(e1:Error)
+				{
+					// ignore
+				}
+				
+				try
+				{
+					var stylesFile:File = File.applicationStorageDirectory.resolvePath("Styles");
+					stylesFile.deleteDirectory(true);
+				}
+				catch(e1:Error)
+				{
+					// ignore	
+				}
+				
+				try
+				{
+					var rssCachingFile:File = File.applicationStorageDirectory.resolvePath("rss_caching.xml");
+					rssCachingFile.deleteFile();
+				}
+				catch(e1:Error)
+				{
+					// ignore	
+				}
+			}
+			
+			
+			public override function dispose():void
+			{
+				if (m_debugLog!=null)
+				{
+					m_debugLog.addInfo("dispose()");
+				}
+				
+				super.dispose();
+				
+				
+				
+				saveCaching();
+				
+				if (m_checkChangelistTimer!=null)
+				{
+					m_checkChangelistTimer.removeEventListener(TimerEvent.TIMER_COMPLETE, onCheckLastChangelistId);
+					m_checkChangelistTimer = null;
+				}
+				
+				var resourceServiceAir:IResourceServiceAir = m_resourceService as IResourceServiceAir;
+				if (resourceServiceAir!=null)
+				{
+					resourceServiceAir.dispose();
+				}
+				
+				
+				try
+				{
+					if (m_styleService!=null)
+					{
+						m_styleService.removeEventListener(ServiceStyleEvent.COMPLETE, onStyleComplete);
+						m_styleService = null;
+					}
+				}
+				catch(error:Error)
+				{
+					
+				}				
+				
+				
+				
+				try
+				{
+					if (m_campaignBoardPlayer!=null)
+					{
+						stop();	
+					}
+				}
+				catch(error:Error)
+				{
+					
+				}				
+				
+				try
+				{
+					if (m_localConnection!=null)
+					{
+						//??? m_localConnection.close();
+						m_localConnection = null;
+					} 
+				}
+				catch(error:Error)
+				{
+					
+				}					
+				
+				try
+				{
+					if (m_GetBusinessInfo!=null)
+					{
+						m_GetBusinessInfo.removeEventListener(ResultEvent.RESULT, onBusinessInfoResult);
+						m_GetBusinessInfo.removeEventListener(FaultEvent.FAULT, onBusinessInfoFail);
+						m_GetBusinessInfo = null;
+					}
+					if (m_debugLog!=null)
+					{
+						m_debugLog.removeEventListener(DebugLogEvent.MESSAGE, onDebugLog);
+						m_debugLog = null;
+					}					
+					if (m_LoadResellerInfo!=null)
+					{
+						m_LoadResellerInfo.removeEventListener(ResultEvent.RESULT, onResellerInfo);
+						m_LoadResellerInfo = null;
+					}
+					if (m_framework!=null)
+					{
+						m_framework.EventBroker.removeEventListener(LoginCtrl.LOGGED_IN_EVENT, onLoggedIn);
+						m_framework.EventBroker.removeEventListener(RegistrationCtrl.REGISTERED_EVENT, onRegistered);
+						m_framework.EventBroker.removeEventListener(ReadyCtrl.START_EVENT, onStart);
+						m_framework.EventBroker.removeEventListener(ReadyCtrl.STOP_EVENT, onStop);
+						m_framework.EventBroker.removeEventListener(ReadyCtrl.SYNC_AND_PLAY_EVENT, onSyncAndPlay);
+						m_framework.EventBroker.removeEventListener(UnregisterCtrl.REMOVE_STATION_EVENT, onRemoveStation);
+						m_framework.EventBroker.removeEventListener(UnregisterCtrl.READY_EVENT, onReady);
+					}
+				}
+				catch(error:Error)
+				{
+					
+				}
+				
+				try
+				{
+					if (m_persistent!=null)
+					{
+						m_persistent = null;
+					}
+				}
+				catch(error:Error)
+				{
+					
+				}
+				
+				try
+				{
+					if (m_campaignBoardPlayer!=null)
+					{
+						m_campaignBoardPlayer.dispose();
+						m_campaignBoardPlayer = null;
+					}
+					if (m_viewerService!=null)
+					{
+						m_viewerService.removeAllViewers();
+					}
+				}
+				catch(error:Error)
+				{
+					
+				}
+				try
+				{
+					if (m_playerSocket!=null)
+					{
+						setStatus("Closed");
+						m_playerSocket.dispose();
+						m_playerSocket = null;
+					}
+				}
+				catch(error:Error)
+				{
+					
+				}
+				try
+				{
+					removeAllElements();
+					validateNow();
+				}
+				catch(error:Error)
+				{
+					
+				}
+				
+				/////////////////////////
+				
+				NativeApplication.nativeApplication.removeEventListener(Event.NETWORK_CHANGE, onNetworkChange);
+				if (m_GetLastChangelistId!=null)
+				{
+					m_GetLastChangelistId.addEventListener(FaultEvent.FAULT, onLastChangelistIdFail);
+					m_GetLastChangelistId.addEventListener(ResultEvent.RESULT, onLastChangelistIdResult);
+					m_GetLastChangelistId = null;
+				}
+				
+				m_framework.StateBroker.removeEventListener(StateBrokerEvent.STATE_SET, onStateUpdate);
+				
+				
+				
+				/////////////////////////////////////////
+				
+				if (m_watchDogService!=null)
+				{
+					m_watchDogService.removeEventListener("monitor_status_changed", onMonitorStatusChanged);
+					m_watchDogService.removeEventListener("capture_screen_event", onCaptureScreen);
+					m_watchDogService.dispose();
+					m_watchDogService = null;
+				}					
+				
+			}
+			
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+</ms:SignagePlayerBase>

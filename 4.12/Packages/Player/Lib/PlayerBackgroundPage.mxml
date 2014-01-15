@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerEffectPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					 xmlns:s="library://ns.adobe.com/flex/spark" 
+					 xmlns:mx="library://ns.adobe.com/flex/mx"
+					 xmlns:ms="*"
+	width="300" height="270" xmlns:ColorPicker="ColorPicker.*">
+	
+	<fx:Script> 
+		<![CDATA[
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			
+			private var m_gradientSlider:GradientSlider;
+			private var m_square:Sprite = new Sprite();
+			private var m_preSets:int = 1;
+			 
+			 
+			public override function get effectName():String
+			{
+				return resourceManager.getString('customer', 'PlayerBackgroundPage.title');
+			}
+			
+			protected override function get playerEffect():PlayerEffect
+			{
+				return m_playerLoader.playerBackground;
+			}
+
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				var css:CSSStyleDeclaration = FlexGlobals.topLevelApplication.styleManager.getStyleDeclaration("GradiantCtrl");
+				gradientClearFilter.setStyle("icon", css.getStyle("clearFilterIcon"));
+				gradientColor.setStyle("icon", css.getStyle("colorIcon"));
+				gradientDel.setStyle("icon", css.getStyle("delIcon"));
+				gradientDirections.setStyle("icon", css.getStyle("directionsIcon"));
+				gradientEven.setStyle("icon", css.getStyle("evenIcon"));
+				gradientLinear.setStyle("icon", css.getStyle("linearIcon"));
+				gradientPresets.setStyle("icon", css.getStyle("presetsIcon"));
+				gradientRadial.setStyle("icon", css.getStyle("radialIcon"));
+				gradientTinyTop.setStyle("icon", css.getStyle("tinyTopIcon"));
+				gradientTinyBottom.setStyle("icon", css.getStyle("tinyBottomIcon"));
+				gradientTinyLeft.setStyle("icon", css.getStyle("tinyLeftIcon"));
+				gradientTinyRight.setStyle("icon", css.getStyle("tinyRightIcon"));
+				
+				
+				m_playerActiveCtrl.showDynamicButton = false;
+				m_gradientSlider = new GradientSlider();
+				m_gradientSlider.width = gradientUI.width;
+				m_gradientSlider.height = gradientUI.height;
+				
+				m_square.graphics.beginFill(0x000000);
+				m_square.graphics.drawRect(0, 0, gradientUI.width, gradientUI.height);
+				m_square.graphics.endFill();
+				gradientUI.addChild(m_square);
+				gradientUI.mask = m_square;
+
+				gradientUI.addChild(m_gradientSlider);				
+				m_gradientSlider.onColorChanged = onGradientColorChanged;
+			}
+
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (playerEffect==null)
+					return;
+				var simpleBackground:Object = playerEffect.getProperty("simpleBackground");
+				var gradientBackground:Object = playerEffect.getProperty("gradientBackground");
+				if (simpleBackground!=null)
+				{
+					m_backgroundColor.selectedColor = uint(simpleBackground.color);
+					m_backgroundAlpha.value = simpleBackground.alpha;
+				}
+				else if (gradientBackground!=null)
+				{
+					m_gradientSlider.gradientBackground = gradientBackground;
+				}
+			}
+			
+			
+			protected override function updateButtons():void
+			{
+				super.updateButtons();
+				propCtrl.enabled = (m_playerActiveCtrl.propType.selectedValue!="Off");
+				
+				if (playerEffect==null)
+					return;
+				
+				var simpleBackground:Object = playerEffect.getProperty("simpleBackground");
+				var gradientBackground:Object = playerEffect.getProperty("gradientBackground");
+				if (simpleBackground!=null)
+				{
+					backgroundStyle.selectedValue = BackgroundStyles.SIMPLE;
+					ctrlSimple.enabled = true;
+					ctrlGradient.enabled = false;
+					
+				}
+				else if (gradientBackground!=null)
+				{
+					backgroundStyle.selectedValue = BackgroundStyles.GRADIENT;
+					ctrlSimple.enabled = false;
+					ctrlGradient.enabled = true;
+				}
+				else
+				{
+					backgroundStyle.selectedValue = null;
+					ctrlSimple.enabled = false;
+					ctrlGradient.enabled = false;
+				}
+			}
+			
+			
+			protected override function createPlayerEffect(i_enabled:Boolean):void
+			{
+				m_playerLoader.createPlayerBackground(i_enabled);
+			}
+			
+			protected override function createPoint1():void
+			{
+				var data:Object = new Object();
+				playerEffect.insert(null, data);
+			}		
+
+			protected override function createPoint2():void
+			{
+				var data:Object = new Object();
+				var playerAction:PlayerAction =  new PlayerAction();
+				playerAction.delay = 0;
+				playerAction.duration = 4000;
+				playerEffect.insert(playerAction, data);
+				playerEffect.index = 0;
+			}		
+			
+			private function onBackgroundStyle(event:Event):void
+			{
+				if (backgroundStyle.selectedValue==BackgroundStyles.SIMPLE)
+				{
+					playerEffect.setProperty("gradientBackground", null, false);
+					if (m_gradientSlider!=null)
+					{ 
+						m_gradientSlider.clear();
+					}
+					var simpleBackground:Object = new Object();
+					simpleBackground.color = 0xffffff;
+					simpleBackground.alpha = 1.0;
+					playerEffect.setProperty("simpleBackground", simpleBackground);
+				}
+				else if (backgroundStyle.selectedValue==BackgroundStyles.GRADIENT)
+				{
+					playerEffect.setProperty("simpleBackground", null, false);
+					m_backgroundColor.selectedColor=0xffffff;
+					m_backgroundAlpha.value = 1.0;
+					var gradientBackground:Object = new Object();
+					gradientBackground.colorArray = new Array();
+					gradientBackground.opacityArray = new Array();
+					gradientBackground.midpointArray = new Array(); 
+					gradientBackground.gradientType = GradientType.LINEAR;
+        			gradientBackground.angle = 90;        
+        			gradientBackground.offsetX = 0;
+        			gradientBackground.offsetY = 0;
+					playerEffect.setProperty("gradientBackground", gradientBackground);
+					m_gradientSlider.gradientBackground = gradientBackground;
+				}
+				else
+				{
+					playerEffect.setProperty("gradientBackground", null);
+					playerEffect.setProperty("simpleBackground", null);
+				}
+				invalidateProperties();
+			}
+			
+			private function onSimpleBackgroundChanged(event:Event):void
+			{
+				m_playerLoader.modified = true;
+				var simpleBackground:Object = playerEffect.getProperty("simpleBackground");
+				simpleBackground.color = m_backgroundColor.selectedColor;
+				simpleBackground.alpha = m_backgroundAlpha.value;
+				playerEffect.setProperty("simpleBackground", simpleBackground);
+			}
+			
+			private function onGradientColorChanged():void
+			{
+				m_playerLoader.modified = true;
+				gradientColor.selectedColor = m_gradientSlider.handleColor;
+				m_playerLoader.refresh();
+			}
+			
+			private function resetBackground():void
+			{			
+				m_gradientSlider.preloadGradient(GradientSlider.CLEAR_BG);											
+			}
+			
+			
+			private function loadPresets():void
+			{
+				m_preSets = m_preSets == GradientSlider.TOTAL_PRESETS ? 1 : m_preSets; 
+				m_gradientSlider.preloadGradient(0-m_preSets);
+				m_preSets++;				
+			}
+			
+			
+			private function gradientDirectionSelected(event:MouseEvent):void 
+			{				
+				var gradientBackground:Object = playerEffect.getProperty("gradientBackground");				
+				switch ( Button(event.target).name.toString() )
+				{
+					case "gradientLinear":
+					{
+						gradientBackground.gradientType = GradientType.LINEAR;
+						break;
+					}
+					
+					case "gradientRadial":
+					{
+						gradientBackground.gradientType = GradientType.RADIAL;
+						break;
+					}					
+				}				
+				 
+			}
+
+			protected function onGradientSettingsChange():void
+			{
+				if (gradientSettingsDropDown.selectedItem==null)
+					return;
+				
+				//gradientControl.loadGradient(PlayerBackground(playerEffect).colorArray, PlayerBackground(playerEffect).midpointArray, PlayerBackground(playerEffect).opacityArray, false);
+				switch (gradientSettingsDropDown.selectedItem.label)
+				{
+					case "Angle":
+					{						
+						gradientAngle.maximum  = 360;
+						gradientAngle.minimum  = 0;
+						//gradientAngle.value 	= PlayerBackground(playerEffect).angle;
+						break;
+					}
+					
+					case "X Offset":					
+					{
+						//gradientAngle.maximum  = PlayerBackground(playerEffect).width;
+						//gradientAngle.minimum  = 0 - gradientSlider.maximum;
+						//gradientAngle.value	= PlayerBackground(playerEffect).offsetX;
+						break;
+					}
+					
+					case "Y Offset":
+					{
+						//gradientAngle.maximum  = PlayerBackground(playerEffect).height;
+						//gradientAngle.minimum  = 0 - gradientSlider.maximum;
+						//gradientAngle.value 	= PlayerBackground(playerEffect).offsetY;
+						break;
+					}
+				}
+			}
+			
+			protected function onGradientSliderChange():void 
+			{
+				if (gradientSettingsDropDown.selectedItem==null)
+					return;
+				
+				var gradientBackground:Object = playerEffect.getProperty("gradientBackground");
+				switch (gradientSettingsDropDown.selectedItem.label)
+				{
+					case "Angle":
+					{						
+						gradientBackground.angle = gradientAngle.value;
+						break;
+					}
+					
+					case "X Offset":					
+					{
+						gradientBackground.offsetX = gradientAngle.value;
+						break;
+					}
+					
+					case "Y Offset":
+					{
+						gradientBackground.offsetY = gradientAngle.value;
+						break;
+					}
+				}
+			}
+			
+			
+			private function onColorChanged():void
+			{
+				m_gradientSlider.handleColor = gradientColor.selectedColor;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:RadioButtonGroup id="backgroundStyle" itemClick="onBackgroundStyle(event)"/>
+	</fx:Declarations>	
+	
+	<s:BorderContainer id="propCtrl" width="100%" height="100%">
+		<s:RadioButton  group="{backgroundStyle}" value="{BackgroundStyles.SIMPLE}" 
+			x="10" y="10" 
+			label="{resourceManager.getString('customer', 'PlayerBackgroundPage.simple')}"/>
+		<s:Form id="ctrlSimple" y="40" width="100%" height="85" x="0">
+			<s:FormItem 
+				label="{resourceManager.getString('customer', 'PlayerBackgroundPage.color')}">
+				<ColorPicker:SparkColorPicker id="m_backgroundColor"
+					change="onSimpleBackgroundChanged(event)"
+					width="87" x="153" y="10"/>
+			</s:FormItem>
+			<s:FormItem 
+				label="{resourceManager.getString('customer', 'PlayerBackgroundPage.bgAlpha')}">
+				<s:HSlider id="m_backgroundAlpha" x="154" y="40" width="86"
+					minimum="0" maximum="1" stepSize="0.01"
+					change="onSimpleBackgroundChanged(event)"/>
+			</s:FormItem>
+		</s:Form>
+		<s:RadioButton group="{backgroundStyle}" value="{BackgroundStyles.GRADIENT}" 
+			x="10" y="133" 
+			label="{resourceManager.getString('customer', 'PlayerBackgroundPage.gradient')}"/>
+		<s:BorderContainer id="ctrlGradient" width="100%" height="104" y="162">
+			<mx:UIComponent id="gradientUI" width="255" height="20" x="35" y="10" />
+			<s:HGroup x="35" y="38" width="255" gap="8">
+				<s:Button id="gradientPresets" width="25" height="25" click="loadPresets()" toolTip="Presets"  x="28" y="328"/>
+				<ColorPicker:SparkColorPicker id="gradientColor" width="25" height="25" toolTip="Select Color"  x="61" y="328"
+											  change="onColorChanged()"/>
+				
+				<s:Button id="gradientDel" width="25" height="25" click="{m_gradientSlider.deleteHandle()}" toolTip="Delete Handle"  x="94" y="328"/>
+				<s:Button id="gradientClearFilter" width="25" height="25" click="resetBackground()" toolTip="Clear"  x="127" y="328"/>
+				<s:Button id="gradientLinear" name="gradientLinear" width="25" height="25" click="{gradientDirectionSelected(event)}" toolTip="Radial"  x="160" y="328"/>
+				<s:Button id="gradientRadial" name="gradientRadial" width="25" height="25" click="{gradientDirectionSelected(event)}" toolTip="Radial"/>
+				<s:Button id="gradientEven" width="25" height="25" click="{m_gradientSlider.evenSpread()}" toolTip="Spread"/>
+						
+				<s:Group width="25" height="25" id="gradientDirections">
+					<s:Button id="gradientTinyLeft" width="4" click="{m_gradientSlider.precisionMoveHandler(GradientSlider.MOVE_LEFT)}" name="moveLeft" height="7" y="336" x="259"/>
+					<s:Button id="gradientTinyRight" width="4" click="{m_gradientSlider.precisionMoveHandler(GradientSlider.MOVE_RIGHT)}" name="moveRight" height="7" y="336" x="274"/>
+					<s:Button id="gradientTinyTop" width="7" click="{m_gradientSlider.precisionMoveHandler(GradientSlider.MOVE_TOP)}" name="moveUp" height="4" x="265" y="330"/>
+					<s:Button id="gradientTinyBottom" width="7" click="{m_gradientSlider.precisionMoveHandler(GradientSlider.MOVE_BOTTOM)}" name="moveBottom" height="4" x="265" y="345"/>
+				</s:Group>
+			</s:HGroup>
+			<s:DropDownList id="gradientSettingsDropDown" width="105" change="onGradientSettingsChange()" x="185" y="71">
+				<s:ArrayCollection id="gradientDataProvider">
+					<fx:Object 
+						label="{resourceManager.getString('customer', 'PlayerBackgroundPage.angle')}"/>
+					<fx:Object 
+						label="{resourceManager.getString('customer', 'PlayerBackgroundPage.xOffset')}"/>
+					<fx:Object 
+						label="{resourceManager.getString('customer', 'PlayerBackgroundPage.yOffset')}"/>																							
+				</s:ArrayCollection>					
+			</s:DropDownList>
+			
+			<s:HSlider id="gradientAngle" 
+					   liveDragging="true" change="onGradientSliderChange()" 
+					   width="142" minimum="0" maximum="360" 
+					   x="35" y="71" snapInterval="1"
+					   />
+		</s:BorderContainer>			
+	</s:BorderContainer>	
+</ms:PlayerEffectPage>	
+

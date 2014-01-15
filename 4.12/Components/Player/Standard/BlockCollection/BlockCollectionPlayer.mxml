@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			import mx.core.IVisualElement;
+			import mx.events.CollectionEvent;
+			
+			import spark.components.NavigatorContent;
+			 
+			private var m_playerLoaderService:IPlayerLoaderService;
+			private var m_advertisingService:IAdvertisingService;
+			private var m_dataBaseManager:DataBaseManager;
+			
+			
+			private var m_viewList:XMLListCollection;
+			private var m_activeItems:Array;
+			
+			private var m_mode:String; // kiosk, slideshow
+			private var m_duration:Number = 10;
+			
+			private var m_childLoader:IPlayerLoader;
+			private var m_timer:Timer;
+			private var m_pageIndex:int = 0;
+			
+			private var m_adLocalStat:IAdLocalStat = null;
+			
+			
+			public function get viewList():XMLListCollection
+			{
+				return m_viewList;
+			}
+			
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Collection).length()>0)
+				{ 
+					var xmlCollection:XML = i_data.Collection[0];
+					m_viewList = new XMLListCollection(xmlCollection.*);
+					m_duration = Number(i_data.Collection.@duration);
+					m_mode = i_data.Collection.@mode;
+				}
+				else
+				{
+					m_viewList = new XMLListCollection();
+					m_mode = "slideshow";
+					m_duration = 10;
+				}
+				updateMode();
+				
+				m_viewList.addEventListener(CollectionEvent.COLLECTION_CHANGE, onChange);
+				
+				updateActiveItems();
+				m_pageIndex = 0;
+				showPage();
+			}
+		
+			public override function get propertyPages():Array
+			{
+				return [BlockCollectionPage];
+			}
+			
+			
+			public override function save():XML
+			{ 
+				var xmlCollection:XML = <Collection/>;
+				xmlCollection.@mode = m_mode;
+				xmlCollection.@duration = m_duration.toString();
+				
+				for each(var xmlPage:XML in m_viewList.source)
+				{
+					if (XMLList(xmlPage.AdLocalContent).length()!=0)
+					{
+						var xmlAdLocalContent:XML = xmlPage.AdLocalContent[0];
+						var hLocalContent:int = xmlAdLocalContent.@handle;
+						var recAdLocalContent:Rec_ad_local_content = m_dataBaseManager.table_ad_local_contents.getRecord(hLocalContent);
+						xmlAdLocalContent.@id = recAdLocalContent.native_id;
+					}
+				}
+				
+				xmlCollection.appendChild(m_viewList.source.copy());
+				return xmlCollection; 
+			}   
+			
+			
+			public function get mode():String
+			{
+				return m_mode;
+			}
+			
+			public function set mode(i_mode:String):void
+			{
+				if (m_mode==i_mode)
+					return;
+				m_mode = i_mode;
+				m_playerLoader.modified = true; 
+				
+				updateMode();
+			} 
+			
+			
+			private function updateMode():void
+			{
+				removeEventListeners();
+				
+				switch(m_mode)
+				{
+					case "slideshow":
+						m_timer = new Timer(m_duration * 1000);
+						m_timer.addEventListener(TimerEvent.TIMER, onTimer);
+						m_timer.start();
+						break
+					
+					case "kiosk":
+						invalidateProperties();
+						break;
+				}
+			}
+			
+			
+			public function get duration():Number
+			{
+				return m_duration;
+			}
+			
+			public function set duration(i_duration:Number):void
+			{
+				m_duration = i_duration;
+				m_playerLoader.modified = true;
+				if (m_timer!=null)
+				{
+					m_timer.delay = m_duration * 1000;
+				}
+				
+			}			
+			
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_playerLoaderService = m_framework.ServiceBroker.QueryService("PlayerLoaderService") as IPlayerLoaderService;
+				m_advertisingService = m_framework.ServiceBroker.QueryService("AdvertisingService") as IAdvertisingService;
+				m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+			} 
+			
+			public override function onCommand(i_eventHandler:IEventHandler, i_eventParam:Object):void
+			{
+				if (m_mode!="kiosk")
+					return;
+				
+				if (m_viewList.length==0)
+					return;
+				
+				switch(i_eventHandler.commandName)
+				{
+					case "firstPage":
+						m_pageIndex = 0;
+						break;
+					
+					case "prevPage":
+						m_pageIndex--;
+						if (m_pageIndex<0)
+							m_pageIndex = m_activeItems.length-1;						
+						break;
+					
+					case "nextPage":
+						m_pageIndex++;
+						if (m_pageIndex>=m_activeItems.length)
+						{
+							updateActiveItems();
+							m_pageIndex = 0;			
+						}
+						break;
+					
+					case "lastPage":
+						m_pageIndex = m_activeItems.length-1;
+						break;
+					
+					case "selectPage":
+						var pageName:String = i_eventHandler.commandParams.Page.@name;
+						if (pageName=="")
+							return;
+						var index:int = 0;
+						for each(var xmlPage:XML in m_activeItems)
+						{
+							if (xmlPage.@page==pageName)
+							{
+								m_pageIndex = index;
+								break;
+							}
+							index++;
+						}
+						
+						break;
+				}
+				
+				showPage();
+			}
+			
+			private function onTimer(event:TimerEvent):void
+			{
+				if (m_viewList.length==0)
+					return;
+				
+				m_pageIndex++;
+				if (m_pageIndex>=m_activeItems.length)
+				{
+					updateActiveItems();
+					m_pageIndex = 0;
+				}
+				
+				showPage();	
+			}
+			
+			
+			private function updateActiveItems():void
+			{
+				m_activeItems = new Array();
+				var today:Date = new Date();
+				for each(var xmlPage:XML in m_viewList)
+				{
+					var add:Boolean = true;
+					if (XMLList(xmlPage.AdLocalContent).length()!=0)
+					{
+						var xmlAdLocalContent:XML = xmlPage.AdLocalContent[0];
+						var hAdLocalContent:int = xmlAdLocalContent.@handle;
+						var recAdLocalContent:Rec_ad_local_content = m_dataBaseManager.table_ad_local_contents.getRecord(hAdLocalContent);
+						if (recAdLocalContent!=null) // is null for Web Player
+						{
+							if (recAdLocalContent.enabled)
+							{
+								var recAdLocalPackage:Rec_ad_local_package = m_dataBaseManager.table_ad_local_packages.getRecord(recAdLocalContent.ad_local_package_id);
+								if (recAdLocalPackage.use_date_range)
+								{
+									if (today.time < recAdLocalPackage.start_date.time || today.time>recAdLocalPackage.end_date.time+86400000)
+										add = false;
+								}
+							}
+							else
+							{
+								add = false;
+							}
+						}
+					}
+					if (add)
+					{
+						m_activeItems.push(xmlPage);
+					}
+				}
+			}
+			
+			
+			private function showPage():void
+			{
+				addPrevStat();
+				
+				if (m_activeItems.length==0)
+					return;
+				
+				
+				
+				var xmlPage:XML = m_activeItems[m_pageIndex];
+				if (xmlPage==null)
+					return;
+				var xmlPlayer:XML = xmlPage.Player[0];
+				if (xmlPlayer==null)
+					return;
+				
+				if (m_advertisingService!=null) // is null for Web Player
+				{
+					if (XMLList(xmlPage.AdLocalContent).length()>0)
+					{
+						var xmlAdLocalContent:XML = xmlPage.AdLocalContent[0];
+						var hAdLocalContent:int = xmlAdLocalContent.@handle;
+						if (hAdLocalContent!=-1)
+						{
+							m_adLocalStat = m_advertisingService.getLocalStat(hAdLocalContent);
+							if (m_adLocalStat!=null)
+							{
+								m_adLocalStat.beginPlay(width, height);
+							}
+						}
+					}
+				}				
+				
+				m_childLoader.load(xmlPlayer);
+				 
+				if (m_timer!=null)
+				{
+					if (Number(xmlPage.@duration)>0)
+					{
+						m_timer.delay = 1000 * Number(xmlPage.@duration);
+					}
+					else
+					{
+						m_timer.delay = 1000 * m_duration;
+					}
+				}
+			}
+			
+			private function addPrevStat():void
+			{
+				if (m_adLocalStat!=null)
+				{
+					m_adLocalStat.finishPlay();
+					m_adLocalStat = null;
+				}
+			}
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_childLoader = m_playerLoaderService.createPlayerLoader() as IPlayerLoader;
+				IVisualElement(m_childLoader).percentHeight = 100;
+				IVisualElement(m_childLoader).percentWidth = 100;
+				addElement(IVisualElement(m_childLoader));
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				Sprite(m_playerLoader).mouseEnabled=true;
+				Sprite(m_playerLoader).mouseChildren=true;								
+			}
+			
+			
+			private function onChange(event:CollectionEvent):void
+			{
+				m_playerLoader.modified = true;
+			}
+			
+			
+			private function removeEventListeners():void
+			{
+				if (m_timer!=null)
+				{
+					m_timer.stop();
+					m_timer.removeEventListener(TimerEvent.TIMER, onTimer);
+					m_timer = null;
+				}
+				
+			}
+			
+			protected override function onDispose():void
+			{
+				removeEventListeners();
+				m_viewList.removeEventListener(CollectionEvent.COLLECTION_CHANGE, onChange);
+				
+				addPrevStat();
+				
+				super.onDispose();
+			}
+		]]>
+	</fx:Script>	
+	
+	
+</ms:PlayerModule>	

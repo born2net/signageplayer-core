@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:ms="*" 
+		 width="200" height="70"
+		 paddingLeft="10" paddingTop="10"
+		 implements="IDialog">
+
+	<fx:Script>
+		<![CDATA[
+			private var m_okCancelDlg:OkCancelDlg;
+			
+			
+			public var multiSelect:Boolean = false;
+			public var dropOffset:Number;
+			public var defaultDuration:Number;
+			public var xmlPlayer1:XML;
+			public var xmlPlayer2:XML;
+			
+			
+			public function setOkCancelDlg(i_okCancelDlg:OkCancelDlg):void
+			{
+				m_okCancelDlg = i_okCancelDlg;
+			}
+			
+			public function onOk():void
+			{
+				m_okCancelDlg.close(true);
+			}
+			
+			public function onCancel():void
+			{
+				m_okCancelDlg.close(false);
+			}
+			
+			public function onButton(i_name:String):void
+			{
+				
+			}
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<s:RadioButtonGroup id="addMode" selectedValue="sceneShortcut"/>
+	</fx:Declarations>
+			
+	<s:RadioButton value="sceneShortcut" groupName="addMode" label="Add a shortcut of the scene" />
+	<s:RadioButton value="sceneCopy" groupName="addMode" label="Add a copy of the scene" />
+
+</s:VGroup>

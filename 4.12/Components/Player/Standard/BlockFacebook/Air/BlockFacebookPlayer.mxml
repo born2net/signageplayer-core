@@ -1,0 +1,601 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+	implements="IFacebookFriendProvider,IFacebookAlbumProvider,IFacebookEventProvider"> 
+	
+	<fx:Script>
+		<![CDATA[
+			import com.facebook.graph.FacebookWeb;
+			import com.model.FriendsModel;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.formatters.DateFormatter;
+			
+			import spark.components.Button;
+			
+			
+			private var m_dataBaseManager:DataBaseManager;
+			private var m_catalogService:ICatalogService;
+			private var m_playerTransitionService:IPlayerTransitionService; 
+			
+			
+			private var m_facebookService:FacebookService;
+			private var m_facebookApp:FacebookApp;
+			
+			
+			private var	m_appId:String; // = "106451142803374";
+			private var	m_email:String; // = "bv_master@hotmail.com";
+			private var	m_password:String; // = "bvmaster";
+			
+			
+			private var m_albumsCallback:Function;
+			
+			private var m_providerType:String = "albums";
+			
+			private var m_items:ArrayCollection;
+			
+			private var m_hPlayerData:int = -1;
+			private var m_itemInterval:Number = 5;
+			private var m_index:int = 0;
+			private var m_resourcePath:String;
+			private var m_resourceType:String;
+			private var m_albumId:String;
+			
+			private var m_playerTransition:IPlayerTransition;
+			private var m_timer:Timer;
+			private var m_time:Number = 0;
+			private var m_startTime:Number = 0;
+			
+			
+			private var m_friendsModel:FriendsModel;
+
+			public override function initModule():void
+			{
+				super.initModule();
+				m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+				m_catalogService = m_framework.ServiceBroker.QueryService("CatalogService") as ICatalogService;
+				
+				var airPlayer:Boolean = Boolean(m_framework.StateBroker.GetState("airPlayer"));
+				
+				if (airPlayer)
+				{
+					m_playerTransitionService = m_framework.ServiceBroker.QueryService("PlayerTransitionService") as IPlayerTransitionService;
+					m_timer = new Timer(m_itemInterval * 1000); 
+					m_timer.addEventListener(TimerEvent.TIMER, onTimer);
+					
+					m_facebookService = m_framework.ServiceBroker.QueryService("FacebookService") as FacebookService;
+					if (m_facebookService==null)
+					{
+						m_facebookService = new FacebookService();
+						m_framework.ServiceBroker.RegisterService("FacebookService", m_facebookService);
+					}
+				}
+			} 
+
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Facebook).length()>0)
+				{
+					m_providerType = i_data.Facebook.@providerType;
+					m_hPlayerData = i_data.Facebook.Player.@hDataSrc;
+					
+					if (XMLList(i_data.Facebook.Login).length()>0)
+					{
+						m_appId = i_data.Facebook.Login.@appId;
+						m_email = i_data.Facebook.Login.@email;
+						m_password = i_data.Facebook.Login.@password;
+					}
+					
+					if (XMLList(i_data.Facebook.Slideshow).length()>0)
+					{
+						m_itemInterval = int(i_data.Facebook.Slideshow.@itemInterval);
+					}
+					if (m_itemInterval==0)
+						m_itemInterval = 5;
+					
+					if (m_timer!=null)
+					{
+						m_timer.delay = m_itemInterval * 1000;
+					}
+					
+					
+					if (m_providerType=="albums" && XMLList(i_data.Facebook.Albums).length()>0)
+					{
+						var xmlAlbum:XML = i_data.Facebook.Albums.Album[0];
+						m_albumId = xmlAlbum.@id;
+					}
+					
+					
+					login();
+				}
+				
+			}
+			
+			public override function save():XML
+			{
+				var xmlFacebook:XML = 
+					<Facebook providerType={m_providerType}>
+						<Login appId={m_appId} email={m_email} password={password}/>
+						<Slideshow itemInterval={m_itemInterval}/>
+						<Player hDataSrc={m_hPlayerData} />
+					</Facebook>
+				if (m_providerType=="albums")
+				{
+					var xmlAlbums:XML = <Albums/>;
+					xmlFacebook.appendChild(xmlAlbums);
+					
+					var xmlAlbum:XML = <Album id={m_albumId}/>;
+					xmlAlbums.appendChild(xmlAlbum);
+				}
+				return xmlFacebook; 
+			}   
+			
+			public override function start():void
+			{
+				super.start();
+				m_index = 0;
+				m_startTime = 0;
+				m_time = 0;
+				login();
+			} 
+
+			public override function stop():void
+			{
+				super.stop();
+				if (m_timer!=null)
+				{
+					m_timer.stop();
+				}
+			} 
+								
+			public override function onFrame(i_time:Number):void
+			{
+				super.onFrame(i_time);
+				m_time = i_time;
+				if (m_playerTransition!=null)
+				{
+					m_playerTransition.tick(i_time - m_startTime);
+				}
+			}					
+							
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockFacebookPage];
+			}
+
+			
+			
+			
+			public function get appId():String
+			{
+				return m_appId;
+			}
+			
+			public function set appId(i_appId:String):void
+			{
+				m_appId = i_appId;
+				m_playerLoader.modified = true;
+				login();
+			}
+			
+			public function get email():String
+			{
+				return m_email;
+			}
+			
+			public function set email(i_email:String):void
+			{
+				m_email = i_email;
+				m_playerLoader.modified = true;
+				login();
+			}
+			
+			public function get password():String
+			{
+				return m_password;
+			}
+			
+			public function set password(i_password:String):void
+			{
+				m_password = i_password;
+				m_playerLoader.modified = true;
+				login();
+			}
+			
+			
+			
+			public function get hPlayerData():int
+			{
+				return m_hPlayerData;
+			}
+			
+			public function set hPlayerData(i_hPlayerData:int):void
+			{
+				m_playerLoader.modified = true;
+				m_hPlayerData = i_hPlayerData;
+				invalidateProperties();
+			}
+			
+			
+			
+
+			
+			public function get itemInterval():Number
+			{
+				return m_itemInterval;
+			}
+			
+			public function set itemInterval(i_itemInterval:Number):void
+			{
+				m_playerLoader.modified = true;
+				m_itemInterval = i_itemInterval;
+				m_timer.delay = m_itemInterval * 1000;
+			}
+			
+			
+			
+			
+			///
+			
+			
+			public function get providerType():String
+			{
+				return m_providerType;
+			}
+
+			public function set providerType(i_providerType:String):void
+			{
+				m_providerType = i_providerType;
+				m_playerLoader.modified = true;
+				loadData();
+			}
+
+			
+			public function get friendName():String
+			{
+				return (m_providerType=="friends" && m_items!=null) ? m_items.getItemAt(m_index).friendName : null;
+			}
+			
+			public function get friendSex():String
+			{
+				return (m_providerType=="friends" && m_items!=null) ? m_items.getItemAt(m_index).friendSex : null;
+			}
+			
+			public function get friendImage():String
+			{
+				return (m_providerType=="friends" && m_items!=null) ? m_items.getItemAt(m_index).friendImage : null;
+			}
+			
+			//
+			
+			public function get photoCreated():String
+			{
+				return (m_providerType=="albums" && m_items!=null) ? m_items.getItemAt(m_index).photoCreated : null;
+			}
+			
+			public function get bigPhoto():String
+			{
+				return (m_providerType=="albums" && m_items!=null) ? m_items.getItemAt(m_index).bigPhoto : null;
+			}
+
+			public function get smallPhoto():String
+			{
+				return (m_providerType=="albums" && m_items!=null) ? m_items.getItemAt(m_index).smallPhoto : null;
+			}
+
+			public function get photoCaption():String
+			{
+				return (m_providerType=="albums" && m_items!=null) ? m_items.getItemAt(m_index).photoCaption : null;
+			}
+			
+			//
+			
+			public function get eventName():String
+			{
+				return (m_providerType=="events" && m_items!=null) ? m_items.getItemAt(m_index).eventName : null;
+			}
+			
+			public function get eventLocation():String
+			{
+				return (m_providerType=="events" && m_items!=null) ? m_items.getItemAt(m_index).eventLocation : null;
+			}
+			
+			public function get startTime():String
+			{
+				return (m_providerType=="events" && m_items!=null) ? m_items.getItemAt(m_index).startTime : null;
+			}
+			
+			public function get eventImage():String
+			{
+				return (m_providerType=="events" && m_items!=null) ? m_items.getItemAt(m_index).eventImage : null;
+			}
+			
+			
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				if (m_playerTransitionService!=null)
+				{
+					m_playerTransition = m_playerTransitionService.createPlayerTransition(container);
+				}
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				
+				if (m_hPlayerData==-1)
+				{
+					showBlockInfo("[No scene assigned]");
+					return;
+				}
+				
+				if (m_facebookService==null)
+				{
+					showBlockInfo("[FB not suppored in Web]");
+					return;
+				}
+				
+				if (m_playerTransition==null)
+					return;
+
+				
+				showBlockInfo(null);
+				var xmlPlayer:XML = <Player />;
+				xmlPlayer.@hDataSrc = m_hPlayerData;
+				m_playerTransition.load(xmlPlayer, 0);
+				if (m_playerTransition.playerLoader.player!=null)
+				{
+					IProviderItem(m_playerTransition.playerLoader.player).setDataProvider(this);
+					m_startTime = m_time;
+					m_playerTransition.playerLoader.start();
+				}
+				else
+				{
+					showBlockInfo("[No scene assigned]");  // as a result of deleted scene.
+				}
+			}
+
+			
+			private function nextItem():void
+			{
+				if (m_items.length==0)
+					return;
+				m_index++;
+				if (m_index>=m_items.length)
+				{
+					m_index = 0;
+				}
+				invalidateProperties();
+			}
+
+			
+			private function onTimer(event:TimerEvent):void
+			{
+				nextItem();
+			}
+			
+			
+			private function onResize():void
+			{
+				if (m_playerTransition!=null)
+				{
+					m_playerTransition.updateDisplayList(unscaledWidth, unscaledHeight);
+				}
+			}
+			
+			protected function login():void
+			{
+				if (m_facebookService==null)
+					return;
+				
+				if (m_appId==null || m_email==null || m_password==null ||
+					m_appId=="" || m_email=="" || m_password=="")
+					return;
+				
+				m_facebookApp = m_facebookService.openFacebookApp(m_appId);
+				if (m_facebookApp==null)
+					return;
+				
+				m_facebookApp.doLogin(m_email, m_password, this);
+				
+				if (m_albumsCallback!=null)
+				{
+					doRequestAlbums();
+				}
+				
+				loadData();
+			}
+			
+			
+			private function loadData():void
+			{	
+				if (m_facebookApp==null)
+					return;
+				
+				if (m_providerType=="friends")
+				{
+					m_friendsModel = new FriendsModel(m_facebookApp);
+					m_friendsModel.load({parent:this, loadedCallback:onFriendsModelLoaded});
+				}
+				else if (m_providerType=="albums")
+				{
+					loadAlbum();
+				}
+				else if (m_providerType=="events")
+				{
+					loadFacebookEvents();
+				}
+			}
+			
+			private function onFriendsModelLoaded(result:int):void 
+			{
+				if (m_facebookApp==null || m_friendsModel==null)
+					return;
+				
+				if(result != 0) 
+					return;
+				m_index = 0;
+				m_items = new ArrayCollection(); 
+				for each(var friend:Object in m_friendsModel.dataProvider.source)
+				{
+					var item:Object = new Object();
+					item.friendName = friend.name;
+					item.friendSex = friend.sex;
+					item.friendImage = m_facebookApp.getImageUrl(friend.id);
+					m_items.addItem(item);
+				}
+				
+				nextItem();
+				m_timer.start();
+			}
+			
+			public function requestAlbums(i_albumsCallback:Function):void
+			{
+				if (m_facebookApp==null)
+					return;
+				
+				m_albumsCallback = i_albumsCallback;
+				doRequestAlbums();
+			}
+			
+			private function doRequestAlbums():void
+			{
+				if (m_facebookApp==null)
+					return;
+
+				var fql:String = "select name, aid from album where owner = me()";	
+				m_facebookApp.facebookQuery(fql, onAlbumsData);
+			}
+			
+			private function onAlbumsData(albums:Object, fail:Object):void 
+			{
+				if (albums != null && m_albumsCallback!=null)
+				{
+					m_albumsCallback(new ArrayCollection(albums as Array))
+					m_albumsCallback = null;
+				}
+			}
+			
+			public function get albumId():String
+			{
+				return m_albumId;
+			}
+			
+			public function set albumId(i_albumId:String):void
+			{
+				m_albumId = i_albumId;
+				m_playerLoader.modified = true;
+				loadAlbum();
+			}
+			
+			private function loadAlbum():void
+			{
+				if (m_facebookApp==null)
+					return;
+				
+				if (m_albumId==null)
+					return;
+				var fql:String = "select created, caption, src_big, src_small from photo where aid = '" + m_albumId + "'";
+				m_facebookApp.facebookQuery(fql, onPhotos);
+			}
+				
+				
+			
+			private function onPhotos(photos:Object, fail:Object):void 
+			{
+				if (photos != null)
+				{
+					m_index = 0;
+					m_items = new ArrayCollection();
+					for each(var photo:Object in photos)
+					{
+						var item:Object = new Object();
+						
+						var craetedDate:Date = new Date();
+						craetedDate.time = photo.created * 1000;
+						var formatter:DateFormatter = new DateFormatter();
+						formatter.formatString = "MM/DD/YYYY";
+						item.photoCreated = formatter.format(craetedDate);
+						
+						item.bigPhoto = photo.src_big;
+						item.smallPhoto = photo.src_small;
+						item.photoCaption = photo.caption;
+						m_items.addItem(item);
+					}
+					nextItem();
+					m_timer.start();					
+				}
+			}			
+			
+			
+			private function loadFacebookEvents():void
+			{
+				if (m_facebookApp==null)
+					return;
+				
+				var fql:String = "select name, location, pic, start_time from event where eid in (select eid from event_member where uid=me())";
+				m_facebookApp.facebookQuery(fql, onFacebookEvents);
+			}
+			
+			private function onFacebookEvents(events:Object, fail:Object):void 
+			{
+				if (events!=null)
+				{
+					m_index = 0;
+					m_items = new ArrayCollection();
+					for each(var fbEvent:Object in events)
+					{
+						var item:Object = new Object();
+						item.eventName = fbEvent.name;
+						item.eventLocation = fbEvent.location;
+						item.eventImage = fbEvent.pic;
+						
+						var startTime:Date = new Date();
+						startTime.time = fbEvent.start_time * 1000;
+						var formatter:DateFormatter = new DateFormatter();
+						formatter.formatString = "MM/DD/YYYY J:NN";
+						item.startTime = formatter.format(startTime);
+							
+						m_items.addItem(item);
+					}
+					nextItem();
+					m_timer.start();					
+				}
+			}	
+			
+			
+		    protected override function onDispose():void
+		    {
+		    	super.onDispose();
+				if (m_timer!=null)
+				{
+		    		m_timer.removeEventListener(TimerEvent.TIMER, onTimer);
+					m_timer = null;
+				}
+		    	if (m_playerTransition!=null)
+		    	{
+		    		m_playerTransition.clean();
+		    		m_playerTransition = null;
+		    	}
+				if (m_friendsModel!=null)
+				{
+					m_friendsModel.dispose();
+					m_friendsModel = null;
+				}
+
+				m_facebookApp=null;
+		    }
+			
+		]]>
+	</fx:Script>
+	<s:BorderContainer id="container" width="100%" height="100%" resize="onResize()"/>
+</ms:PlayerModule>	

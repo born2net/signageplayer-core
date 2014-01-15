@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+		   xmlns:Controls="Controls.*"
+	width="100%" height="100%" >
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.soap.LoadEvent;
+			import mx.rpc.soap.WebService;
+			
+			private var m_framework:IFramework;
+			private var m_loginService:WebService;
+			
+[Bindable]  private var m_serverTypeCollection:ArrayCollection;			
+
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_framework = Global.getFramework(this);
+				
+				m_loginService = new WebService();
+				m_loginService.useProxy = false;
+				m_loginService.addEventListener(FaultEvent.FAULT, onWebServiceFault);
+				m_loginService.addEventListener(LoadEvent.LOAD, onWebServiceLoad);
+				
+				var item:Object;
+				m_serverTypeCollection = new ArrayCollection();
+				item = new Object();
+				item.label = "Default server";
+				item.value = "mediaCLOUD";
+				m_serverTypeCollection.addItem(item);
+
+				item = new Object();
+				item.label = "Private server";
+				item.value = "mediaSERVER";
+				m_serverTypeCollection.addItem(item);
+			}
+			
+			public function get domain():String
+			{
+				return txtDomain.text;
+			}
+
+			public function set domain(i_domain:String):void
+			{
+				txtDomain.text = i_domain;
+				if (txtDomain.text == "galaxy.signage.me")
+				{
+					serverTypeForm.visible = true;
+					serverType.selectedIndex = 0;
+					txtDomain.visible = false;
+				}
+				else
+				{
+					serverType.selectedIndex = 1;
+					txtDomain.visible = true;
+				}
+			}
+
+			private function onConnect():void
+			{
+				enabled = false;
+				m_loginService.loadWSDL("http://"+txtDomain.text+"/WebService/LoginService.asmx?wsdl");
+			}
+			
+			private function onWebServiceFault(event:FaultEvent):void
+			{
+				enabled = true;
+				if (m_framework==null)
+					return;
+				AlertEx.showOk(
+					UIComponent(m_framework.StateBroker.GetState("topWindow")),
+					"Can not connect to this domain", "WebServiceFault");
+			}		
+			
+			private function onWebServiceLoad(event:LoadEvent):void
+			{
+				enabled = true;
+				ERI.domain = txtDomain.text;
+				ERI.resellerId = 1; // Admin
+				
+				
+				dispatchEvent( new Event( "master_domain_connected" ) );
+			}
+			
+			
+			private function onServerType():void
+			{
+				if (serverType.selectedItem.value=="mediaCLOUD")
+				{
+					txtDomain.text = "galaxy.signage.me";
+					txtDomain.visible = false;
+				}
+				else
+				{
+					txtDomain.text="";
+					txtDomain.visible = true;	
+				}
+			}
+			
+		]]> 
+	</fx:Script>
+		<s:Form width="100%">
+			<s:FormItem id="serverTypeForm" visible="false">
+				<Controls:ItemSelector id="serverType" width="100%" height="80"
+								   dataProvider="{m_serverTypeCollection}"
+								   labelField="label"
+								   selectedIndex="1"
+								   change="onServerType()"
+								   />
+			</s:FormItem>
+			
+			<s:Spacer height="30"/>
+			
+			<s:FormItem width="100%">
+				<ms:TextInputStr id="txtDomain" tabIndex="0" width="100%"/>
+			</s:FormItem>
+			
+			<s:FormItem>
+				<s:Button label="Connect" click="onConnect()" width="100%"/>	
+			</s:FormItem>
+		</s:Form>
+</s:Group>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"	
+			   width="100%" height="300"
+	label="{resourceManager.getString('player', 'catalogItem.title')}">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				comboField.dataProvider = new XMLListCollection(fieldList);
+				fontCtrl.addEventListener(FontCtrl.FONT_CHANGED, onFontChanged);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				for each(var xmlField:XML in comboField.dataProvider)
+				{
+					if (BlockItemPlayer(m_playerLoader.player).field==xmlField.@value)
+					{
+						comboField.selectedItem = xmlField;
+						break;
+					}
+				} 
+				
+				fontCtrl.fontItem = BlockItemPlayer(m_playerLoader.player).fontItem;
+			}
+			
+			private function onFieldChanged(event:Event):void
+			{
+				var field:String = comboField.selectedItem.@value;
+				BlockItemPlayer(m_playerLoader.player).field = field; 
+			}
+			
+			private function onFontChanged(event:Event):void
+			{
+				BlockItemPlayer(m_playerLoader.player).fontItem = fontCtrl.fontItem;
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<fx:XMLList id="fieldList">		
+			<Field 
+				label="{resourceManager.getString('player', 'catalogItem.itemName')}"
+				value="{CatalogField.ITEM_NAME}"/>
+			<Field 
+				label="{resourceManager.getString('player', 'catalogItem.itemInfo0')}"
+				value="{CatalogField.ITEM_INFO0}"/>
+			<Field 
+				label="{resourceManager.getString('player', 'catalogItem.itemInfo1')}"
+				value="{CatalogField.ITEM_INFO1}"/>
+			<Field 
+				label="{resourceManager.getString('player', 'catalogItem.itemInfo2')}"
+				value="{CatalogField.ITEM_INFO2}"/>
+			<Field 
+				label="{resourceManager.getString('player', 'catalogItem.itemInfo3')}"
+				value="{CatalogField.ITEM_INFO3}"/>
+			<Field 
+				label="{resourceManager.getString('player', 'catalogItem.itemResourceMain')}"
+				value="{CatalogField.ITEM_RESOURCE_MAIN}"/>
+		</fx:XMLList>
+	</fx:Declarations>	
+	
+	<ms:layout>
+		<s:VerticalLayout/>
+	</ms:layout>
+	<s:Form width="100%">
+		<s:FormItem width="100%"
+			label="Field">
+			<s:DropDownList id="comboField" 
+					width="100%"
+					labelField="@label" 
+					change="onFieldChanged(event)"/>
+		</s:FormItem>
+		<s:FormItem label="Font:"/>
+	</s:Form>
+	<ms:FontCtrl id="fontCtrl" width="100%"/>
+</ms:PlayerPage>

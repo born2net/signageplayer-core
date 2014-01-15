@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TextInput xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:ms="*"
+	text=""
+	editable="false" 
+	dragOver="onDragOver(event)"
+	dragEnter="onDragEnter(event)"
+	dragDrop="onDragDrop(event)">
+
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			import mx.events.DragEvent;
+			import mx.managers.DragManager;
+			
+			import spark.events.TextOperationEvent;
+			
+			private var m_framework:IFramework;
+			private var m_resourceService:IResourceService;
+			
+			private var m_hResource:int = -1;
+			
+			private var m_swf:Boolean = true;
+			private var m_video:Boolean = true;
+			
+			
+			
+			public function get framework():IFramework
+			{
+				return m_framework;
+			}
+			
+			public function set framework(i_framework:IFramework):void
+			{
+				m_framework = i_framework;
+				m_resourceService = m_framework.ServiceBroker.QueryService("ResourceService") as IResourceService;
+				invalidateProperties();
+			}			
+
+			
+			public function get hResource():int
+			{
+				return m_hResource;
+			}
+			
+			public function set hResource(i_hResource:int):void
+			{
+				m_hResource = i_hResource;
+				invalidateProperties();
+			}
+			
+			
+			public function get swf():Boolean
+			{
+				return m_swf;
+			}
+			
+			public function set swf(i_swf:Boolean):void
+			{
+				m_swf = i_swf;
+			}
+
+			public function get video():Boolean
+			{
+				return m_video;
+			}
+			
+			public function set video(i_video:Boolean):void
+			{
+				m_video = i_video;
+			}
+			
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_hResource!=-1)
+				{
+					text = m_resourceService.getNameFromHandle(m_hResource);
+				}
+			}
+			
+			private function onDragEnter(event:DragEvent):void
+			{
+				DragManager.acceptDragDrop(UIComponent(event.currentTarget));
+			}
+			
+			private function onDragOver(event:DragEvent):void
+            {
+            	var itemsArray:Array = null;
+            	var xmlItem:XML = null;
+				if (event.dragSource.hasFormat("items")) 
+                {
+	                itemsArray = event.dragSource.dataForFormat('items') as Array;
+	                xmlItem = XML(itemsArray[0]);
+					if (xmlItem.name()=="Resource")
+					{
+						var type:String = xmlItem.@type;
+						if ( (m_video && (type=="flv" || type=="mp4" || type=="m4v" || type=="mov" || type=="3gp" || type=="mpg") ) ||
+							 (m_swf &&	(type=="jpg" || type=="jpeg" || type=="gif" || type=="png" || type=="swf") ) )
+						{
+							DragManager.showFeedback(DragManager.COPY);
+							return;
+						}
+					}            	
+                }
+               	DragManager.showFeedback(DragManager.NONE);            	
+            }
+            
+            
+			private function onDragDrop(event:DragEvent):void
+			{
+            	var itemsArray:Array = null;
+            	var xmlItem:XML = null;
+                if (event.dragSource.hasFormat("items")) 
+                {
+	                itemsArray = event.dragSource.dataForFormat('items') as Array;
+	                xmlItem = XML(itemsArray[0]);
+	                if (xmlItem.name()=="Resource")
+	                {
+	                	var xmlResource:XML = xmlItem;
+	                	text = xmlResource.@name;
+	                	m_hResource = xmlResource.@hResource;
+	                	dispatchEvent( new TextOperationEvent(TextOperationEvent.CHANGE) ); 
+	                }
+                }
+			}
+		]]>
+	</fx:Script>
+</s:TextInput>

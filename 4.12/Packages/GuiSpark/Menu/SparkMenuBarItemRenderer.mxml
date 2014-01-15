@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+    xmlns:s="library://ns.adobe.com/flex/spark"
+    xmlns:mx="library://ns.adobe.com/flex/mx"
+	xmlns:local="*"
+    initialize="setupRollOutOverride()" xmlns:Menu="Menu.*"
+	height="100%"
+    >
+
+    <s:states>
+        <s:State name="normal" />
+        <s:State name="hovered" />
+        <s:State name="selected" />
+    </s:states>
+	<fx:Script>
+		<![CDATA[            
+            private function setupRollOutOverride():void
+            {
+                addEventListener(MouseEvent.ROLL_OVER, itemRenderer_rollOverHandler, false, 100);
+                addEventListener(MouseEvent.ROLL_OUT, itemRenderer_rollOutHandler, false, 100);
+            }
+            
+            /**
+             *  @private
+             */
+            private function anyButtonDown(event:MouseEvent):Boolean
+            {
+                var type:String = event.type;
+                return event.buttonDown || (type == "middleMouseDown") || (type == "rightMouseDown"); 
+            }
+            
+            /**
+             *  @private
+             *  Mouse rollOver event handler.
+             */
+            protected function itemRenderer_rollOverHandler(event:MouseEvent):void
+            {
+                if (!anyButtonDown(event))
+                    hovered = true;
+                event.stopImmediatePropagation();
+            }
+            
+            /**
+             *  @private
+             *  Mouse rollOut event handler.
+             */
+            protected function itemRenderer_rollOutHandler(event:MouseEvent):void
+            {
+                // the only ways to dismiss a submenu is:
+                // -clicking in it (change Event will close all menus
+                // -mouseDown outside the menu
+                // rolling onto a sibling
+				/*
+                if (event.relatedObject == null || owner.contains(event.relatedObject))
+				{
+                    hovered = false;
+				}
+				else
+				{
+					trace("a");
+				}
+				*/
+				hovered = false;
+				
+                event.stopImmediatePropagation();
+				
+            }
+            
+            protected function submenu_rollOutHandler(event:MouseEvent):void
+            {
+                if (event.relatedObject == null || owner.contains(event.relatedObject))
+                    hovered = false;
+            }
+
+            protected function dismissMenus(event:Event):void
+            {
+                SparkMenuBar(owner).selectedIndex = -1;
+                hovered = false;
+                owner.dispatchEvent(event);
+            }
+            
+            protected function menuItemSelected(event:Event):void
+            {
+				var sparkMenuEvent:SparkMenuEvent = event as Menu.SparkMenuEvent;
+				if (sparkMenuEvent!=null && sparkMenuEvent.item.@type=="check")
+				{
+					sparkMenuEvent.item.@toggled = ((sparkMenuEvent.item.@toggled=="true")==false);
+				}			
+				
+                SparkMenuBar(owner).selectedIndex = -1;
+                hovered = false;
+                owner.dispatchEvent(event);
+            }
+
+            override protected function set hovered(value:Boolean):void
+            {
+                if (value)
+                {
+                    var smb:SparkMenuBar = SparkMenuBar(owner);
+                    if (smb.selectedIndex != -1)
+                    {
+                        // if something has been selected, we now force
+                        // selection on hover
+                        smb.selectedIndex = smb.dataProvider.getItemIndex(data);
+                    }
+                }
+                super.hovered = value;
+            }
+
+            override public function set selected(value:Boolean):void
+            {
+                super.selected = value;
+				
+				/*M???
+                // get focus back from popup
+                callLater(setFocus);
+                owner.addEventListener(KeyboardEvent.KEY_DOWN, owner_keyDownHandler, false, 0, true);
+				*/
+            }
+            
+            
+            protected function checkKeys(event:KeyboardEvent):void
+            {
+                if (event.keyCode == Keyboard.LEFT) 
+                {
+                    hovered = false;
+                    var smb:SparkMenuBar = SparkMenuBar(owner);
+                    smb.setFocus();
+                    if (smb.selectedIndex > 0)
+                        smb.selectedIndex--;
+                    else
+                        smb.selectedIndex = smb.dataProvider.length - 1;
+                }
+            }
+            
+            protected function menuRightHandler(event:Event):void
+            {
+                hovered = false;
+                var smb:SparkMenuBar = SparkMenuBar(owner);
+                smb.setFocus();
+                if (smb.selectedIndex < smb.dataProvider.length - 1)
+                    smb.selectedIndex++;
+                else
+                    smb.selectedIndex = 0;                
+            }
+			
+			public override function set data(value:Object):void
+			{ 
+				super.data = value;
+				updateButton();
+			}
+			
+			private function updateButton():void
+			{ 
+				if (data==null)
+					return;
+				image.toolTip = data.@toolTip;
+				var icon:Class = getIconClass(String(data.@icon));
+				if (icon!=null)
+				{
+					image.includeInLayout = true;
+					image.source = icon;
+				}
+				else
+				{
+					image.includeInLayout = false;
+				}
+				
+				labelDisplay.includeInLayout = (label!="")
+				
+				enabled = (data.@enabled!="false");
+				alpha = enabled ? 1.0 : 0.2;
+				
+				itemFrame.setStyle("borderVisible", (data.@toggled=="true"));
+			}
+			
+			private function getIconClass(i_iconName:String):Class
+			{
+				if (i_iconName=="")
+					return null;
+				var css:CSSStyleDeclaration = styleManager.getStyleDeclaration(".icons");
+				if (css==null)
+					return null;
+				return css.getStyle(i_iconName);
+			}			
+            
+        ]]>
+	</fx:Script>
+    <fx:Declarations>
+        <mx:XMLListCollection id="dataProvider" source="{XML(data).children()}" />
+    </fx:Declarations>
+	<s:BorderContainer id="itemFrame" borderVisible="false" 
+					   minHeight="0" minWidth="0"
+					   height="100%"
+					   useHandCursor="true" buttonMode="true"
+					   backgroundAlpha="0">
+		<s:layout>
+			<s:HorizontalLayout gap="3" paddingLeft="5" paddingRight="5" verticalAlign="middle"/>
+		</s:layout>
+		<s:Image id="image"/>
+		<s:Label id="labelDisplay" verticalAlign="middle" verticalCenter="0"/>
+	</s:BorderContainer>
+    
+    <s:PopUpAnchor id="popUp"
+                   includeIn="selected"
+                   displayPopUp.selected="{dataProvider.length > 0}" 
+                   left="0" right="0" top="0" bottom="0" itemDestructionPolicy="auto"
+                   popUpPosition="below" popUpWidthMatchesAnchorWidth="false">
+        <Menu:SparkMenu id="menu" dataProvider="{dataProvider}"
+                         skinClass="Menu.SparkMenuSkin" labelField="@label"
+                         mouseDownOutside="dismissMenus(event)"
+                         change="menuItemSelected(event)"
+                         keyDown="checkKeys(event)"
+                         menuRight="menuRightHandler(event)"
+                         rollOut="submenu_rollOutHandler(event)" />
+    </s:PopUpAnchor>
+</s:ItemRenderer>

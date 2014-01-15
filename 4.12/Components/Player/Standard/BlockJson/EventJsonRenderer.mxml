@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:GridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" 
+					clipAndEnableScrolling="true"
+					width="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.CollectionEvent;
+			import mx.managers.CursorManager;
+			
+			import spark.components.DataGrid;
+			import spark.skins.spark.DefaultGridItemRenderer;
+			[Embed (source="/assets/targetIcon.png" )]
+			public static const targetIcon:Class;
+			
+			private var m_cursorID:Number;
+			
+			
+			public override function prepare(hasBeenRecycled:Boolean):void 
+			{
+				//lblData.text = data[column.dataField]
+			}
+			
+			public override function set data(value:Object):void
+			{
+				super.data = value;
+				if (data==null)
+					return;
+				
+				var commandName:String = data.commandName;
+				for each(var command:Object in ArrayList(commandCombo.dataProvider).source)
+				{
+					if (command.name==commandName)
+					{
+						commandCombo.selectedItem = command;
+						break;
+					}
+				}
+				
+				if (data.commandParams!=null)
+				{
+					url.text = data.commandParams.Url.@name;
+				}
+				
+				updateButtons();
+			}
+			
+			private function onCommand():void
+			{
+				data.commandName = commandCombo.selectedItem.name;
+				if (commandCombo.selectedItem.name=="loadUrl")
+				{
+					url.text = "";
+					commandCombo.selectedItem.commandParams = null;
+				}
+				updateButtons();
+				
+				ArrayCollection(DataGrid(owner).dataProvider).dispatchEvent( new CollectionEvent(CollectionEvent.COLLECTION_CHANGE) );
+			}
+			
+			private function onUrl():void
+			{
+				var commandParams:XML = <Params/>;
+				var xmlUrl:XML = <Url/>;
+				xmlUrl.@name = url.text;
+				commandParams.appendChild(xmlUrl);
+				data.commandParams = commandParams;
+				
+				ArrayCollection(DataGrid(owner).dataProvider).dispatchEvent( new CollectionEvent(CollectionEvent.COLLECTION_CHANGE) );
+			}
+			
+			private function updateButtons():void
+			{
+				if (commandCombo.selectedItem==null)
+				{
+					return;
+				}
+				paramForm.visible = (commandCombo.selectedItem.name=="loadUrl");
+			}
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:HorizontalLayout gap="0"/>
+	</s:layout>
+	
+	<s:DropDownList id="commandCombo" width="120"
+				change="onCommand()">
+		<s:dataProvider>
+			<s:ArrayList>
+				<fx:Object name="firstPage" label="First page"/>
+				<fx:Object name="prevPage" label="Prev page"/>
+				<fx:Object name="nextPage" label="Next page"/>
+				<fx:Object name="lastPage" label="Last page"/>
+				<fx:Object name="loadUrl" label="Load url"/>
+			</s:ArrayList>
+		</s:dataProvider>
+	</s:DropDownList>
+	<s:HGroup id="paramForm" visible="false" width="100%" gap="0">
+		<s:TextInput id="url" width="100%" minWidth="30"
+					 focusOut="onUrl()" enter="onUrl()"/>
+	</s:HGroup>
+</s:GridItemRenderer>

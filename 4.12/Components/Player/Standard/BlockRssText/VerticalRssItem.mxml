@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:ms="*"
+	backgroundAlpha="0" verticalGap="0"
+	width="100%">
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Text;
+			
+			private var m_xmlItem:XML = null;
+			private var m_invalidateText:Boolean = false;
+			private var m_blockRssTestPlayer:BlockRssTextPlayer;
+			
+			public function set blockRssTestPlayer(i_blockRssTestPlayer:BlockRssTextPlayer):void
+			{
+				m_blockRssTestPlayer = i_blockRssTestPlayer;
+			}
+			
+			public function invalidateText():void
+			{
+				m_invalidateText = true;
+				invalidateProperties();
+			}
+			
+			public function load(i_xmlItem:XML):void
+			{
+				m_xmlItem = i_xmlItem;
+				m_invalidateText = true;
+				invalidateProperties();
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateText)
+				{
+					m_invalidateText = false;
+					title.htmlText = (XML(m_xmlItem.title[0]).toString()).replace(/\n/g, "");
+					m_blockRssTestPlayer.titleFontItem.applyStyles(title);
+					description.htmlText = XML(m_xmlItem.description[0]).toString();
+					m_blockRssTestPlayer.descriptionFontItem.applyStyles(description);
+				}
+			}
+		]]>
+	</fx:Script> 
+	<s:TextArea id="title" width="100%"/>
+	<s:TextArea id="description" width="100%"/>
+	<s:Spacer height="20"/>
+</s:VGroup>

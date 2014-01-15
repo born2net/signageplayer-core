@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:BlockSwfPlayer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					 xmlns:s="library://ns.adobe.com/flex/spark" 
+					 xmlns:mx="library://ns.adobe.com/flex/mx" 
+					 xmlns:ms="*"
+					 width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.HTML;
+			
+			private var m_html:HTML;
+			
+				
+			protected override function loadSource():void
+			{
+				if (m_useHtmlContainer)
+				{
+					if (m_html==null)
+					{
+						m_html = new HTML();
+						addElement(m_html);
+					}
+					if (m_source!=null)
+					{
+						m_html.location = m_source;
+					}
+				}
+				else
+				{
+					super.loadSource();
+				}
+			}
+			
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (m_html!=null)
+				{
+					m_html.width = unscaledWidth
+					m_html.height = unscaledHeight;
+				}
+			}
+		]]>
+	</fx:Script>
+	
+</ms:BlockSwfPlayer>

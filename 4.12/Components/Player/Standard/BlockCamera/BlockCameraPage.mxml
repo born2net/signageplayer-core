@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+	label="{resourceManager.getString('player', 'camera.title')}"
+	width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			 
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+
+				index.value = BlockCameraPlayer(m_playerLoader.player).cameraIndex;
+				/*
+				keyFrameInterval.value = BlockCameraPlayer(m_playerLoader.player).keyFrameInterval;
+				bandwidth.value = BlockCameraPlayer(m_playerLoader.player).bandwidth; 
+				quality.value = BlockCameraPlayer(m_playerLoader.player).quality;
+				captureWidth.value = BlockCameraPlayer(m_playerLoader.player).captureWidth;
+				captureHeight.value = BlockCameraPlayer(m_playerLoader.player).captureHeight;
+				fps.value = BlockCameraPlayer(m_playerLoader.player).fps;
+				favorArea.selected = BlockCameraPlayer(m_playerLoader.player).favorArea;
+				compress.selected = BlockCameraPlayer(m_playerLoader.player).compress;
+				*/
+			}
+			
+			private function onCameraIndex(event:Event):void
+			{
+				BlockCameraPlayer(m_playerLoader.player).cameraIndex = int(index.value);
+			}
+			
+			private function onCameraProperties():void
+			{
+				/*
+				BlockCameraPlayer(m_playerLoader.player).keyFrameInterval = keyFrameInterval.value;
+				BlockCameraPlayer(m_playerLoader.player).bandwidth = bandwidth.value;
+				BlockCameraPlayer(m_playerLoader.player).quality = quality.value;
+				BlockCameraPlayer(m_playerLoader.player).captureWidth = captureWidth.value;
+				BlockCameraPlayer(m_playerLoader.player).captureHeight = captureHeight.value;
+				BlockCameraPlayer(m_playerLoader.player).fps = fps.value;
+				BlockCameraPlayer(m_playerLoader.player).favorArea = favorArea.selected;
+				BlockCameraPlayer(m_playerLoader.player).compress = compress.selected;
+				*/
+			}
+			
+		]]>
+	</fx:Script>
+	<s:Form>
+		<s:FormItem
+			label="{resourceManager.getString('player', 'camera.inputNumber')}">
+			<ms:NumericStepperEx id="index"
+				minimum="0" maximum="999" width="80"
+				change="onCameraIndex(event)"/>
+		</s:FormItem>
+<!--		
+		<s:FormItem
+			label="{resourceManager.getString('player', 'camera.keyFrameInterval')}">
+		<ms:NumericStepperEx id="keyFrameInterval"
+				minimum="1" maximum="48" width="80"
+				change="onCameraProperties()"/>
+		</s:FormItem>
+		<s:FormItem
+			label="{resourceManager.getString('player', 'camera.bandwidth')}">
+			<ms:NumericStepperEx id="bandwidth"
+				minimum="0" maximum="65535" width="80"
+				change="onCameraIndex(event)"/>
+		</s:FormItem>
+		<s:FormItem
+			label="{resourceManager.getString('player', 'camera.quality')}">
+			<ms:NumericStepperEx id="quality"
+				minimum="0" maximum="100" width="80"
+				change="onCameraProperties()"/>
+		</s:FormItem>
+		<s:FormItem
+			label="{resourceManager.getString('player', 'camera.captureWidth')}">
+			<ms:NumericStepperEx id="captureWidth"
+				minimum="1" maximum="2880" width="80"
+				change="onCameraProperties()"/>
+		</s:FormItem>
+		<s:FormItem
+			label="{resourceManager.getString('player', 'camera.captureHeight')}">
+		<ms:NumericStepperEx id="captureHeight"
+				minimum="1" maximum="2880" width="80"
+				change="onCameraProperties()"/>
+		</s:FormItem>
+		<s:FormItem
+			label="{resourceManager.getString('player', 'camera.fps')}">
+			<ms:NumericStepperEx id="fps"
+				minimum="1" maximum="100" width="80"
+				change="onCameraProperties()"/>
+		</s:FormItem>
+		<s:FormItem width="100%"
+			label="{resourceManager.getString('player', 'camera.favorArea')}">
+			<s:Group width="100%">
+				<s:CheckBox id="favorArea" horizontalCenter="0"
+					change="onCameraProperties()"/>
+			</s:Group>
+		</s:FormItem>
+		<s:FormItem width="100%"
+			label="{resourceManager.getString('player', 'camera.compress')}">
+			<s:Group width="100%">
+				<s:CheckBox id="compress" horizontalCenter="0"
+					change="onCameraProperties()"/>
+			</s:Group>
+		</s:FormItem>
+-->		
+	</s:Form>
+</ms:PlayerPage>	
+

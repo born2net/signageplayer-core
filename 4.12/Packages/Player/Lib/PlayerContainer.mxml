@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*">
+	<fx:Script>
+		<![CDATA[
+			// Flex bug: Prevent scrolling by the keyboad.	(bug 0000283: Designer with scroll moves both scroll and item)	
+		    override protected function keyDownHandler(event:KeyboardEvent):void
+		    {
+		    }
+		]]>
+	</fx:Script>
+</s:BorderContainer>

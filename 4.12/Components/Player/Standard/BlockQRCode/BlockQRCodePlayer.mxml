@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule  xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				  xmlns:s="library://ns.adobe.com/flex/spark" 
+				  xmlns:mx="library://ns.adobe.com/flex/mx" 
+				  xmlns:ms="*">
+	
+	<fx:Script>
+		<![CDATA[
+			import com.google.zxing.BarcodeFormat;
+			import com.google.zxing.MultiFormatWriter;
+			import com.google.zxing.common.BitMatrix;
+			import com.google.zxing.common.ByteMatrix;
+			
+			import mx.core.UIComponent;
+			import mx.graphics.codec.JPEGEncoder;
+			import mx.utils.UIDUtil;
+
+			
+			private var m_cachingService:ICachingService;
+			private var m_propertyService:IPropertyService;
+			private var m_invalidateText:Boolean;
+			protected var m_textSource:String = "static";
+			protected var m_text:String = "[Enter your QR content]";
+			protected var m_url:String="";
+			protected var m_limitedUser:String="";
+			protected var m_limitedPassword:String="";
+			protected var m_stationId:String="";
+			protected var m_stationKey:String="";
+			
+			
+			private var _bmd:BitmapData;
+			
+			 
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Text).length()>0)
+				{
+					if (XMLList(i_data.Text.@textSource).length()>0)
+					{
+						m_textSource = i_data.Text.@textSource;
+					}
+					
+					if (m_textSource=="static")
+					{
+						m_text = XML(i_data.Text).toString();
+						m_invalidateText = true;
+						invalidateProperties();
+					}
+					else if (m_textSource=="dynamic")
+					{
+						m_url = i_data.Text.@url;
+						requestData();
+					}
+					else if (m_textSource=="remote")
+					{
+						m_limitedUser = i_data.Text.@limitedUser;
+						m_limitedPassword = i_data.Text.@limitedPassword;
+						m_url = i_data.Text.@url;
+						getQRKey();
+					}					
+				}
+			}
+			
+			
+			
+			private function requestData():void
+			{
+				if (m_url=="")
+				{
+					m_text = "";
+					invalidateProperties();
+					return;
+				}
+				
+				var so:SharedObject = SharedObject.getLocal("MediaSignage", "/", false);
+				var branchStationId:int = (so.data.branchStationId==null) ? -1 : int(so.data.branchStationId);
+				var url:String = m_url.replace("$StationId", branchStationId.toString());
+				
+				var fileName:String = m_cachingService.generateFileName(url);
+				var cachingItem:ICachingItem = m_cachingService.getCachingItem("Caching", fileName);
+				cachingItem.addEventListener(Event.COMPLETE, onCachingItemComplete);
+				cachingItem.addEventListener(IOErrorEvent.IO_ERROR, onCachingItemFail);	
+				cachingItem.url = url;
+				cachingItem.cache(true);
+			}
+			
+			private function onCachingItemComplete(i_event:Event):void
+			{
+				var cachingItem:ICachingItem = ICachingItem(i_event.target);
+				cachingItem.removeEventListener(Event.COMPLETE, onCachingItemComplete);
+				cachingItem.removeEventListener(IOErrorEvent.IO_ERROR, onCachingItemFail);
+				if (cachingItem.data!=null)
+				{
+					m_text = cachingItem.data;
+					m_invalidateText = true;
+					invalidateProperties();
+					if (m_propertyService!=null)
+					{
+						m_propertyService.invalidateData();
+					}
+				}
+			}
+				
+			private function onCachingItemFail(i_event:Event):void
+			{
+				i_event.target.removeEventListener(Event.COMPLETE, onCachingItemComplete);
+				i_event.target.removeEventListener(IOErrorEvent.IO_ERROR, onCachingItemFail);
+				m_text="[URL Fail]";
+				m_invalidateText = true;
+				invalidateProperties();
+				if (m_propertyService!=null)
+				{
+					m_propertyService.invalidateData();
+				}
+			}
+			
+			////
+			
+			private function getQRKey():void
+			{
+				var businessDomain:String = m_framework.StateBroker.GetState("businessDomain") as String;
+				var stationKey:String = (int(Math.random()*90000 + 10000)).toString();
+				m_framework.StateBroker.SetState(this, "stationKey", stationKey);
+				var url:String = "http://" + businessDomain + "/WebService/getQRKey.ashx"+"?user="+m_limitedUser+"&password="+m_limitedPassword+"&stationId="+m_stationId+"&expired=3600"+"&stationKey="+stationKey;
+				var fileName:String = m_cachingService.generateFileName(url);
+				var cachingItem:ICachingItem = m_cachingService.getCachingItem("Caching", fileName);
+				cachingItem.addEventListener(Event.COMPLETE, onQRKeyComplete);
+				cachingItem.addEventListener(IOErrorEvent.IO_ERROR, onQRKeyFail);	
+				cachingItem.url = url;
+				cachingItem.cache(true);
+			}
+			
+			private function onQRKeyComplete(i_event:Event):void
+			{
+				var cachingItem:ICachingItem = ICachingItem(i_event.target);
+				cachingItem.removeEventListener(Event.COMPLETE, onCachingItemComplete);
+				cachingItem.removeEventListener(IOErrorEvent.IO_ERROR, onCachingItemFail);
+				if (cachingItem.data!=null)
+				{
+					m_stationKey = cachingItem.data;
+					m_text = buildRemoteUrl();
+					m_invalidateText = true;
+					invalidateProperties();
+					if (m_propertyService!=null)
+					{
+						m_propertyService.invalidateData();
+					}
+				}
+			}
+			
+			private function onQRKeyFail(i_event:Event):void
+			{
+				i_event.target.removeEventListener(Event.COMPLETE, onCachingItemComplete);
+				i_event.target.removeEventListener(IOErrorEvent.IO_ERROR, onCachingItemFail);
+				m_text="[URL Fail]";
+				m_invalidateText = true;
+				invalidateProperties();
+				if (m_propertyService!=null)
+				{
+					m_propertyService.invalidateData();
+				}
+			}
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockQRCodePage];
+			}
+			
+			
+			public override function save():XML
+			{
+				var xmlText:XML = <Text>{m_text}</Text>;
+				if (m_textSource=="static")
+				{
+					xmlText = <Text textSource="static">{m_text}</Text>;
+				}
+				else if (m_textSource=="dynamic")
+				{
+					xmlText = <Text textSource="dynamic"/>
+					xmlText.@url = m_url;
+				}
+				else if (m_textSource=="remote")
+				{
+					xmlText = <Text textSource="remote"/>
+					xmlText.@limitedUser = m_limitedUser;
+					xmlText.@limitedPassword = m_limitedPassword;
+					xmlText.@url = m_url;
+				}
+				return xmlText; 
+			}   
+			
+			public function set text(i_text:String):void
+			{
+				m_playerLoader.modified = true;
+				m_text = i_text;
+				m_invalidateText = true;
+				invalidateProperties();
+			}
+			
+			public function get text():String
+			{
+				return m_text;
+			}
+			
+			public function set url(i_url:String):void
+			{
+				m_playerLoader.modified = true;
+				m_url = i_url;
+				if (m_textSource=="dynamic")
+				{
+					requestData();	
+				}
+				else if (m_textSource=="remote")
+				{
+					buildRemoteUrl();
+				}
+			}
+			
+			public function get url():String
+			{
+				return m_url;
+			}	
+			
+			
+			public function set textSource(i_textSource:String):void
+			{
+				m_playerLoader.modified = true;
+				m_textSource = i_textSource;
+				if (m_textSource=="static")
+				{
+					m_invalidateText = true;
+					invalidateProperties();
+				}
+				else if (m_textSource=="dynamic")
+				{
+					m_text = "";
+					requestData();
+				}
+				else if (m_textSource=="remote")
+				{
+					m_text = buildRemoteUrl();
+					m_invalidateText = true;
+					invalidateProperties();
+				}
+			}
+			
+			public function get textSource():String
+			{
+				return m_textSource;
+			}
+			
+			
+			public function set limitedUser(i_limitedUser:String):void
+			{
+				m_playerLoader.modified = true;
+				m_limitedUser = i_limitedUser;
+			}
+			
+			public function get limitedUser():String
+			{
+				return m_limitedUser;
+			}	
+			
+			
+			public function set limitedPassword(i_limitedPassword:String):void
+			{
+				m_playerLoader.modified = true;
+				m_limitedPassword = i_limitedPassword;
+			}
+			
+			public function get limitedPassword():String
+			{
+				return m_limitedPassword;
+			}				
+			
+			private function buildRemoteUrl():String
+			{
+				var businessDomain:String = m_framework.StateBroker.GetState("businessDomain") as String;
+				return m_url + "?url="+businessDomain+"&key="+m_stationKey;
+			}
+			
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_cachingService = m_framework.ServiceBroker.QueryService("CachingService") as ICachingService;
+				m_propertyService = m_framework.ServiceBroker.QueryService("PropertyService") as IPropertyService;
+				
+				var so:SharedObject = SharedObject.getLocal("MediaSignage", "/", false);
+				var branchStationId:int = (so.data.branchStationId==null) ? -1 : int(so.data.branchStationId);
+				m_stationId = branchStationId.toString();
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				_bmd = new BitmapData(300, 300, false, 0x808080);
+				bmp_qrCode.source = _bmd;
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_invalidateText)
+				{
+					m_invalidateText = false;
+					
+					var text:String = (m_text=="") ? " " : m_text;
+					
+					
+					var qrEncoder:MultiFormatWriter = new MultiFormatWriter();
+					try
+					{
+						var result:BitMatrix = (qrEncoder.encode(text,BarcodeFormat.QR_CODE,300, 300)) as BitMatrix;
+						if (result==null)
+						{
+							AlertEx.showOk(
+								UIComponent(m_framework.StateBroker.GetState("topWindow")),
+								'QR Fail');
+							
+							return;
+						}
+					}
+					catch (e:Error)
+					{
+						AlertEx.showOk(
+							UIComponent(m_framework.StateBroker.GetState("topWindow")),
+							'Invalid input string');
+						return;
+					}
+					for (var h:int = 0; h < 300; h++)
+					{
+						for (var w:int = 0; w < 300; w++)
+						{
+							if (result._get(w, h) == 0)
+							{
+								_bmd.setPixel(w, h, 0xFFFFFF);
+								
+							}
+							else
+							{
+								_bmd.setPixel(w, h, 0);
+							}        
+						}
+					}
+				}
+			}
+			
+			protected override function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				var a:int = Math.min(border.width, border.height) * 0.9;
+				bmp_qrCode.x = (border.width-a)/2;
+				bmp_qrCode.y = (border.height-a)/2;
+				bmp_qrCode.width = a;
+				bmp_qrCode.height = a;
+			}
+			
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+			}
+		]]>
+	</fx:Script>
+	<s:BorderContainer id="border" width="100%" height="100%" backgroundColor="0xFFFFFF" borderVisible="false">
+		<s:BitmapImage id="bmp_qrCode" minHeight="0" minWidth="0" />	
+	</s:BorderContainer>
+	
+</ms:PlayerModule>	

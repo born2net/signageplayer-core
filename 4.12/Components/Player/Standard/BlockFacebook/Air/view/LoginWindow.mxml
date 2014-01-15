@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 width="480" height="240" creationComplete="onInit()">
+	<!-- xmlns:mx="library://ns.adobe.com/flex/mx" -->
+	
+	<fx:Declarations>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.serialization.json.JSON;
+			import com.facebook.graph.FacebookWeb;
+			import com.facebook.graph.core.FacebookURLDefaults;
+			import com.facebook.graph.net.FacebookRequest;
+			
+			import spark.components.BorderContainer;
+			
+			public var	_handleBeforeLogin:Function;
+			public var	_handleLogin:Function;
+			
+			private var		_appId:String;
+			private var		_email:String;
+			private var		_passwd:String;
+			private var		_extendedPermissions:Array;
+			
+			private var		_data:Object;
+			
+			private var		html:HTMLLoader;
+			
+			protected var	_inLoad:Boolean;
+			protected var	_isSubmit:Boolean;
+			
+			
+			private function onInit():void
+			{
+				_inLoad = false;
+			}
+			
+			public function open(applicationId:String, email:String, passwd:String, handleLogin:Function, extendedPermissions:Array = null):int
+			{
+				_appId = applicationId;
+				_email = email;
+				_passwd = passwd;
+				_extendedPermissions = extendedPermissions;
+				
+				_handleLogin = handleLogin;
+				
+				if( stage == null ) 
+				{
+					addEventListener(Event.ADDED_TO_STAGE, handlerStageAdded);
+				} 
+				else 
+				{
+					handlerStageAdded();
+				}
+				return 0;
+			}
+			
+			private function handlerStageAdded(evt:Event = null):void
+			{
+				removeEventListener(Event.ADDED_TO_STAGE, handlerStageAdded);
+				
+				_isSubmit = false;
+				
+				html = new HTMLLoader();
+				//html.width = 400;
+				//html.height = 300;
+				html.addEventListener(Event.COMPLETE, handleHtmlComplete, false, 0, true);
+				html.addEventListener(LocationChangeEvent.LOCATION_CHANGE, handleLocationChange, false, 0, true);
+				html.addEventListener(Event.HTML_DOM_INITIALIZE, handleHtmlDomInit, false, 0, true);
+				
+				cont_mc.addChild(html);
+				var urlReq:URLRequest = new URLRequest(FacebookURLDefaults.AUTH_URL + "?" + formatData(_appId, _extendedPermissions));
+				
+				html.load(urlReq);
+			}
+			
+			private function logoutTemporary():void 
+			{
+				html.cancelLoad();
+				//M??? FacebookWeb.logoutTemporary(handleLogoutAndRelogin, _appId);
+			}
+			
+			private function handleLogoutAndRelogin(logout:Boolean):void
+			{
+				var urlReq:URLRequest = new URLRequest(FacebookURLDefaults.AUTH_URL + "?" + formatData(_appId, _extendedPermissions));
+				html.load(urlReq);
+			}
+			
+			public function close():void
+			{
+				html.removeEventListener(Event.COMPLETE, handleHtmlComplete);
+				html.removeEventListener(Event.LOCATION_CHANGE, handleLocationChange);
+				html.removeEventListener(Event.HTML_DOM_INITIALIZE, handleHtmlDomInit);
+				
+				cont_mc.removeChild(html);
+				html = null;
+			}
+			
+			private function handleHtmlComplete(event:Event):void
+			{
+				_inLoad = false;
+				readyHandler();
+			}
+			
+			private function readyHandler(evt:Event = null):void
+			{
+				var	doc:Object = html.window.document;
+				var	frames:Object = html.window.frames;
+				var	form:Object;
+				
+				if(html.location.indexOf(FacebookURLDefaults.PERMISSIONS_REQUEST) == 0
+					|| html.location.indexOf(FacebookURLDefaults.PERMISSIONS_SECUREREQUEST) == 0) {
+					form = doc.getElementById("uiserver_form");
+					var allow_label:Object = doc.getElementById("grant_clicked");
+					var allow_btn:Object = null;
+					if (form != null && allow_label != null && allow_label.children != null && allow_label.children.length > 0) {
+						allow_btn = allow_label.children[0];
+						allow_btn.click();
+						return;
+					}
+					allow_label = doc.getElementById("grant_required_clicked");
+					if (form != null && allow_label != null && allow_label.children != null && allow_label.children.length > 0) {
+						allow_btn = allow_label.children[0];
+						allow_btn.click();
+					}
+					return;
+				}
+				
+				if (html.location.indexOf(FacebookURLDefaults.LOGIN_URL) == 0) 
+				{
+					if(URLRequestDefaults.manageCookies != true) 
+					{
+						URLRequestDefaults.manageCookies = true;
+						html.manageCookies = true;
+						var	cookie:String = doc.cookie;
+						var	vars:Array = cookie.split(';');
+						if(vars != null) 
+						{
+							var cnt:uint = vars.length;
+							for(var ii:uint = 0; ii < cnt; ii++) 
+							{
+								var	val:String = String(vars[ii]).replace(' ', '');
+								var	tempArr:Array = val.split('=');
+								if(tempArr != null && tempArr.length > 0) 
+								{
+									try
+									{
+										html.window.clearCookie(tempArr[0]);
+									}
+									catch(e1:Error)
+									{
+										// ignore
+									}
+								}
+							}
+						}
+						html.reload();
+					}
+					if(html.location.indexOf(FacebookURLDefaults.LOGIN_AGAIN_URL) == 0) 
+					{
+						if(URLRequestDefaults.manageCookies != true) 
+						{
+							URLRequestDefaults.manageCookies = true;
+							handleLogoutAndRelogin(true);
+							return;
+						}
+						html.removeEventListener(Event.LOCATION_CHANGE, handleLocationChange);
+						_handleLogin(false, "login-failed");
+						return;
+					}
+					
+					try
+					{
+						var	c_user:Object = html.window.getCookie("c_user");
+						html.window.clearCookie("c_user");
+					}
+					catch(e3:Error)
+					{
+						
+					}
+					
+					form = doc.getElementById("login_form");
+					var	emailIn:Object = doc.getElementById("email");
+					var	passwdIn:Object = doc.getElementById("pass");
+					var	ctrl:Object = doc.getElementById("dialog_buttons");
+					
+					var	inputs:Object = doc.getElementsByTagName("input");
+					
+					if(form != null) 
+					{
+						if(emailIn != null)
+							emailIn.value = _email;
+						if(passwdIn != null)
+							passwdIn.value = _passwd;
+						
+						if(ctrl != null) 
+						{
+							var	login:Object = null;
+							var	ctrls:Object = ctrl.getElementsByTagName("input");
+							if(ctrls != null) 
+							{
+								var	l:uint = ctrls.length;
+								for(var i:uint = 0; i < l; i++) 
+								{
+									if(String(ctrls[i].name).toLowerCase() == "login") 
+									{
+										login = ctrls[i];
+									}
+								}
+							}
+						}
+						if(login != null) 
+						{
+							_isSubmit = true;
+							login.click(); //form.submit();
+						}
+					}
+				}
+			}
+			
+			private function handleLocationChange(event:Event):void
+			{
+				_inLoad = true;
+				var	doc:Object = html.window.document;
+				
+				if(html.location.indexOf(FacebookURLDefaults.LOGIN_FAIL_URL) == 0 || html.location.indexOf(FacebookURLDefaults.LOGIN_FAIL_SECUREURL) == 0) 
+				{
+					html.removeEventListener(Event.LOCATION_CHANGE, handleLocationChange);
+					_handleLogin(false, "login-failed");
+				}
+				else if(html.location.indexOf(FacebookURLDefaults.LOGIN_SUCCESS_URL) == 0 || html.location.indexOf(FacebookURLDefaults.LOGIN_SUCCESS_SECUREURL) == 0) 
+				{
+					if(_isSubmit != true) 
+					{
+						URLRequestDefaults.manageCookies = false;
+						logoutTemporary();
+						return;
+					}
+					html.removeEventListener(Event.LOCATION_CHANGE, handleLocationChange);
+					_handleLogin(getURLVariables(), null);
+				}
+				else if (html.location.indexOf(FacebookURLDefaults.LOGIN_URL) == 0) 
+				{
+										_handleLogin(false, 'login'); //showDistractor();
+				}
+				else if (html.location.indexOf(FacebookURLDefaults.AUTHORIZE_CANCEL) == 0) 
+				{
+					html.removeEventListener(Event.LOCATION_CHANGE, handleLocationChange);
+					_handleLogin(false, 'user-canceled');
+				}						
+			}
+			
+			private function handleHtmlDomInit(event:Event):void
+			{
+				if(_handleLogin != null)
+					_handleLogin(false, "loaded");
+				//hideDistractor();
+			}
+			
+			private function formatData(applicationId:String, extendedPermissions:Array = null):String
+			{
+				var vars:String = "";
+				vars += "client_id=" + applicationId;
+				vars += "&display=popup";
+				vars += "&type=user_agent";
+				if (extendedPermissions != null) 
+				{
+					vars += "&scope=" + extendedPermissions.join(',');
+				}
+				vars += "&redirect_uri=" + FacebookURLDefaults.LOGIN_SUCCESS_URL;
+				return vars;
+			}
+			
+			private function getURLVariables():URLVariables
+			{
+				var params:String;
+				
+				if (html.location.indexOf('?') != -1) 
+				{
+					params = html.location.slice(html.location.indexOf('?')+1);
+				} 
+				else if (html.location.indexOf('#') != -1) 
+				{
+					params = html.location.slice(html.location.indexOf('#')+1);
+				}
+				
+				var vars:URLVariables = new URLVariables();
+				if (params != null) 
+				{ 
+					vars.decode(params); 
+				}
+				
+				return vars;
+			}
+			
+		]]>
+	</fx:Script>
+	<s:SpriteVisualElement id="cont_mc" width="100%" height="100%">
+		
+	</s:SpriteVisualElement>
+</s:Group>

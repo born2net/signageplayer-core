@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<flexLibProperties includeAllClasses="false" useMultiPlatformConfig="false" version="1">
+  <includeClasses>
+    <classEntry path="BackgroundStyles"/>
+    <classEntry path="DurationEvent"/>
+    <classEntry path="OffsetTimeEvent"/>
+    <classEntry path="PlayerAction"/>
+    <classEntry path="PlayerBlur"/>
+    <classEntry path="PlayerBlurPage"/>
+    <classEntry path="PlayerBorder"/>
+    <classEntry path="PlayerContainer"/>
+    <classEntry path="PlayerDefinitionPage"/>
+    <classEntry path="PlayerEffect"/>
+    <classEntry path="PlayerEffectPage"/>
+    <classEntry path="PlayerFirePage"/>
+    <classEntry path="PlayerGlowPage"/>
+    <classEntry path="PlayerLoader"/>
+    <classEntry path="PlayerReflaction"/>
+    <classEntry path="PlayerReflectPage"/>
+    <classEntry path="PlayerShadow"/>
+    <classEntry path="PlayerShadowPage"/>
+    <classEntry path="PlayerState"/>
+    <classEntry path="PlayerViewer"/>
+    <classEntry path="PlayerWindPage"/>
+  </includeClasses>
+  <includeResources/>
+  <namespaceManifests/>
+</flexLibProperties>

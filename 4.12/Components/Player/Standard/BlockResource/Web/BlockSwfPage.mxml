@@ -1,0 +1,459 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"
+	label="{resourceManager.getString('player', 'swf.title')}"
+	width="100%" height="100%" xmlns:Layout="Layout.*" xmlns:Menu="Menu.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.collections.XMLListCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			
+			import spark.components.Button;
+			import spark.components.FormItem;
+			import spark.components.TextInput;
+			
+			private var m_resourceService:IResourceService; 
+
+[Bindable]  public var m_menuBarCollection:XMLListCollection;
+			private var m_xmlAdd:XML;	
+			private var m_xmlDelete:XML;
+			
+[Bindable]  private var m_listCollection:ArrayCollection;
+			private var m_selectedItem:Object;
+			private var m_itemIndex:int = 0;
+			 
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_framework = Global.getFramework(this);
+				
+				var closeFolderIcon:Class = FlexGlobals.topLevelApplication.styleManager.getStyleDeclaration(".icons").getStyle("closeFolderIcon");
+				tree.addTreeIcon("itemIcon", closeFolderIcon);				
+				
+				m_resourceService = m_framework.ServiceBroker.QueryService("ResourceService") as IResourceService;
+				
+				resourcePicker.framework = m_framework;
+				
+				initMenu();
+			} 
+			
+			private function initMenu():void
+			{
+				m_menuBarCollection = new XMLListCollection();
+				m_xmlAdd = <Command id="addCampaign" label="" toolTip="Add" icon="addIcon" click="onAdd"/>; 				
+				m_xmlDelete = <Command id="del" label="" toolTip="Delete" icon="deleteIcon" click="onDelete"/>;
+				m_menuBarCollection.addItem(m_xmlAdd);
+				m_menuBarCollection.addItem(m_xmlDelete);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				if (flashPanel==null)
+					return //???
+				
+				flashPanel.visible = false;
+				m_listCollection = new ArrayCollection();
+				removeAllListeners()
+					
+				resourcePicker.hResource = EmbeddedResource(m_playerLoader.player).hResource;
+				
+				maintainAspectRatio.selected = BlockSwfPlayer(m_playerLoader.player).maintainAspectRatio;
+				
+				if (BlockSwfPlayer(m_playerLoader.player).propertyDefinitions==null)
+				{
+					m_playerLoader.player.addEventListener("event_content_loaded", onContentLoaded);
+				}
+				else
+				{
+					populate();
+				}
+			}
+
+			private function onMaintainAspectRatio():void
+			{
+				EmbeddedResource(m_playerLoader.player).maintainAspectRatio = maintainAspectRatio.selected;	
+			}
+			
+			private function onContentLoaded(event:Event):void
+			{
+				if (m_playerLoader==null)
+					return;
+				
+				m_playerLoader.player.removeEventListener("event_content_loaded", onContentLoaded);
+				populate();
+			}
+			
+			private function populate():void
+			{
+				var xmlPropertyDefinitions:XML = BlockSwfPlayer(m_playerLoader.player).propertyDefinitions;
+				if (xmlPropertyDefinitions==null)
+					return;
+				flashPanel.visible = true;
+					
+        		for each(var xmlItem:XML in xmlPropertyDefinitions.*)
+        		{
+        			var item:Object;
+        			var xmlField:XML;
+					item = new Object();
+        			if (xmlItem.name()=="Item")
+        			{
+        				
+						item.name = "Item";
+        			}
+        			else
+        			{
+        				item.name = "ItemList";
+        				item.count = xmlItem.@count;
+        			}
+        			item.key=xmlItem.@key;
+        			item.label = xmlItem.@label;
+        			item.fields = xmlItem;
+					item.icon = "itemIcon";
+					m_listCollection.addItem(item);
+        		}
+        		
+				tree.validateNow();
+				tree.selectedIndex = 0;
+				onItemSelected();
+			}
+			
+            private function onItemSelected():void
+            {
+				tree.setFocus();
+            	
+				m_selectedItem = tree.selectedItem;
+            	var formItem:FormItem;
+            	var fieldCtrl:UIComponent;
+            	removeAllListeners();
+            	
+            	if (m_selectedItem==null)
+            		return;
+            		
+            	m_itemIndex = 0;
+				stepper.value  = m_itemIndex + 1;
+            		
+            	var properties:Object = BlockSwfPlayer(m_playerLoader.player).flashData;	
+				
+				var rootKey:String = m_selectedItem.key;
+				
+				var xmlFields:XML = new XML(m_selectedItem.fields.toString());
+				for each(var xmlField:XML in xmlFields.*)
+				{
+	            	formItem  = new FormItem();
+	            	formItem.percentWidth = 100;
+	            	var key:String = xmlField.@key;
+	            	formItem.label = key;
+	            	var value:Object = (m_selectedItem.name=="Item") ? properties[rootKey][key] : properties[rootKey][m_itemIndex][key];
+	            	if (xmlField.@type=="resource")
+	            	{
+	            		fieldCtrl = new ResourcePicker();
+						ResourcePicker(fieldCtrl).framework = m_framework;
+	            		fieldCtrl.addEventListener(Event.CHANGE, onResourceChanged);
+	            	}
+	            	else if (xmlField.@type=="xml")
+	            	{
+		            	fieldCtrl = new Button();
+		            	Button(fieldCtrl).label = "Edit XML";
+		            	fieldCtrl.addEventListener(MouseEvent.CLICK, onEditXml);
+	            	}
+	            	else
+	            	{
+		            	fieldCtrl = new TextInput();
+		            	fieldCtrl.addEventListener(FlexEvent.ENTER, onTextChanged);
+		            	fieldCtrl.addEventListener(FocusEvent.FOCUS_OUT, onTextChanged);
+	            	}
+	            	fieldCtrl.name = xmlField.@key;
+	            	formItem.addElement(fieldCtrl);
+					forms.addElement(formItem);
+    			}
+    			
+    			updateData(true);
+            }
+            
+            private function removeAllListeners():void
+            {
+            	var formItem:FormItem;
+            	var fieldCtrl:UIComponent;
+				while(forms.numElements>0)
+            	{
+					formItem = forms.removeElementAt(0) as FormItem;
+            		fieldCtrl = formItem.removeElementAt(0) as UIComponent;
+            		if (fieldCtrl is ResourcePicker)
+            		{
+            			fieldCtrl.addEventListener(Event.CHANGE, onResourceChanged);
+            		}
+            		else
+            		{
+	            		fieldCtrl.removeEventListener(FlexEvent.ENTER, onTextChanged);
+	            		fieldCtrl.removeEventListener(FocusEvent.FOCUS_OUT, onTextChanged);
+            		}
+            	}
+            }
+            
+            private function onEditXml(event:MouseEvent):void
+            {
+            	var fieldCtrl:UIComponent = event.currentTarget as UIComponent;
+            	var key:String = fieldCtrl.name;
+            	var properties:Object = BlockSwfPlayer(m_playerLoader.player).flashData;
+            	var rootKey:String = m_selectedItem.key;
+				var value:String;            	
+            	if (m_selectedItem.name=="Item")
+            	{
+            		value = properties[rootKey][key];
+            	}
+            	else
+            	{
+            		value = properties[rootKey][m_itemIndex][key];
+            	}
+            	
+            	var xmlEditor:XmlEditor = new XmlEditor();
+            	xmlEditor.init(m_framework, key, value);
+				var w:int = DisplayObject(FlexGlobals.topLevelApplication).width * 0.8; 
+				var h:int =	DisplayObject(FlexGlobals.topLevelApplication).height * 0.9;				
+				var okCancelDlg:OkCancelDlg = OkCancelDlg.CreateDlg(
+					UIComponent(m_framework.StateBroker.GetState("topWindow")),
+					"Edit XML", xmlEditor, w, h);
+				okCancelDlg.addEventListener("event_dialog_ok", onXmlEditorClosed);
+            }
+            
+            private function onXmlEditorClosed(event:Event):void
+            {
+            	var okCancelDlg:OkCancelDlg = OkCancelDlg(event.target);
+            	
+            	
+            	var key:String = XmlEditor(okCancelDlg.dialog).xmlCtrl.name;
+            	var value:String = XmlEditor(okCancelDlg.dialog).xmlCtrl.text;
+            	
+            	var properties:Object = BlockSwfPlayer(m_playerLoader.player).flashData;
+            	var rootKey:String = m_selectedItem.key;
+				            	
+            	if (m_selectedItem.name=="Item")
+            	{
+            		properties[rootKey][key] = value;
+            	}
+            	else
+            	{
+            		properties[rootKey][m_itemIndex][key] = value;
+            	}
+            	
+				m_playerLoader.modified = true;
+            }
+            
+            private function onTextChanged(event:Event):void
+            {
+            	var textInput:TextInput = event.currentTarget as TextInput;
+            	var value:String = textInput.text;
+            	var key:String = textInput.name;
+            	var properties:Object = BlockSwfPlayer(m_playerLoader.player).flashData;
+            	var rootKey:String = m_selectedItem.key;
+            	if (m_selectedItem.name=="Item")
+            	{
+            		properties[rootKey][key] = value;
+            	}
+            	else
+            	{
+            		properties[rootKey][m_itemIndex][key] = value;
+            	}
+				m_playerLoader.modified = true;
+            }
+            
+            private function onResourceChanged(event:Event):void
+            {
+            	var resourcePicker:ResourcePicker = event.currentTarget as ResourcePicker;
+            	var value:Resource = new Resource(resourcePicker.hResource);
+            	var key:String = resourcePicker.name;
+            	var properties:Object = BlockSwfPlayer(m_playerLoader.player).flashData;
+            	var rootKey:String = m_selectedItem.key;
+            	if (m_selectedItem.name=="Item")
+            	{
+            		properties[rootKey][key] = value;
+            	}
+            	else
+            	{
+            		properties[rootKey][m_itemIndex][key] = value;
+            	}
+				m_playerLoader.modified = true;
+            }
+            
+            private function onIndexChanged():void
+            {
+            	updateData(false);
+				m_itemIndex = stepper.value - 1;
+				updateData(true);
+            }
+			
+			public function onAdd():void
+			{
+				var rootKey:String = m_selectedItem.key;
+				var item:Object = BlockSwfPlayer(m_playerLoader.player).addFlashItem(rootKey);
+				
+				var properties:Object = BlockSwfPlayer(m_playerLoader.player).flashData;
+				m_itemIndex = properties[rootKey].length-1;
+				updateData(true);
+			}
+
+			public function onDelete():void
+			{
+				var properties:Object = BlockSwfPlayer(m_playerLoader.player).flashData;
+				var rootKey:String = m_selectedItem.key;
+				var length:int = properties[rootKey].length;
+				if (length>1)
+				{
+					AlertEx.showYesNo(UIComponent(m_framework.StateBroker.GetState("topWindow")), "Delete item", "Are you sure?", deleteItem);
+				}
+			}
+			
+			private function deleteItem():void
+			{
+				var rootKey:String = m_selectedItem.key;
+				BlockSwfPlayer(m_playerLoader.player).deleteFlashItem(rootKey, m_itemIndex);
+				
+				m_itemIndex = 0;
+				updateData(true);
+
+			}
+			
+            private function updateData(i_data2Gui:Boolean):void
+            {
+            	var textInput:TextInput;
+            	var key:String;
+            	var value:Object;
+            	var formItem:FormItem;
+            	var properties:Object = BlockSwfPlayer(m_playerLoader.player).flashData;
+            	var rootKey:String = m_selectedItem.key;
+				var i:int
+            	if (i_data2Gui)
+            	{
+					for(i=0; i<forms.numElements; i++)
+					{
+						formItem = forms.getElementAt(i) as FormItem;
+						textInput = formItem.getElementAt(0) as TextInput;
+						if (textInput==null) // Xml editor
+						 	continue;
+						key = textInput.name;
+						if (m_selectedItem.name=="Item")
+						{
+							stepperBox.visible = false;
+							value = properties[rootKey][key];
+						}
+						else
+						{
+							stepperBox.visible = true;
+							var length:int = properties[rootKey].length;
+							if (length>0)
+							{
+								stepper.enabled = true;
+								stepper.value = m_itemIndex + 1; 
+								stepper.minimum = 1;
+								stepper.maximum = length;
+								totalItems.text = "of " + stepper.maximum;
+								value = properties[rootKey][m_itemIndex][key];
+							}
+							else
+							{
+								stepper.enabled = false;
+								stepper.minimum = 0;
+								stepper.maximum = 0;
+								stepper.value = 0;
+								totalItems.text = "of 0";
+							}
+						}
+						
+						
+						if (textInput is ResourcePicker)
+						{
+							var hResource:int = Resource(value).hResource;
+							textInput.text = (hResource!=-1) ?
+								m_resourceService.getNameFromHandle(Resource(value).hResource) :
+								"[Drop resource here]";
+						}
+						else
+						{
+							textInput.text = String(value);
+						}
+					}
+            	}
+            	else
+            	{
+					for(i=0; i<forms.numElements; i++)
+					{
+						formItem = forms.getElementAt(i) as FormItem;
+						textInput = formItem.getElementAt(0) as TextInput;
+						if (textInput is ResourcePicker)
+							continue;
+						
+						key = textInput.name;
+						value = textInput.text; 
+	
+						if (m_selectedItem.name=="Item")
+						{
+							properties[rootKey][key] = value;
+						}
+						else
+						{
+							properties[rootKey][m_itemIndex][key] = value;
+						}  
+					}
+            	}
+            }
+			
+			private function onResourcePicker(event:Event):void
+			{
+				EmbeddedResource(m_playerLoader.player).hResource = resourcePicker.hResource;
+			}
+			
+		]]>
+	</fx:Script>
+	<ms:layout>
+		<s:VerticalLayout/>
+	</ms:layout>
+	
+	<s:Form>
+		<s:FormItem label="Swf">
+			<ms:ResourcePicker id="resourcePicker" 
+							   swf="true" video="false"
+							   change="onResourcePicker(event)"/>		
+		</s:FormItem>
+		<s:FormItem label="{resourceManager.getString('player', 'swf.maintainAspectRatio')}" >
+			<s:CheckBox id="maintainAspectRatio" 					
+						click="onMaintainAspectRatio()"/>
+		</s:FormItem>
+	</s:Form>
+	
+	
+	
+    <s:Panel id="flashPanel" visible="false" width="100%" height="100%" 
+    	title="Flash properties">
+		
+    	<Layout:VDividedBox width="100%" height="100%">
+		    <ms:TreeEx id="tree" 
+		    	dataProvider="{m_listCollection}" labelField="label"
+				iconField="icon"
+		    	change="onItemSelected()"
+		    	width="100%" height="30%"/>
+		    <s:VGroup width="100%" height="70%" gap="0">
+		    	<s:Group id="stepperBox" visible="false" height="20" width="100%">
+		    		<Menu:SparkToolBar callbackObj="{this}" dataProvider="{m_menuBarCollection}" width="100%"/>
+					<ms:NumericStepperEx id="stepper" change="onIndexChanged()"
+		    			width="50" x="70"/>
+		    		<s:Label id="totalItems" text="of 0" x="125"/>	
+		    	</s:Group>
+	    		<s:Form id="forms" width="100%" height="100%"/>
+	    	</s:VGroup>	
+		</Layout:VDividedBox>
+		 
+    </s:Panel>
+</ms:PlayerPage>	
+

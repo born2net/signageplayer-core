@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TextInput xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			  xmlns:s="library://ns.adobe.com/flex/spark" 
+			  xmlns:mx="library://ns.adobe.com/flex/mx" 
+			  xmlns:ms="*" 
+	width="72" height="22"
+	text="00:00:00.0" editable="false">
+
+	
+	<fx:Script>
+		<![CDATA[
+			
+			public function setTime(i_seconeds:Number):void
+			{
+            	if (i_seconeds>86400)
+            	{
+            		i_seconeds = 86400;
+            	}
+            	
+            	var ms:int = (i_seconeds-int(i_seconeds))*10;
+            	var x:Number = i_seconeds;
+            	var t:Number = int(x/60);
+            	var second:int = int(x-t*60);
+            	x = t; 
+            	var hour:int = int(t/60);
+            	var minute:int = int(x-hour*60);
+            	
+            	var str:String = "";
+            	if (hour<10)
+            		str += "0";
+            	str+=hour.toString() + ":";
+            	if (minute<10)
+            		str+="0";
+            	str+=minute.toString() + ":";
+            	if (second<10)
+            		str+="0";
+            	str+=second.toString() + "." + ms.toString();
+            	text = str;
+			}
+		]]>
+	</fx:Script>
+	
+</s:TextInput>

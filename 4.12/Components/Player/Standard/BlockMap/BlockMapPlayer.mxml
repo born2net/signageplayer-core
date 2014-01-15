@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:ms="*"
+	layout="absolute" 
+	backgroundColor="#FFFFFF" 
+	creationComplete="handleCreationComplete()"> 
+	
+	<mx:Script>
+		<![CDATA[
+			import com.yahoo.maps.api.MapTypes;
+			import com.yahoo.maps.api.intl.MapLocales;
+			import mx.collections.ArrayCollection;
+			import mx.events.ResizeEvent;
+			import com.yahoo.maps.api.core.location.LatLon;
+			import com.yahoo.maps.api.YahooMapEvent;
+			import com.yahoo.maps.api.YahooMap;
+			
+			protected var m_yahooMap:YahooMap;
+			protected var m_zoomLevel:int = 13;
+			protected var m_centerLatLon:LatLon = new LatLon(40.81,-96.7);
+			protected var m_mapType:String = MapTypes.MAP;
+			private var m_search:String;
+
+
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Map).length()>0)
+				{
+					var xmlMap:XML = i_data.Map[0];
+					m_zoomLevel = xmlMap.@zoom;
+					m_search = xmlMap.@search;
+					m_centerLatLon = new LatLon(Number(xmlMap.@lat), Number(xmlMap.@long));
+					m_mapType = xmlMap.@type; 
+				}
+				invalidateProperties();
+			}
+			
+			public override function save():XML
+			{ 
+				var xmlMap:XML = <Map/>;
+				xmlMap.@zoom = m_zoomLevel.toString();
+				xmlMap.@search = m_search;
+				xmlMap.@lat = m_centerLatLon.lat.toString();
+				xmlMap.@long = m_centerLatLon.lon.toString();
+				xmlMap.@type = m_mapType; 
+				return xmlMap;
+			}
+			
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockMapPage];
+			}
+			
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_yahooMap!=null)
+				{
+					m_yahooMap.zoomLevel = m_zoomLevel;
+					m_yahooMap.centerLatLon	= m_centerLatLon;
+					m_yahooMap.mapType = m_mapType;
+					dispatchEvent( new Event("event_map_updated") );
+				}
+			}
+			
+			private function handleCreationComplete():void 
+			{
+				m_yahooMap = new YahooMap(); 
+                m_yahooMap.addEventListener(YahooMapEvent.MAP_INITIALIZE, handleMapInitialize); 
+				
+				m_yahooMap.init(null, mapContainer.width, mapContainer.height);
+				m_yahooMap.addPanControl();
+				m_yahooMap.addScaleBar();
+				//m_yahooMap.addTypeWidget();
+				//m_yahooMap.addZoomWidget();
+				mapContainer.addChild(m_yahooMap);
+			}
+			
+			private function handleMapInitialize(event:YahooMapEvent):void 
+			{
+				mapContainer.addEventListener(ResizeEvent.RESIZE, handleContainerResize);
+				
+				invalidateProperties();
+			}
+			
+			private function handleContainerResize(event:ResizeEvent):void 
+			{
+				m_yahooMap.setSize( mapContainer.width, mapContainer.height );
+			}
+			
+			public function get zoomLevel():int
+			{
+				return m_zoomLevel;
+			}
+			
+			public function set zoomLevel(i_zoomLevel:int):void
+			{
+				m_zoomLevel	= i_zoomLevel;
+				invalidateProperties();
+			}
+
+			public function get centerLatLon():LatLon
+			{
+				return m_centerLatLon;
+			}
+			
+			public function set centerLatLon(i_centerLatLon:LatLon):void
+			{
+				m_centerLatLon	= i_centerLatLon;
+				invalidateProperties();
+			}
+			
+			public function get mapType():String
+			{
+				return m_mapType;
+			}
+			
+			public function set mapType(i_mapType:String):void
+			{
+				m_mapType = i_mapType;
+				invalidateProperties();
+			}
+
+			public function get search():String
+			{
+				return m_search;
+			}
+			
+			public function set search(i_search:String):void
+			{
+				m_search = i_search;
+			}
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				if (m_yahooMap!=null)
+				{
+					m_yahooMap.removeEventListener(YahooMapEvent.MAP_INITIALIZE, handleMapInitialize);
+					m_yahooMap.mapBase.destroy();
+					m_yahooMap.destroy();
+					mapContainer.removeEventListener(ResizeEvent.RESIZE, handleContainerResize);
+					m_yahooMap = null;
+				}
+			}
+		]]>
+	</mx:Script>	
+	<mx:UIComponent id="mapContainer" width="100%" height="100%"/>
+</ms:PlayerModule>	

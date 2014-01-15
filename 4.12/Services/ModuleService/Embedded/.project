@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>ModuleServiceEmbedded</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>com.adobe.flexbuilder.project.flexbuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>com.adobe.flexbuilder.project.flexlibnature</nature>
+		<nature>com.adobe.flexbuilder.project.actionscriptnature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>[source path] Core</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/DBManager/Core</location>
+		</link>
+		<link>
+			<name>[source path] DebugLog-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/DebugLog/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] GuiSpark</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/GuiSpark</location>
+		</link>
+		<link>
+			<name>[source path] Interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/Framework/Interfaces</location>
+		</link>
+		<link>
+			<name>[source path] ModuleService-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/ModuleService/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] Persistent-interfaces</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Services/Persistent/interfaces</location>
+		</link>
+		<link>
+			<name>[source path] PostServiceLib</name>
+			<type>2</type>
+			<location>C:/MediaSignageDepot/Solution/4.12/Packages/PostServiceLib</location>
+		</link>
+	</linkedResources>
+</projectDescription>

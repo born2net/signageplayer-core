@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:ms="*"
+	implements="IPage"
+	label="YouTube" 
+	width="100%" height="100%" xmlns:Accordion="Accordion.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.DropdownEvent;
+			import mx.events.FlexEvent;
+			
+			
+			
+[Bindable]	private var m_urlList:XMLListCollection; 
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				
+				for each(var qualityItem:Object in ArrayList(quality.dataProvider).source)
+				{
+					if (qualityItem.name == BlockYouTubePlayer(m_playerLoader.player).quality)
+					{
+						quality.selectedItem = qualityItem;
+						break;
+					}
+				}
+				
+				for each(var typeItem:Object in ArrayList(listType.dataProvider).source)
+				{
+					if (typeItem.name == BlockYouTubePlayer(m_playerLoader.player).listType)
+					{
+						listType.selectedItem = typeItem;
+						break;
+					}
+				}
+				
+				for each(var regionItem:Object in ArrayList(listRegion.dataProvider).source)
+				{
+					if (regionItem.name == BlockYouTubePlayer(m_playerLoader.player).listRegion)
+					{
+						listRegion.selectedItem = regionItem;
+						break;
+					}
+				}
+
+				videoIdList.text = BlockYouTubePlayer(m_playerLoader.player).videoIdList; 
+				volume.value = BlockYouTubePlayer(m_playerLoader.player).volume;
+				
+				updateButtons();
+			}
+			
+			protected function onListType():void
+			{
+				BlockYouTubePlayer(m_playerLoader.player).listType = listType.selectedItem.name;
+				
+				updateButtons();
+			}
+			
+			
+			protected function onListRegion():void
+			{
+				BlockYouTubePlayer(m_playerLoader.player).listRegion = listRegion.selectedItem.name;
+			}
+			
+			protected function onVideoIdList():void
+			{
+				BlockYouTubePlayer(m_playerLoader.player).videoIdList = videoIdList.text
+			}
+			
+			
+			protected function onQuality():void
+			{
+				BlockYouTubePlayer(m_playerLoader.player).quality = quality.selectedItem.name;
+			}
+			
+			private function updateButtons():void
+			{
+				if (BlockYouTubePlayer(m_playerLoader.player).listType=="manually")
+				{
+					formRegion.visible = false;
+					formList.visible = true;
+				}
+				else
+				{
+					formRegion.visible = true;
+					formList.visible = false;
+				}
+			}
+			
+			private function onVolume():void
+			{
+				BlockYouTubePlayer(m_playerLoader.player).volume = volume.value;	
+			}
+
+			
+		]]>
+	</fx:Script>
+	<Accordion:SparkAccordion id="accordion" width="100%" height="100%">
+		<s:NavigatorContent label="General" width="100%" height="100%">
+			<s:Form width="100%">
+				<s:FormItem label="Volume" width="100%">
+					<s:HSlider id="volume" width="96" 
+							   minimum="0" maximum="100" stepSize="1"
+							   change="onVolume()"/>
+				</s:FormItem>
+				<s:FormItem width="100%" label="Quality">
+					<s:DropDownList id="quality" labelField="label" 
+									close="onQuality()">
+						<s:dataProvider>
+							<s:ArrayList>
+								<fx:Object name="default" label="default"/>
+								<fx:Object name="small" label="small"/>
+								<fx:Object name="medium" label="medium"/>
+								<fx:Object name="large" label="large"/>
+								<fx:Object name="hd720" label="hd720"/>
+							</s:ArrayList>
+						</s:dataProvider>
+					</s:DropDownList>
+				</s:FormItem>
+
+				<s:FormItem width="100%" label="List Type">
+					<s:DropDownList id="listType" labelField="label" 
+								close="onListType()">
+						<s:dataProvider>
+							<s:ArrayList>
+								<fx:Object name="manually" label="VideoId List"/>
+								<!--
+								<fx:Object name="top_rated" label="Top rated"/>
+								<fx:Object name="top_favorites" label="Top favorites"/>
+								<fx:Object name="most_shared" label="Most shared"/>
+								<fx:Object name="most_popular" label="Most popular"/>
+								<fx:Object name="Most recent" label="most_recent"/>
+								<fx:Object name="most_discussed" label="Most discussed"/>
+								<fx:Object name="most_responded" label="Most responded"/>
+								<fx:Object name="recently_featured" label="Recently featured"/>
+								<fx:Object name="on_the_web" label="Trending videos"/>
+								-->
+								<fx:Object name="most_viewed" label="Most viewed"/>
+							</s:ArrayList>
+						</s:dataProvider>
+					</s:DropDownList>
+				</s:FormItem>
+				<s:FormItem id="formRegion" width="100%" label="Region">
+					<s:DropDownList id="listRegion" labelField="label" 
+								close="onListRegion()">
+						<s:dataProvider>
+							<s:ArrayList>
+								<fx:Object name="AR" label="Argentina"/>
+								<fx:Object name="AU" label="Australia"/>
+								<fx:Object name="AT" label="Austria"/>
+								<fx:Object name="BE" label="Belgium"/>
+								<fx:Object name="BR" label="Brazil"/>
+								<fx:Object name="CA" label="Canada"/>
+								<fx:Object name="CL" label="Chile"/>
+								<fx:Object name="CO" label="Colombia"/>
+								<fx:Object name="CZ" label="Czech Republic"/>
+								<fx:Object name="EG" label="Egypt"/>
+								<fx:Object name="FR" label="France"/>
+								<fx:Object name="DE" label="Germany"/>
+								<fx:Object name="GB" label="Great Britain"/>
+								<fx:Object name="HK" label="Hong Kong"/>
+								<fx:Object name="HU" label="Hungary"/>
+								<fx:Object name="IN" label="India"/>
+								<fx:Object name="IE" label="Ireland"/>
+								<fx:Object name="IL" label="Israel"/>
+								<fx:Object name="IT" label="Italy"/>
+								<fx:Object name="JP" label="Japan"/>
+								<fx:Object name="JO" label="Jordan"/>
+								<fx:Object name="MY" label="Malaysia"/>
+								<fx:Object name="MX" label="Mexico"/>
+								<fx:Object name="MA" label="Morocco"/>
+								<fx:Object name="NL" label="Netherlands"/>
+								<fx:Object name="NZ" label="New Zealand"/>
+								<fx:Object name="PE" label="Peru"/>
+								<fx:Object name="PH" label="Philippines"/>
+								<fx:Object name="PL" label="Poland"/>
+								<fx:Object name="RU" label="Russia"/>
+								<fx:Object name="SA" label="Saudi Arabia"/>
+								<fx:Object name="SG" label="Singapore"/>
+								<fx:Object name="ZA" label="South Africa"/>
+								<fx:Object name="KR" label="South Korea"/>
+								<fx:Object name="ES" label="Spain"/>
+								<fx:Object name="SE" label="Sweden"/>
+								<fx:Object name="CH" label="Switzerland"/>
+								<fx:Object name="TW" label="Taiwan"/>
+								<fx:Object name="AE" label="United Arab Emirates"/>
+								<fx:Object name="US" label="United States"/>
+							</s:ArrayList>
+						</s:dataProvider>
+					</s:DropDownList>
+				</s:FormItem>
+
+				<s:FormItem id="formList" width="100%"
+					label="VideoIdList">
+					<s:TextArea id="videoIdList"
+								focusOut="onVideoIdList()"/>
+				</s:FormItem>
+			</s:Form>
+		</s:NavigatorContent>
+	</Accordion:SparkAccordion>
+</ms:PlayerPage>	
+

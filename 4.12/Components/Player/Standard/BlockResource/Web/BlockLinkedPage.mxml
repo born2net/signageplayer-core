@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"
+	label="{resourceManager.getString('player', 'linked.title')}"
+	width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader.player==null)
+					return;
+				
+				url.text = BlockLinkedPlayer(m_playerLoader.player).url;
+			}
+			
+			private function onChange():void
+			{
+				if (url.text.substr(0, 7)!="http://" && 
+					url.text.substr(0, 8)!="https://" &&
+					url.text.substr(0, 7)!="rtmp://")
+				{
+					url.text = "http://" + url.text; 
+				}  
+				BlockLinkedPlayer(m_playerLoader.player).url = url.text;
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<s:Form width="100%">
+		<s:FormItem label="{resourceManager.getString('player', 'linked.url')}">
+			<s:TextInput id="url" 
+						 enter="onChange()" focusOut="onChange()" />	
+		</s:FormItem>
+	</s:Form>
+</ms:PlayerPage>	
+

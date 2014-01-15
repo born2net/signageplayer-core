@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:ms="*"
+			   xmlns:ns1="*"
+			   skinClass="ScrollerSkin" width="100%" height="100%"
+	label="{resourceManager.getString('customer', 'DesignerPage.title')}" xmlns:Accordion="Accordion.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.collections.XMLListCollection;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			
+			import spark.layouts.BasicLayout;
+			import spark.layouts.HorizontalLayout;
+			import spark.layouts.TileLayout;
+			import spark.layouts.supportClasses.LayoutBase;
+			
+			private var m_moduleService:IModuleService;
+[Bindable]	private var m_mimeTypeCollection:XMLListCollection;
+			
+
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				m_moduleService = m_framework.ServiceBroker.QueryService("ModuleService") as IModuleService;
+				m_mimeTypeCollection = new XMLListCollection();
+				m_mimeTypeCollection.addItem(<MimeType id="scene" label="Scene"/>);
+				for each(var mimeTypeName:String in m_moduleService.mimeTypeNames)
+				{
+					var xmlMimeType:XML = m_moduleService.getMimeType(mimeTypeName);
+					m_mimeTypeCollection.addItem(xmlMimeType.copy());
+				}
+				
+				durationCtrl.addEventListener(TimeEvent.TIME_CHANGED, onTimeCtrl);
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (m_playerLoader==null || m_playerLoader.player==null)
+					return;
+				
+				eventsCtrl.editor = m_playerLoader;
+				
+				var sceneLayout:LayoutBase = DesignerPlayer(m_playerLoader.player).layout;
+				if (sceneLayout==null || sceneLayout is BasicLayout)
+				{
+					currentState = "State_BasicLayout";
+					dropDownLayouts.selectedIndex = 0;
+				}
+				else if (sceneLayout is VerticalLayout)
+				{
+					currentState = "State_VerticalLayout";
+					dropDownLayouts.selectedIndex = 1;
+				}
+				else if (sceneLayout is HorizontalLayout)
+				{
+					currentState = "State_HorizontalLayout";
+					dropDownLayouts.selectedIndex = 2;
+				}
+				else if (sceneLayout is TileLayout)
+				{
+					currentState = "State_TileLayout";
+					dropDownLayouts.selectedIndex = 3;
+				}
+				
+				callLater(updateLayoutProperties);
+				
+				var selectedIndex:int = 0;
+				var playerMimeType:String = PlayerLoader(m_playerLoader).mimeType;
+				for(var index:int=0;index<m_mimeTypeCollection.length;index++)
+				{
+					var xmlMimeType:XML = m_mimeTypeCollection[index];
+					if (xmlMimeType.@id == playerMimeType)
+					{
+						selectedIndex = index;
+						break;
+					}
+				}
+				mimeTypeCombo.selectedIndex = selectedIndex;
+				
+				durationCtrl.setTime(DesignerPlayer(m_playerLoader.player).defaultDuration);
+			}
+			
+			private function onMimeType():void
+			{
+				if (mimeTypeCombo.selectedIndex==0)
+				{
+					PlayerLoader(m_playerLoader).mimeType = null;
+				}
+				else
+				{
+					PlayerLoader(m_playerLoader).mimeType = String(mimeTypeCombo.selectedItem.@id);
+				}
+			}
+			
+			private function onTimeCtrl(event:TimeEvent):void
+			{
+				DesignerPlayer(m_playerLoader.player).defaultDuration = durationCtrl.getTime();
+			}
+			
+			
+			private function updateLayoutProperties():void
+			{
+				try
+				{
+				switch(currentState)
+				{
+					case "State_VerticalLayout":
+						paddingLeft.value = VerticalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingLeft;
+						paddingRight.value = VerticalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingRight;
+						paddingTop.value = VerticalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingTop;
+						paddingBottom.value = VerticalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingBottom;
+						
+						gap.value = VerticalLayout(DesignerPlayer(m_playerLoader.player).layout).gap;
+						break;
+					case "State_HorizontalLayout":
+						paddingLeft.value = HorizontalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingLeft;
+						paddingRight.value = HorizontalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingRight;
+						paddingTop.value = HorizontalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingTop;
+						paddingBottom.value = HorizontalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingBottom;
+						
+						gap.value = HorizontalLayout(DesignerPlayer(m_playerLoader.player).layout).gap;
+						break;
+					case "State_TileLayout":
+						paddingLeft.value = TileLayout(DesignerPlayer(m_playerLoader.player).layout).paddingLeft;
+						paddingRight.value = TileLayout(DesignerPlayer(m_playerLoader.player).layout).paddingRight;
+						paddingTop.value = TileLayout(DesignerPlayer(m_playerLoader.player).layout).paddingTop;
+						paddingBottom.value = TileLayout(DesignerPlayer(m_playerLoader.player).layout).paddingBottom;
+						
+						horizontalGap.value = TileLayout(DesignerPlayer(m_playerLoader.player).layout).horizontalGap;
+						verticalGap.value = TileLayout(DesignerPlayer(m_playerLoader.player).layout).verticalGap;
+						
+						columnWidth.value = TileLayout(DesignerPlayer(m_playerLoader.player).layout).columnWidth;
+						rowHeight.value = TileLayout(DesignerPlayer(m_playerLoader.player).layout).rowHeight;
+						break;					
+				}
+				}
+				catch(e:Error)
+				{
+					
+				}
+			}
+			
+			private function onLayout():void
+			{
+				currentState = dropDownLayouts.selectedItem.name;
+				switch(dropDownLayouts.selectedItem.name)
+				{
+					case "State_BasicLayout":
+						DesignerPlayer(m_playerLoader.player).layout = new BasicLayout();
+						break;					
+					case "State_VerticalLayout":
+						DesignerPlayer(m_playerLoader.player).layout = new VerticalLayout();
+						break;
+					case "State_HorizontalLayout":
+						DesignerPlayer(m_playerLoader.player).layout = new HorizontalLayout();
+						break;
+					case "State_TileLayout":
+						var tileLayout:TileLayout =  new TileLayout();
+						//tileLayout.columnWidth = 100;
+						//tileLayout.rowHeight = 100;
+						DesignerPlayer(m_playerLoader.player).layout = tileLayout;
+						break;
+				}
+				
+				updateLayoutProperties();
+			}			
+			
+			
+			private function onLayoutPropertiesChange():void
+			{
+				switch(currentState)
+				{
+					case "State_VerticalLayout":
+						VerticalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingLeft = paddingLeft.value;
+						VerticalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingRight = paddingRight.value;
+						VerticalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingTop = paddingTop.value;
+						VerticalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingBottom = paddingBottom.value;
+						VerticalLayout(DesignerPlayer(m_playerLoader.player).layout).gap = gap.value;
+						break;
+					case "State_HorizontalLayout":
+						HorizontalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingLeft = paddingLeft.value;
+						HorizontalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingRight = paddingRight.value;
+						HorizontalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingTop = paddingTop.value;
+						HorizontalLayout(DesignerPlayer(m_playerLoader.player).layout).paddingBottom = paddingBottom.value;
+						HorizontalLayout(DesignerPlayer(m_playerLoader.player).layout).gap = gap.value;
+						break;
+					case "State_TileLayout":
+						TileLayout(DesignerPlayer(m_playerLoader.player).layout).paddingLeft = paddingLeft.value;
+						TileLayout(DesignerPlayer(m_playerLoader.player).layout).paddingRight = paddingRight.value;
+						TileLayout(DesignerPlayer(m_playerLoader.player).layout).paddingTop = paddingTop.value;
+						TileLayout(DesignerPlayer(m_playerLoader.player).layout).paddingBottom = paddingBottom.value;
+						TileLayout(DesignerPlayer(m_playerLoader.player).layout).horizontalGap = horizontalGap.value;
+						TileLayout(DesignerPlayer(m_playerLoader.player).layout).verticalGap = verticalGap.value;
+						
+						TileLayout(DesignerPlayer(m_playerLoader.player).layout).columnWidth = columnWidth.value;
+						TileLayout(DesignerPlayer(m_playerLoader.player).layout).rowHeight = rowHeight.value;
+						break;					
+				}
+				m_playerLoader.modified = true;
+			}
+		
+		]]>
+	</fx:Script>
+	<ms:states>
+		<s:State name="State_BasicLayout"/>
+		<s:State name="State_VerticalLayout"/>
+		<s:State name="State_HorizontalLayout"/>
+		<s:State name="State_TileLayout"/>
+	</ms:states>
+
+	
+	
+	<Accordion:SparkAccordion width="100%" height="100%">
+		<s:NavigatorContent label="General" width="100%">
+			<s:Form width="100%">
+				<s:FormItem
+					label="Mime Type">
+					<s:DropDownList id="mimeTypeCombo" width="140"
+									dataProvider="{m_mimeTypeCollection}"
+									labelField="@label"
+									change="onMimeType()">
+						<s:layout>
+							<s:VerticalLayout requestedMaxRowCount="10"/>
+						</s:layout>
+					</s:DropDownList>
+					
+				</s:FormItem>
+
+				<s:FormItem
+					label="{resourceManager.getString('customer', 'DesignerPage.duration')}">
+					<ms:TimeCtrl id="durationCtrl" minTime="5"/>	
+				</s:FormItem>
+			</s:Form>
+		</s:NavigatorContent>
+	
+		<s:NavigatorContent label="Layout" width="100%">
+			<s:Form width="100%">
+				<s:FormItem label="Layout">
+					<s:DropDownList id="dropDownLayouts" labelField="label"  width="140"
+									change="onLayout()">
+						<s:dataProvider>
+							<s:ArrayList>
+								<fx:Object name="State_BasicLayout" label="Basic Layout"/>
+								<fx:Object name="State_VerticalLayout" label="Vertical Layout"/>
+								<fx:Object name="State_HorizontalLayout" label="Horizontal Layout"/>
+								<fx:Object name="State_TileLayout" label="Tile Layout"/>
+							</s:ArrayList>
+						</s:dataProvider>
+					</s:DropDownList>
+				</s:FormItem>
+				
+				<s:FormItem label="Padding Left" includeIn="State_HorizontalLayout,State_VerticalLayout,State_TileLayout">
+					<ms:NumericStepperEx id="paddingLeft" minimum="0" maximum="4096" width="80"
+									  change="onLayoutPropertiesChange()"/>
+				</s:FormItem>
+				<s:FormItem label="Padding Right" includeIn="State_HorizontalLayout,State_VerticalLayout,State_TileLayout">
+					<ms:NumericStepperEx id="paddingRight" minimum="0" maximum="4096" width="80"
+									  change="onLayoutPropertiesChange()"/>
+				</s:FormItem>
+				<s:FormItem label="Padding Top" includeIn="State_HorizontalLayout,State_VerticalLayout,State_TileLayout">
+					<ms:NumericStepperEx id="paddingTop" minimum="0" maximum="4096" width="80"
+									  change="onLayoutPropertiesChange()"/>
+				</s:FormItem>
+				<s:FormItem label="Padding Bottom" includeIn="State_HorizontalLayout,State_VerticalLayout,State_TileLayout">
+					<ms:NumericStepperEx id="paddingBottom" minimum="0" maximum="4096" width="80"
+									  change="onLayoutPropertiesChange()"/>
+				</s:FormItem>
+
+				
+				<s:FormItem label="Gap" includeIn="State_HorizontalLayout,State_VerticalLayout">
+					<ms:NumericStepperEx id="gap" minimum="0" maximum="4096" width="80"
+								change="onLayoutPropertiesChange()"/>
+				</s:FormItem>
+				<s:FormItem label="horizontalGap" includeIn="State_TileLayout">
+					<ms:NumericStepperEx id="horizontalGap" minimum="0" maximum="4096" width="80"
+							   change="onLayoutPropertiesChange()"/>
+				</s:FormItem>
+				<s:FormItem label="verticalGap" includeIn="State_TileLayout">
+					<ms:NumericStepperEx id="verticalGap" minimum="0" maximum="4096" width="80"
+							   change="onLayoutPropertiesChange()"/>
+				</s:FormItem>
+
+				<s:FormItem label="columnWidth" includeIn="State_TileLayout">
+					<ms:NumericStepperEx id="columnWidth" minimum="0" maximum="4096" width="80"
+									  change="onLayoutPropertiesChange()"/>
+				</s:FormItem>
+				
+				<s:FormItem label="rowHeight" includeIn="State_TileLayout">
+					<ms:NumericStepperEx id="rowHeight" minimum="0" maximum="4096" width="80"
+									  change="onLayoutPropertiesChange()"/>
+				</s:FormItem>
+			</s:Form>
+		</s:NavigatorContent>
+		
+		<s:NavigatorContent label="Events" width="100%">
+			<ms:SceneEventsCtrl id="eventsCtrl" width="100%" height="100%"/>
+		</s:NavigatorContent>
+	</Accordion:SparkAccordion>
+	
+</ms:PlayerPage>	
+

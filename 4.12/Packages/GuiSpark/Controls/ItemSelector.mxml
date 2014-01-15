@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:SkinnableContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   width="400" height="300">
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.IList;
+			import mx.core.UIComponent;
+			
+			import spark.components.supportClasses.ListBase;
+			import spark.events.IndexChangeEvent;
+			
+			
+			private var m_dataProvider:IList;
+			private var m_labelField:String;
+			private var m_selectedIndex:int = -1;
+			
+			
+			private var m_selector:ListBase = null;
+			
+			
+			public function set dataProvider(i_dataProvider:IList):void
+			{   
+				if (m_selector!=null)
+				{
+					m_selector.dataProvider = i_dataProvider;
+				}
+				else
+				{
+					m_dataProvider = i_dataProvider;
+				}
+			}
+
+			public function set labelField(i_labelField:String):void
+			{
+				if (m_selector!=null)
+				{
+					m_selector.labelField = i_labelField;
+				}
+				else
+				{
+					m_labelField = i_labelField;
+				}
+			}
+			
+			public function set selectedIndex(i_selectedIndex:int):void
+			{
+				if (m_selector!=null)
+				{
+					m_selector.selectedIndex = i_selectedIndex;
+				}
+				else
+				{
+					m_selectedIndex = i_selectedIndex;
+				}
+			}
+			
+			public function get selectedItem():Object
+			{
+				if (m_selector!=null)
+				{
+					return m_selector.selectedItem;
+				}
+				else
+				{
+					return null;
+				}
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				
+			}
+			
+			protected override function attachSkin():void
+			{
+				super.attachSkin();
+				m_selector = Object(skin).selector;
+				
+				m_selector.addEventListener(IndexChangeEvent.CHANGE, onChange);
+				
+				if (m_dataProvider!=null)
+				{
+					m_selector.dataProvider = m_dataProvider;
+					m_dataProvider = null;
+				}
+				if (m_labelField!=null)
+				{
+					m_selector.labelField = m_labelField;
+					m_labelField = null;
+				}
+				if (m_selectedIndex!=-1)
+				{
+					m_selector.selectedIndex = m_selectedIndex;
+					m_selectedIndex = -1;
+				}
+			}
+			
+			
+			private function onChange(event:IndexChangeEvent):void
+			{
+				dispatchEvent(	event.clone() );
+			}
+		]]>
+	</fx:Script>
+
+	<fx:Metadata>
+		[Event(name="change", type="spark.events.IndexChangeEvent")]
+	</fx:Metadata>
+	
+</s:SkinnableContainer> 

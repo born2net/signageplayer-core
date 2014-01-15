@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+	xmlns:s="library://ns.adobe.com/flex/spark" 
+	xmlns:ms="*" width="400" height="150"
+	close="exit()"
+	creationComplete="onInit()">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.managers.PopUpManager;
+
+			private var m_framework:IFramework;	
+			private var m_watchDogService:IWatchDogService;
+			private var m_resourceService:IResourceService;		
+			private var m_playerData:File;
+			
+			
+			public static function Create(i_framework:IFramework):ImportPlayerData
+			{
+				var importPlayerData:ImportPlayerData = ImportPlayerData(PopUpManager.createPopUp(DisplayObject(FlexGlobals.topLevelApplication), ImportPlayerData, true));
+				importPlayerData.m_framework = i_framework;
+				PopUpManager.centerPopUp(importPlayerData);
+				return importPlayerData;
+			}
+			
+			private function onInit():void
+			{
+				m_watchDogService = m_framework.ServiceBroker.QueryService("WatchDogService") as IWatchDogService;
+				m_resourceService = m_framework.ServiceBroker.QueryService("ResourceService") as IResourceService;
+				m_playerData = new File();
+				m_playerData.addEventListener(Event.SELECT, onFolderSelected);
+			}
+			
+			
+			private function onBrowse():void
+			{
+				m_playerData.browseForDirectory("Select folder 'player.data' to be imported");
+			}
+			
+			private function onFolderSelected(event:Event):void
+			{
+				if (m_playerData.nativePath.indexOf("player.data")==-1)
+				{ 
+					AlertEx.showOk(
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						"Please select the folder 'player.data' that get created by SignageStudio", "Invalid import folder");
+					return;
+				}
+				folder.text = m_playerData.nativePath;
+			}
+			
+			
+			private function start():void
+			{
+				try
+				{
+					if (folder.text=="")
+					{
+						AlertEx.showOk(
+							UIComponent(m_framework.StateBroker.GetState("topWindow")),
+							"Please select the folder 'player.data' that get created by SignageStudio", "Import folder not selected");
+						return;
+					}
+					
+					ResourceServiceAir(m_resourceService).dispose();
+					
+					var businessId:int = int(m_framework.StateBroker.GetState("businessId"));
+					if (businessId==0)
+					{
+						AlertEx.showOk (
+							UIComponent(m_framework.StateBroker.GetState("topWindow")),
+							"Player is not registered", "Import fail");
+						return;
+					}
+					var business:String = "business" + businessId.toString();
+					
+					
+					var src:File = m_playerData.resolvePath("local");
+					for each(var file:File in src.getDirectoryListing())
+					{
+						var dst:File = File.applicationStorageDirectory.resolvePath(file.name);
+						file.copyTo(dst, true);
+					}
+					
+					
+					btnStart.enabled = false;
+					AlertEx.showOk (
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						"Player will load new data", "Import completed");
+					var timer:Timer = new Timer(2000, 1);
+					timer.addEventListener(TimerEvent.TIMER_COMPLETE, onTimer);
+					timer.start();
+				}
+				catch(error:Error)
+				{
+					enabled = true;
+					AlertEx.showOk (
+						UIComponent(m_framework.StateBroker.GetState("topWindow")),
+						error.message, "Import fail");
+				}
+				
+			}
+			
+			private function onTimer(event:TimerEvent):void
+			{
+				Timer(event.target).removeEventListener(TimerEvent.TIMER_COMPLETE, onTimer);
+				if (m_watchDogService!=null)
+				{
+					m_watchDogService.rebootPlayer();
+				}
+			}
+			
+			private function exit():void
+			{
+				m_playerData.removeEventListener(Event.SELECT, onFolderSelected);
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</fx:Script>
+	
+	<s:HGroup top="10" right="10" left="10">
+		<s:Label fontSize="16" text="Import from:"/>
+		<s:TextInput id="folder" editable="false" width="200"/>
+		<s:Button label="..." click="onBrowse()"/>
+	</s:HGroup>
+	<s:Button horizontalCenter="0" bottom="10"
+		id="btnStart" 
+		label="start" click="start()"/>
+</s:TitleWindow>

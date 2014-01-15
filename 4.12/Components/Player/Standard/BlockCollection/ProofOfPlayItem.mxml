@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:GridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" clipAndEnableScrolling="true" xmlns:Controls="Controls.*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayList;
+			import mx.collections.XMLListCollection;
+			import mx.core.FlexGlobals;
+			
+			
+			private var m_framework:IFramework;
+			private var m_advertisingService:IAdvertisingService
+			private var m_dataBaseManager:DataBaseManager;
+			private var m_stateManager:IStateManager;
+			private var m_flexStudio:IFlexStudio;
+			
+			
+			[Bindable]	private var m_xmlListCollection:XMLListCollection;
+			
+			
+			public override function prepare(hasBeenRecycled:Boolean):void 
+			{
+				var addIcon:Class = FlexGlobals.topLevelApplication.styleManager.getStyleDeclaration(".icons").getStyle("addIcon");
+				addPackage.setStyle("icon", addIcon);
+				
+				var editIcon:Class = FlexGlobals.topLevelApplication.styleManager.getStyleDeclaration(".icons").getStyle("editIcon");
+				editPackage.setStyle("icon", editIcon);				
+			}
+			
+			public override function set data(value:Object):void
+			{
+				super.data = value;
+				if (m_framework==null)
+				{
+					m_framework = Global.getFramework(this);
+					m_advertisingService = m_framework.ServiceBroker.QueryService("AdvertisingService") as IAdvertisingService;
+					m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+					m_stateManager = m_framework.ServiceBroker.QueryService("StateManager") as IStateManager;
+					m_flexStudio = m_framework.ServiceBroker.QueryService("FlexStudio") as IFlexStudio;
+				}
+				
+				var xmlPage:XML = data as XML;
+				if (xmlPage==null)
+					return;
+				
+				var localPackageList:ArrayList =  m_advertisingService.getLocalPackages();
+				
+				ad_local_package.dataProvider = localPackageList;
+				ad_local_package.validateNow();
+				
+				
+				if (XMLList(xmlPage.AdLocalContent).length()!=0)
+				{
+					var xmlAdLocalContent:XML = xmlPage.AdLocalContent[0];
+					var hLocalContent:int = xmlAdLocalContent.@handle;
+					var recAdLocalContent:Rec_ad_local_content = m_dataBaseManager.table_ad_local_contents.getRecord(hLocalContent);
+					adLocalEnabled.selected = recAdLocalContent.enabled;
+					content_name.text = recAdLocalContent.content_name;
+					
+						
+					for each(var localPackage:Object in localPackageList.source)
+					{
+						if (localPackage.hAdLocalPackage==recAdLocalContent.ad_local_package_id)
+						{
+							ad_local_package.selectedItem = localPackage;
+							break;
+						}
+					}
+				}
+				else
+				{
+					adLocalEnabled.selected = false;
+					content_name.text = "";
+				}
+				
+				localAdFrame.enabled = adLocalEnabled.selected;
+			}
+
+			
+			private function onAdLocalEnabled():void
+			{
+				var xmlPage:XML = data as XML;
+				if (xmlPage==null)
+					return;
+				
+				localAdFrame.enabled = adLocalEnabled.selected;
+				var recAdLocalContent:Rec_ad_local_content;
+				var hAdLocalContent:int;
+				var recAdLocalPackage:Rec_ad_local_package;
+				
+				if (adLocalEnabled.selected)
+				{
+					var xmlAdLocalContent:XML = null;
+					
+					if (XMLList(xmlPage.AdLocalContent).length()==0)
+					{
+						recAdLocalContent = m_dataBaseManager.table_ad_local_contents.createRecord() as Rec_ad_local_content;
+						m_dataBaseManager.table_ad_local_contents.addRecord(recAdLocalContent);
+						recAdLocalContent.enabled = true;
+						if (ad_local_package.dataProvider.length==0)
+						{
+							recAdLocalPackage = m_dataBaseManager.table_ad_local_packages.createRecord() as Rec_ad_local_package;
+							m_dataBaseManager.table_ad_local_packages.addRecord(recAdLocalPackage);
+							recAdLocalPackage.package_name = "Default";
+							recAdLocalContent.ad_local_package_id = recAdLocalPackage.ad_local_package_id;
+						}
+						
+						xmlAdLocalContent = <AdLocalContent/>;
+						xmlAdLocalContent.@id = -1;
+						xmlAdLocalContent.@handle = recAdLocalContent.ad_local_content_id;
+						xmlPage.appendChild(xmlAdLocalContent);
+					}
+					else
+					{
+						xmlAdLocalContent = xmlPage.AdLocalContent[0];
+						hAdLocalContent = xmlAdLocalContent.@handle;
+						m_dataBaseManager.table_ad_local_contents.openForEdit(hAdLocalContent);
+						recAdLocalContent = m_dataBaseManager.table_ad_local_contents.getRecord(hAdLocalContent);
+						if (recAdLocalContent!=null)
+						{
+							recAdLocalContent.enabled = true;
+							
+							
+							
+							m_dataBaseManager.table_ad_local_packages.openForEdit(recAdLocalContent.ad_local_package_id);
+							recAdLocalPackage = m_dataBaseManager.table_ad_local_packages.getRecord(recAdLocalContent.ad_local_package_id);
+							recAdLocalPackage.enabled = true;
+							data = data;
+						}
+					}
+				}
+				else
+				{
+					if (XMLList(xmlPage.AdLocalContent).length()!=0)
+					{
+						xmlAdLocalContent = xmlPage.AdLocalContent[0];
+						hAdLocalContent = xmlAdLocalContent.@handle;
+						m_dataBaseManager.table_ad_local_contents.openForEdit(hAdLocalContent);
+						recAdLocalContent = m_dataBaseManager.table_ad_local_contents.getRecord(hAdLocalContent);
+						if (recAdLocalContent!=null)
+						{
+							recAdLocalContent.enabled = false;
+						}
+					}
+				}
+			}
+			
+			
+			
+			private function onContentName():void
+			{
+				var xmlPage:XML = data as XML;
+				if (xmlPage==null)
+					return;				
+				var xmlAdLocalContent:XML = xmlPage.AdLocalContent[0];
+				var hLocalContent:int = xmlAdLocalContent.@handle;
+				m_dataBaseManager.table_ad_local_contents.openForEdit(hLocalContent);
+				var recAdLocalContent:Rec_ad_local_content = m_dataBaseManager.table_ad_local_contents.getRecord(hLocalContent);
+				recAdLocalContent.content_name = content_name.text;
+			}
+
+			
+			private function onLocalPackage():void
+			{
+				var xmlPage:XML = data as XML;
+				if (xmlPage==null)
+					return;					
+				var xmlAdLocalContent:XML = xmlPage.AdLocalContent[0];
+				var hLocalContent:int = xmlAdLocalContent.@handle;
+				m_dataBaseManager.table_ad_local_contents.openForEdit(hLocalContent);
+				var recAdLocalContent:Rec_ad_local_content = m_dataBaseManager.table_ad_local_contents.getRecord(hLocalContent);
+				
+				
+				var localPackage:Object = ad_local_package.selectedItem;
+				if (localPackage==null)
+					return;
+				var hAdLocalPackage:int = localPackage.hAdLocalPackage;
+				recAdLocalContent.ad_local_package_id = hAdLocalPackage;
+			}
+			
+			
+			private function onAddPackage():void
+			{
+				var adLocalPrivilege:Boolean = m_stateManager.privilegeAccess("AdLocal", "visible");
+				if (adLocalPrivilege==false)
+					return;
+
+				
+				var xmlPage:XML = data as XML;
+				if (xmlPage==null)
+					return;					
+				var xmlAdLocalContent:XML = xmlPage.AdLocalContent[0];
+				var hLocalContent:int = xmlAdLocalContent.@handle;
+				m_dataBaseManager.table_ad_local_contents.openForEdit(hLocalContent);
+				var recAdLocalContent:Rec_ad_local_content = m_dataBaseManager.table_ad_local_contents.getRecord(hLocalContent);
+				var recAdLocalPackage:Rec_ad_local_package = m_dataBaseManager.table_ad_local_packages.createRecord() as Rec_ad_local_package;
+				m_dataBaseManager.table_ad_local_packages.addRecord(recAdLocalPackage);
+				recAdLocalPackage.package_name = "New Package";
+				recAdLocalContent.ad_local_package_id = recAdLocalPackage.ad_local_package_id;
+				
+				var localPackageList:ArrayList =  m_advertisingService.getLocalPackages();
+				
+				ad_local_package.dataProvider = localPackageList;
+				ad_local_package.validateNow();
+				
+				for each(var localPackage:Object in localPackageList.source)
+				{
+					if (localPackage.hAdLocalPackage==recAdLocalContent.ad_local_package_id)
+					{
+						ad_local_package.selectedItem = localPackage;
+						break;
+					}
+				}
+				
+				
+				m_stateManager.addRecord(this, m_dataBaseManager.table_ad_local_packages, recAdLocalPackage.ad_local_package_id);
+				switchToAdLocalEditor();
+			}
+			
+			private function onEditPackage():void
+			{
+				var localPackage:Object = ad_local_package.selectedItem;
+				if (localPackage==null)
+					return;
+				
+				m_stateManager.selectRecord(this, m_dataBaseManager.table_ad_local_packages, localPackage.hAdLocalPackage);
+				switchToAdLocalEditor();
+			}
+			
+			
+			private function switchToAdLocalEditor():void
+			{
+				var navButton:INavButton;
+				navButton = m_flexStudio.navigationPanel.getNavButton("localAds");
+				if (navButton.visible==false)
+				{
+					navButton.visible = true;
+					m_flexStudio.navigationPanel.refresh();
+				}
+				
+				navButton.select();
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:HorizontalLayout paddingLeft="10" paddingTop="3"/>
+	</s:layout>
+	<s:CheckBox id="adLocalEnabled" click="onAdLocalEnabled()"/>
+	<s:HGroup id="localAdFrame">
+		<s:TextInput id="content_name" width="50"
+					 enter="onContentName()" focusOut="onContentName()"/>
+		<s:DropDownList id="ad_local_package" width="120"
+						labelField="label"
+						change="onLocalPackage()"/>
+		<s:Button id="addPackage" click="onAddPackage()" width="22" height="22"/>
+		<s:Button id="editPackage" click="onEditPackage()" width="22" height="22"/>
+	</s:HGroup>
+</s:GridItemRenderer>

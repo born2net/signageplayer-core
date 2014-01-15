@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*"
+	implements="IPlayer, IProviderItem" 
+	width="100%" height="100%">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.core.IVisualElement;
+			import mx.core.UIComponent;
+			import mx.graphics.ImageSnapshot;
+			
+			import spark.layouts.BasicLayout;
+			import spark.layouts.HorizontalLayout;
+			import spark.layouts.TileLayout;
+			import spark.layouts.VerticalLayout;
+			import spark.layouts.supportClasses.LayoutBase;
+			import spark.skins.spark.BorderContainerSkin;
+			
+			protected var m_dataBaseManager:DataBaseManager;
+			protected var m_hCatalogItem:int = -1;
+			protected var m_newCatalogItem:Boolean = false;
+			
+			protected var m_defaultDuration:Number = 10;
+			
+			
+			protected var m_dataProvider:IDataProvider;
+			protected var m_providerItem:String;
+			protected var m_invalidateProvider:Boolean = false;
+			
+			protected var m_invalidatePlayers:Boolean = false;
+			protected var m_requestStart:Boolean = false;
+			
+						
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/	
+			
+			public override function get enableChildLayout():Boolean
+			{
+				return true;
+			}
+			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Scene).length()>0)
+				{
+					m_defaultDuration = Number(i_data.Scene.@defaultDuration);
+					
+					if (XMLList(i_data.Scene.Layout).length()>0)
+					{
+						if (XMLList(i_data.Scene.Layout.VerticalLayout).length()>0)
+						{
+							super.layout = new VerticalLayout();
+							VerticalLayout(layout).paddingLeft = i_data.Scene.Layout.VerticalLayout.@paddingLeft;
+							VerticalLayout(layout).paddingRight = i_data.Scene.Layout.VerticalLayout.@paddingRight;
+							VerticalLayout(layout).paddingTop = i_data.Scene.Layout.VerticalLayout.@paddingTop;
+							VerticalLayout(layout).paddingBottom = i_data.Scene.Layout.VerticalLayout.@paddingBottom;
+							VerticalLayout(layout).gap = i_data.Scene.Layout.VerticalLayout.@gap;
+						}
+						else if (XMLList(i_data.Scene.Layout.HorizontalLayout).length()>0)
+						{
+							super.layout = new HorizontalLayout();
+							HorizontalLayout(layout).paddingLeft = i_data.Scene.Layout.HorizontalLayout.@paddingLeft;
+							HorizontalLayout(layout).paddingRight = i_data.Scene.Layout.HorizontalLayout.@paddingRight;
+							HorizontalLayout(layout).paddingTop = i_data.Scene.Layout.HorizontalLayout.@paddingTop;
+							HorizontalLayout(layout).paddingBottom = i_data.Scene.Layout.HorizontalLayout.@paddingBottom;
+							HorizontalLayout(layout).gap = i_data.Scene.Layout.HorizontalLayout.@gap;
+						}
+						else if (XMLList(i_data.Scene.Layout.TileLayout).length()>0)
+						{
+							super.layout = new TileLayout();
+							TileLayout(layout).paddingLeft = i_data.Scene.Layout.TileLayout.@paddingLeft;
+							TileLayout(layout).paddingRight = i_data.Scene.Layout.TileLayout.@paddingRight;
+							TileLayout(layout).paddingTop = i_data.Scene.Layout.TileLayout.@paddingTop;
+							TileLayout(layout).paddingBottom = i_data.Scene.Layout.TileLayout.@paddingBottom;
+							TileLayout(layout).horizontalGap = i_data.Scene.Layout.TileLayout.@horizontalGap;
+							TileLayout(layout).verticalGap = i_data.Scene.Layout.TileLayout.@verticalGap;
+							TileLayout(layout).columnWidth = i_data.Scene.Layout.TileLayout.@columnWidth;
+							TileLayout(layout).rowHeight = i_data.Scene.Layout.TileLayout.@rowHeight;
+						}
+					}
+					
+				}
+				
+				m_invalidatePlayers = true;
+				invalidateProperties();
+			}
+
+			public override function clear():void
+			{
+				removeAllElements();
+			}
+			
+			public override function start():void
+			{
+				if (m_invalidatePlayers)
+				{
+					m_requestStart = true;
+				}
+				else
+				{
+					for(var i:int=0; i<numElements; i++)
+					{
+						var element:IVisualElement =  getElementAt(i);
+						getPlayerLoader(element).start();
+					}				
+				}
+			}
+			
+			public override function stop():void
+			{
+				for(var i:int=0; i<numElements; i++)
+				{
+					var element:IVisualElement =  getElementAt(i);
+					getPlayerLoader(element).stop();
+				}				
+			}
+			
+			public override function pause():void
+			{
+				for(var i:int=0; i<numElements; i++)
+				{
+					var element:IVisualElement =  getElementAt(i);
+					getPlayerLoader(element).pause();
+				}				
+			}
+			
+			public override function get seek():Number
+			{
+				return 0;				
+			}
+			
+			public override function set seek(i_seek:Number):void
+			{
+				
+			}
+			
+			public override function onFrame(i_time:Number):void
+			{
+				for(var i:int=0; i<numElements; i++)
+				{
+					var element:IVisualElement =  getElementAt(i);
+					getPlayerLoader(element).onFrame(i_time);
+				}
+			}		
+			 
+			/*M??? 
+			public override function set modified(i_modified:Boolean):void
+			{
+				super.modified = i_modified;
+				if (i_modified==false)
+				{
+					for(var i:int=0; i<numElements; i++)
+					{
+						var element:IVisualElement =  getElementAt(i);
+						getPlayerLoader(element).modified = false;
+					}
+				}				
+			}
+			
+			public override function get modified():Boolean
+			{
+				if (super.modified)
+					return true;
+				for(var i:int=0; i<numElements; i++)
+				{
+					var element:IVisualElement =  getElementAt(i);
+					if (getPlayerLoader(element).modified)
+						return true;
+				}				
+				return false;
+			}
+			*/
+			
+
+			/************************************/
+			/* implements IItemPlayer			*/
+			/************************************/			
+			public function get hCatalogItem():int
+			{
+				return m_hCatalogItem;
+			}
+			
+			public function set hCatalogItem(i_hCatalogItem:int):void
+			{
+				m_hCatalogItem = i_hCatalogItem;
+				m_newCatalogItem = true;
+				invalidateProperties();
+			}
+			
+			public function setDataProvider(i_dataProvider:IDataProvider, i_providerItem:String=null):void
+			{
+				m_dataProvider = i_dataProvider;
+				m_providerItem = i_providerItem;
+				m_invalidateProvider = true;
+				invalidateProperties();
+			}
+			
+			
+
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+			}
+			
+			public override function onCommand(i_eventHandler:IEventHandler, i_eventParam:Object):void
+			{
+				if (i_eventHandler.commandName=="redirect")
+				{
+					var xmlPlayer:XML = i_eventHandler.commandParams.Player[0];
+					PlayerLoader(playerLoader).load(xmlPlayer);
+				}				
+			}			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+				contentGroup.clipAndEnableScrolling = true;
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				var childPlayerLoader:PlayerLoader;
+				if (m_invalidatePlayers)
+				{
+					m_invalidatePlayers = false
+					if (m_data==null)
+						return; 
+
+					removeAllElements();
+					
+					
+					try
+					{
+						for each(var xmlPlayer:XML in m_data.Scene.Players.*)
+						{
+							childPlayerLoader = createPlayer(); 
+							loadChildPlayer(childPlayerLoader, xmlPlayer);
+							
+							if (m_requestStart)
+							{
+								childPlayerLoader.start();
+							}
+						}	
+						
+						m_requestStart = false;
+					}
+					catch(error:Error)
+					{
+						trace(error.toString());
+					}
+				}
+				
+				if (m_invalidateProvider)
+				{
+					m_invalidateProvider = false;
+					for(var i:int=0; i<numElements; i++)
+					{
+						var element:IVisualElement =  getElementAt(i);
+						childPlayerLoader = getPlayerLoader(element);
+						if (m_dataProvider!=null)
+						{
+							childPlayerLoader.setDataProvider(m_dataProvider, m_providerItem); 
+						}
+					}
+				}
+			}
+			
+			protected function createPlayer():PlayerLoader
+			{
+				var childPlayerLoader:PlayerLoader = new PlayerLoader();
+				childPlayerLoader.framework = m_framework;
+				addElement(childPlayerLoader);
+				childPlayerLoader.document = this;
+				return childPlayerLoader;			
+			}
+			
+			protected function loadChildPlayer(i_childPlayerLoader:PlayerLoader, i_xmlPlayer:XML):void
+			{
+				i_childPlayerLoader.load(i_xmlPlayer);
+			}
+			
+			
+			protected function getPlayerLoader(i_element:IVisualElement):PlayerLoader
+			{
+				return i_element as PlayerLoader;
+			}
+			
+			public function get defaultDuration():Number
+			{
+				return m_defaultDuration;
+			}
+
+			public function set defaultDuration(i_defaultDuration:Number):void
+			{
+				m_playerLoader.modified = true;
+				m_defaultDuration = i_defaultDuration;
+				dispatchEvent( new DurationEvent(DurationEvent.CHANGED, m_defaultDuration) );
+				invalidateProperties();
+			}
+			
+			public override function set layout(value:LayoutBase):void
+			{
+				if (m_playerLoader.modified)
+				{
+					m_data = <Data/>;
+					m_data.appendChild( save() );
+				}
+				
+				
+				m_playerLoader.modified = true;
+				
+				super.layout = value;
+				
+				if (super.layout is BasicLayout)
+				{
+					m_invalidatePlayers = true;
+					invalidateProperties();
+				}
+			}
+	
+		]]>
+	</fx:Script>
+	
+</ms:PlayerModule>	

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   close="onCancel()">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			private var m_yesHandler:Function = null;
+			
+			public static function showOk(i_parent:DisplayObject, i_text:String, i_title:String="", i_yesHandler:Function=null):void
+			{
+				var alert:AlertEx = AlertEx(PopUpManager.createPopUp(i_parent, AlertEx, true));
+				alert.title = i_title;
+				alert.msg.text = i_text;
+				alert.m_yesHandler = i_yesHandler;
+				alert.currentState = "State_Ok";
+				alert.closeButton.visible = false;
+				alert.invalidateSize();
+			}
+			
+			public static function showYesNo(i_parent:DisplayObject, i_text:String, i_title:String, i_yesHandler:Function):void
+			{
+				var alert:AlertEx = AlertEx(PopUpManager.createPopUp(i_parent, AlertEx, true));
+				alert.title = i_title;
+				alert.msg.text = i_text;
+				
+				alert.m_yesHandler = i_yesHandler;
+				alert.currentState = "State_YesNo";
+				alert.invalidateSize();
+			}
+			
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				if (msg.text=="")
+					return;
+				var str1:String = msg.text;
+				var str2:String = str1.replace(new RegExp("\\n", "g"), "");
+				var newLines:int = str1.length - str2.length;
+				//var lineMetrics:TextLineMetrics = msg.measureText(str2);
+				//var textWidth:Number = lineMetrics.width;
+				var textHeight:Number = 17; //lineMetrics.height;
+				var textCount:Number  = msg.text.length;
+				var avgWidth:Number = 5.2; // textWidth/textCount;
+				
+				var textWidth:Number = avgWidth * textCount;
+				
+				
+				var rows:int = 1 + (textWidth/textHeight/15);
+				
+				
+				msg.height = (rows + newLines) * textHeight;
+				
+				msg.width = (avgWidth*5) + (textWidth/(rows));
+				
+			}
+			
+			protected override function measure():void
+			{
+				super.measure();
+				
+				x = (parent.width-measuredWidth)/2;
+				y = (parent.height-measuredHeight)/2;
+			}
+			
+			private function onOk():void
+			{
+				PopUpManager.removePopUp(this);
+				if (m_yesHandler!=null)
+				{
+					m_yesHandler();
+				}
+			}
+			
+			private function onCancel():void
+			{
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<s:states>
+		<s:State name="State_Ok"/>
+		<s:State name="State_YesNo"/>
+	</s:states>
+	
+	<s:layout>
+		<s:VerticalLayout paddingBottom="10" paddingTop="10" paddingLeft="10" paddingRight="10"/>
+	</s:layout>
+	
+	<s:Label id="msg"/>
+	<s:Spacer height="5"/>
+	<s:Group width="100%">
+		<s:Button label="Ok" includeIn="State_Ok"
+				  horizontalCenter="0"
+				  click="onOk()"/>
+	</s:Group>
+	
+	<s:HGroup width="100%" includeIn="State_YesNo">
+		<s:Spacer width="100%"/>
+		<s:Button label="Yes" click="onOk()"/>
+		<s:Button label="No" click="onCancel()"/>
+	</s:HGroup>
+</s:TitleWindow>

@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx"
+				 xmlns:ms="*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.utils.Base64Encoder;
+			import mx.utils.Base64Decoder;
+			
+			protected var m_predefined:String;
+			protected var m_xmlParams:XML = <Params/>;
+			protected var m_appName:String = "";
+			protected var m_cmdLine:String = "";
+			protected var m_invalidateApplication:Boolean = false;
+			protected var m_dataBaseManager:DataBaseManager;
+		
+			
+			
+			public override function initModule():void
+			{
+				super.initModule();
+				m_dataBaseManager = m_framework.ServiceBroker.QueryService("DataBaseManager") as DataBaseManager;
+			}
+		
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.ExtApp.@predefined).length()>0)
+				{
+					m_predefined = i_data.ExtApp.@predefined; 
+				}
+				else
+				{
+					m_predefined = "custom";	
+				}
+				
+				var base64Decoder:Base64Decoder;
+				var bytes:ByteArray;
+				var appName64:String;
+				
+				switch(m_predefined)
+				{
+					case "virtualDub":
+						if (XMLList(i_data.ExtApp.Params).length()>0)
+						{
+							m_xmlParams = i_data.ExtApp.Params[0];
+							updateAppCmdLine();
+						}
+					break;
+					
+					case "powerPoint":
+					case "averMediaCenter":
+					case "custom":
+						if (XMLList(i_data.ExtApp.@appName64).length()>0)
+						{
+							
+							base64Decoder = new Base64Decoder();
+							appName64 = i_data.ExtApp.@appName64; 
+							base64Decoder.decode(appName64);
+							bytes = base64Decoder.toByteArray();
+							m_appName = bytes.toString();
+							
+							if (XMLList(i_data.ExtApp.@cmdLine64).length()>0)
+							{
+								base64Decoder = new Base64Decoder();
+								var cmdLine64:String = i_data.ExtApp.@cmdLine64; 
+								base64Decoder.decode(cmdLine64);
+								bytes = base64Decoder.toByteArray();
+								
+								m_cmdLine = bytes.toString();
+							}
+						}
+					break;
+				}
+				m_invalidateApplication = true;
+				invalidateProperties();
+				invalidateDisplayList();
+			}
+			 
+			public override function save():XML
+			{
+				var xmlExtApp:XML = <ExtApp/>;
+				
+				xmlExtApp.@predefined = m_predefined;
+				
+				switch(m_predefined)
+				{
+					case "virtualDub":
+						xmlExtApp.appendChild(m_xmlParams);
+					break;
+					
+					case "powerPoint":
+					case "averMediaCenter":
+					case "custom":
+						var base64Encoder:Base64Encoder;
+						base64Encoder = new Base64Encoder();
+						base64Encoder.encodeUTFBytes(m_appName);
+						xmlExtApp.@appName64 = base64Encoder.toString();
+						
+						base64Encoder = new Base64Encoder();
+						base64Encoder.encodeUTFBytes(m_cmdLine);
+						xmlExtApp.@cmdLine64 = base64Encoder.toString();
+					break;
+				}
+				return xmlExtApp;  
+			}		
+			
+
+			public function set predefined(i_predefined:String):void
+			{
+				m_predefined = i_predefined;
+				m_playerLoader.modified = true;
+				m_appName = "";
+				m_cmdLine = "";
+				updateAppCmdLine();
+			}
+			
+			public function get predefined():String
+			{
+				return m_predefined;
+			}
+
+			public function get xmlParams():XML
+			{
+				return m_xmlParams;
+			}
+
+			public function set appName(i_appName:String):void
+			{
+				m_playerLoader.modified = true;
+				m_appName = i_appName;
+				m_invalidateApplication = true;
+				invalidateProperties();
+				invalidateDisplayList();
+			}
+			public function get appName():String
+			{
+				return m_appName;
+			}
+
+			public function set cmdLine(i_cmdLine:String):void
+			{
+				m_playerLoader.modified = true;
+				m_cmdLine = i_cmdLine;
+				invalidateProperties();
+			}
+			
+			public function get cmdLine():String
+			{
+				return m_cmdLine;
+			}
+			
+			
+			
+			public function updateAppCmdLine():void
+			{
+				switch(m_predefined)
+				{
+					case "virtualDub":
+						m_appName = "win32\\VirtualDub\\VirtualDub.exe"
+						var applyFilter:String = "linear";
+						if (XMLList(m_xmlParams.@applyFilter).length()>0)
+						{
+							applyFilter = String(m_xmlParams.@applyFilter);
+						}
+						else
+						{
+							m_xmlParams.@applyFilter = applyFilter;
+						}
+						m_cmdLine = "/cleanCapture  /applyFilter " + applyFilter + " /capstart";
+					break;
+					case "averMediaCenter":
+						if (m_appName=="")
+						{
+							m_appName = "C:\\Program Files\\AVerMedia\\AVer MediaCenter\\AVer MediaCenter.exe";
+						}
+						break;
+					case "powerPoint":
+						if (m_appName=="")
+						{
+							m_appName = "C:\\Program Files\\Microsoft Office\\Office12\\PPTVIEW.EXE"
+						}
+						if (m_cmdLine=="")
+						{
+							m_cmdLine = "/S ";
+						}
+					break;
+					case "custom":
+					break;
+				}
+			}
+			
+			
+			
+			public function getResource(i_hResource:int):Rec_resource
+			{
+				return m_dataBaseManager.table_resources.getRecord(i_hResource); 
+			}
+			
+			public override function get propertyPages():Array
+			{
+				return [BlockExtAppPage];
+			}
+		]]>
+	</fx:Script>	
+</ms:PlayerModule>	

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:SignagePlayerAir xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:ms="*"
+			   xmlns:Controls="Controls.*"
+			   xmlns:Navigator="Navigator.*" >
+	
+	
+	
+	<fx:Script>   
+		<![CDATA[
+			import mx.core.FlexGlobals;
+			import mx.managers.PopUpManager;
+			
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			protected override function init():void
+			{ 
+				m_environment = "mobile";
+				m_shoudDebugAlert = m_debug;
+				
+				super.init();
+				
+				
+				m_framework.StateBroker.SetState(this, "environment", m_environment);
+				
+				stage.scaleMode = StageScaleMode.NO_SCALE;
+				stage.align = StageAlign.TOP_LEFT;				
+				
+					
+				ViewerServiceMobile(m_viewerService).init(stage);
+				invalidateDisplayList();
+			}
+			
+			protected override function createViewerService():IViewerService
+			{
+				return new ViewerServiceMobile(m_framework, this);
+			}
+			
+			
+			protected override function createCampaignBoardPlayer():CampaignBoardPlayer
+			{
+				var campaignBoardPlayer:CampaignBoardPlayer = new CampaignBoardPlayerAir(m_framework);
+				return campaignBoardPlayer;
+				
+			}
+			
+			
+			public override function showSplashScreen(i_show:Boolean):void
+			{
+				if (i_show)
+				{
+					var parent:DisplayObject = DisplayObject(FlexGlobals.topLevelApplication);
+					SplashWindow.Create(parent);
+				}
+				else
+				{
+					SplashWindow.Distroy();
+				}
+			}
+			
+		]]> 
+	</fx:Script>
+</ms:SignagePlayerAir>
+

@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerModule xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				 xmlns:s="library://ns.adobe.com/flex/spark" 
+				 xmlns:mx="library://ns.adobe.com/flex/mx" 
+				 xmlns:ms="*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.XMLListCollection;
+			import mx.events.CollectionEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.soap.WebService;
+		
+			protected var m_rssService:IRssService;
+			protected var m_rssRequest:IRssRequest;
+			protected var m_rssUrl:String = "http://rss.news.yahoo.com/rss/world";
+			protected var m_items:XMLList;
+			protected var m_embeddedRssCollection:XMLListCollection = null;
+			protected var m_ItemIndex:int = -1;
+			protected var m_minRefreshTime:Number = 30;
+
+			public override function get propertyPages():Array
+			{ 
+				return [BlockRssTextPage];
+			}
+
+			public function get rssUrl():String
+			{
+				return m_rssUrl;
+			}
+			
+			public function set rssUrl(i_rssUrl:String):void
+			{
+				m_playerLoader.modified = true;
+				m_rssUrl = i_rssUrl;
+				m_embeddedRssCollection = null;
+				m_ItemIndex = -1;
+				requestRss();
+			}
+			
+			public function get minRefreshTime():Number
+			{
+				return m_minRefreshTime;
+			}
+			
+			public function set minRefreshTime(i_minRefreshTime:Number):void
+			{
+				m_playerLoader.modified = true;
+				m_minRefreshTime = i_minRefreshTime;
+			}
+			
+			public function get embeddedRssCollection():XMLListCollection
+			{
+				return m_embeddedRssCollection;
+			}
+			
+			public function set embeddedRssCollection(i_embeddedRssCollection:XMLListCollection):void
+			{
+				m_playerLoader.modified = true;
+				m_embeddedRssCollection = i_embeddedRssCollection;
+				m_embeddedRssCollection.addEventListener(CollectionEvent.COLLECTION_CHANGE, onEmbeddedCollection);
+				m_rssUrl = null;
+				m_items = m_embeddedRssCollection.source;
+				m_ItemIndex = -1;
+				invalidateRss();
+			}
+			
+			public function updateEmbeddedRss():void
+			{
+				m_playerLoader.modified = true;
+				m_items = m_embeddedRssCollection.source;
+				invalidateRss();
+			}
+			
+			protected function invalidateRss():void
+			{
+				
+			}
+			
+			/************************************/
+			/* implements IPlayer				*/
+			/************************************/			
+			public override function load(i_data:XML):void
+			{
+				super.load(i_data);
+				if (XMLList(i_data.Rss).length()>0)
+				{
+					m_rssUrl = String(i_data.Rss.@url);
+					if (XMLList(i_data.Rss.rss).length()>0)
+					{
+						m_embeddedRssCollection = new XMLListCollection(i_data.Rss.rss[0].channel.item);
+						m_embeddedRssCollection.addEventListener(CollectionEvent.COLLECTION_CHANGE, onEmbeddedCollection);
+						m_rssUrl = null;
+						invalidateRss();
+					}
+				}
+				if (m_rssUrl!=null)
+				{
+					if (XMLList(i_data.Rss.@minRefreshTime).length()>0)
+					{
+						m_minRefreshTime = i_data.Rss.@minRefreshTime;
+					}
+					requestRss();
+				}
+				else if (m_embeddedRssCollection!=null)
+				{
+					m_items = m_embeddedRssCollection.source;
+					invalidateProperties();
+				}
+			}  
+			
+			private function onEmbeddedCollection(event:CollectionEvent):void
+			{
+				updateEmbeddedRss();
+			}
+			
+			public override function save():XML
+			{
+				var xmlRss:XML = 	<Rss/>;
+				if (m_rssUrl!=null)
+				{
+					xmlRss.@url = m_rssUrl;
+				}
+				if (m_embeddedRssCollection!=null)
+				{
+					var xmlEmbRss:XML = <rss/>;
+					xmlRss.appendChild(xmlEmbRss);
+					
+					var xmlChannel:XML = <channel/>;
+					xmlEmbRss.appendChild(xmlChannel);
+					xmlChannel.appendChild(m_embeddedRssCollection.source); //???
+				}
+				else
+				{
+					xmlRss.@minRefreshTime = m_minRefreshTime;					
+				}
+				return xmlRss; 
+			}   
+			
+			
+			public override function clear():void
+			{
+				super.clear();
+				m_ItemIndex = -1;
+				if (m_rssRequest!=null)
+				{
+					m_rssRequest.removeEventListener(RssEvent.RSS_RESULT, onRssResult);
+					m_rssRequest = null;
+				}
+			}
+			
+			
+
+			/************************************/
+			/* Class Implementaion				*/
+			/************************************/
+			public override function initModule():void
+			{
+				super.initModule();
+				m_rssService = m_framework.ServiceBroker.QueryService("RssService") as IRssService;
+				m_ItemIndex = -1;
+			} 
+			
+			
+			protected function requestRss():void
+			{
+				m_rssRequest = m_rssService.createRssRequest(m_rssUrl, m_minRefreshTime, 60 * 12 * 30);
+				m_rssRequest.addEventListener(RssEvent.RSS_RESULT, onRssResult);
+				m_rssRequest.request();
+			}
+			
+			protected function onRssResult(event:RssEvent):void
+			{
+				var rssRequest:IRssRequest = event.rssRequest;
+				rssRequest.removeEventListener(RssEvent.RSS_RESULT, onRssResult);
+				if (rssRequest.result==null)
+					return;
+					
+				rssRequest.shuffleItems();	
+					
+				var xmlRss:XML = new XML( rssRequest.result );
+				var version:Number = int(xmlRss.@version);
+				if (version>=2)
+				{
+					m_items = xmlRss.channel..item;	
+				}
+				else // old rss version
+				{
+					var items:XML = <items/>
+					for each(var xmlItem:XML in xmlRss.*)
+					{
+						if (xmlItem.localName()=="item")
+						{
+							var xmlItem2:XML = <item/>;
+							for each(var xml:XML in xmlItem.*)
+							{
+								switch(xml.localName())
+								{
+									case "title":
+										var xmlTitle:XML = <title>{xml.toString()}</title>
+										xmlItem2.appendChild(xmlTitle);
+									break;
+									case "description":
+										var xmlDescription:XML = <description>{xml.toString()}</description>
+										xmlItem2.appendChild(xmlDescription);
+									break;
+								}
+							}
+							items.appendChild(xmlItem2);	
+						}
+					} 
+					m_items = items.*;
+				}
+				
+				invalidateRss();
+			}
+			
+			protected override function createChildren():void
+			{
+				super.createChildren();
+			}
+			
+			protected override function commitProperties():void
+			{
+				super.commitProperties(); 
+			}
+			
+			protected override function onDispose():void
+			{
+				super.onDispose();
+				if (m_rssRequest!=null)
+				{
+					m_rssRequest.removeEventListener(RssEvent.RSS_RESULT, onRssResult);
+					m_rssRequest = null;
+				}
+				if (m_embeddedRssCollection!=null)
+				{
+					m_embeddedRssCollection.removeEventListener(CollectionEvent.COLLECTION_CHANGE, onEmbeddedCollection);
+					m_embeddedRssCollection = null;
+				}
+			} 
+		]]> 
+	</fx:Script>
+</ms:PlayerModule>	

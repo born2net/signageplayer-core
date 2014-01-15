@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://secure.dynawebs.net/_msportal/_js/_mobile/jquery-1.9.1.js" type="text/javascript"></script>
+    <script src="https://secure.dynawebs.net/_msportal/_js/jquery.base64.js" type="text/javascript"></script>
+
+    <script src="https://js.signage.me/SignageSDK.js" type="text/javascript"></script>
+    <title></title>
+</head>
+<body>
+    <form>
+        <input type="file" name="file" id="file" onchange="onFileSelecetd(e)" multiple>
+        <input type="button" onclick="save()" value="Commit">
+    </form>
+
+    <script type="text/javascript">
+        var user = "d26@ms.com";
+        var password = "123123";
+
+
+        var loaderManager = null;
+        var db = null;
+        var offset = 0;
+
+
+        create();
+
+
+
+        function create()
+        {
+            loaderManager = new LoaderManager();
+            db =  loaderManager.m_dataBaseManager;
+            loaderManager.create(user, password, dataReady);
+        }
+
+
+        function dataReady()
+        {
+            var boards = db.table_boards();
+            var board1 = boards.createRecord();
+            board1.board_name = "Scr1";
+            boards.addRecord(board1);
+
+            var boardTemplates = db.table_board_templates();
+            var boardTemplate1 = boardTemplates.createRecord();
+            boardTemplate1.template_name = "Tm1";
+            boardTemplate1.board_id =  board1.board_id;
+            boardTemplates.addRecord(boardTemplate1);
+
+            var viewers = db.table_board_template_viewers();
+            var viewer1 = viewers.createRecord();
+            viewer1.viewer_name = "VW1";
+            viewer1.pixel_width = 400;
+            viewer1.pixel_height = 400;
+            viewer1.board_template_id = boardTemplate1.board_template_id;
+            viewers.addRecord(viewer1);
+
+            var campaigns = db.table_campaigns();
+            var campaign1 = campaigns.createRecord();
+            campaign1.campaign_name = "Camp1";
+            campaigns.addRecord(campaign1);
+
+            var campaignBoards = db.table_campaign_boards();
+            var output1 = campaignBoards.createRecord();
+            output1.campaign_id =  campaign1.campaign_id;
+            output1.board_id = board1.board_id;
+            campaignBoards.addRecord(output1);
+
+            var timelines = db.table_campaign_timelines();
+            var timeline1 = timelines.createRecord();
+            timeline1.campaign_id = campaign1.campaign_id;
+            timeline1.timeline_name = "Tml";
+            timelines.addRecord(timeline1);
+
+
+            var timelineScreens = db.table_campaign_timeline_board_templates();
+            timelineScreen1 = timelineScreens.createRecord();
+            timelineScreen1.campaign_timeline_id = timeline1.campaign_timeline_id;
+            timelineScreen1.board_template_id = boardTemplate1.board_template_id;
+            timelineScreen1.campaign_board_id = output1.campaign_board_id;
+            timelineScreens.addRecord(timelineScreen1);
+
+
+            var chanels = db.table_campaign_timeline_chanels();
+            var chanel1 = chanels.createRecord();
+            chanel1.chanel_name = "CH1";
+            chanel1.campaign_timeline_id = timeline1.campaign_timeline_id;
+            chanels.addRecord(chanel1);
+
+
+            var viewerChanels = db.table_campaign_timeline_board_viewer_chanels();
+            var viewerChanel1 = viewerChanels.createRecord();
+            viewerChanel1.campaign_timeline_board_template_id = timelineScreen1.campaign_timeline_board_template_id;
+            viewerChanel1.board_template_viewer_id = viewer1.board_template_viewer_id;
+            viewerChanel1.campaign_timeline_chanel_id = chanel1.campaign_timeline_chanel_id;
+            viewerChanels.addRecord(viewerChanel1);
+
+
+            this.hCampaignTimelineChanel =  viewerChanel1.campaign_timeline_chanel_id;
+
+             alert('dataReady')
+
+        }
+
+
+        function onFileSelecetd()
+        {
+            try
+            {
+                var resources = db.table_resources();
+
+                var resourceList = loaderManager.createResources(document.getElementById("file"));
+
+                for(var iResource=0; iResource<resourceList.length; iResource++)
+                {
+                    var hResource = resourceList[iResource];
+
+                    var timelinePlayers = db.table_campaign_timeline_chanel_players();
+                    var timelinePlayer1 = timelinePlayers.createRecord();
+                    timelinePlayer1.player_data = '<Player player="3130"><Data><Resource hResource="'+hResource+'" /></Data></Player>';
+                    timelinePlayer1.campaign_timeline_chanel_id = this.hCampaignTimelineChanel;
+                    timelinePlayer1.player_duration = 10;
+                    timelinePlayer1.player_offset_time = offset;
+                    timelinePlayers.addRecord( timelinePlayer1 );
+
+                    offset+=10;
+                }
+            }
+            catch(error)
+            {
+                alert(error)
+            }
+        }
+
+
+        function onSave(i_result)
+        {
+              alert(i_result.status)
+        }
+
+        function save()
+        {
+            loaderManager.save(onSave);
+        }
+
+
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<flexLibProperties includeAllClasses="true" useMultiPlatformConfig="false" version="3">
+  <includeClasses>
+    <classEntry path="Accordion.AccordionItemSkin"/>
+    <classEntry path="Controls.LinkButton"/>
+    <classEntry path="Controls.ItemSelector"/>
+    <classEntry path="Layout.Divider"/>
+    <classEntry path="Controls.SparkDateChooser"/>
+    <classEntry path="Menu.SparkToolBar"/>
+  </includeClasses>
+  <includeResources/>
+  <namespaceManifests/>
+</flexLibProperties>

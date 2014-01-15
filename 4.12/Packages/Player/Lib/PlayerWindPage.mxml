@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ms:PlayerPage xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:ms="*"
+	width="342" height="324"
+	label="Wind">
+	<ms:PlayerActiveCtrl id="propertyModeCtrl" width="100%" height="132"/>
+	<s:Group id="propCtrl" width="100%" height="100%">
+		<s:HSlider id="fxWindSpeed" x="85" y="10" width="100"  minimum="0" maximum="100" snapInterval="1" stepSize="5" />
+		<s:Label x="10" y="37" text="Scale"/>
+		<s:HSlider id="fxWindScale" x="85" y="36" width="100"  minimum="0" maximum="300" snapInterval="1" stepSize="25"/>
+		<s:Label x="10" y="12" text="Speed"/>
+		<s:HSlider id="fxWindMagnitude" x="85" y="65" width="100"  minimum="0" maximum="100" snapInterval="5" stepSize="1"/>
+		<s:Label x="10" y="62" text="magnitude"/> 
+	</s:Group>
+</ms:PlayerPage>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   xmlns:ms="*" 
+		   creationPolicy="all"
+	implements="IPage"
+	label="Common"
+	width="100%" height="100%" xmlns:Accordion="Accordion.*" >
+	
+	<fx:Script> 
+		<![CDATA[
+			import mx.effects.easing.Exponential;
+			private var m_playerLoader:PlayerLoader;
+			
+			public function set editor(i_editor:IEditor):void
+			{
+				m_playerLoader = PlayerLoader(i_editor);
+				invalidateProperties();
+			}
+			
+			public function get editor():IEditor
+			{
+				return m_playerLoader;
+			}
+
+			protected override function commitProperties():void
+			{
+				super.commitProperties();
+				playerAppearancePage.playerLoader = m_playerLoader;
+				playerBorderPage.playerLoader = m_playerLoader;
+				playerBackgroundPage.playerLoader = m_playerLoader;
+				playerGlowPage.playerLoader = m_playerLoader;
+				playerBlurPage.playerLoader = m_playerLoader;
+				playerShadowPage.playerLoader = m_playerLoader;
+			}
+		]]>
+	</fx:Script>
+
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<!-- M??? <mx:Accordion creationPolicy="all" width="100%" height="100%" openEasingFunction="{Exponential.easeOut}"> -->
+	<Accordion:SparkAccordion width="100%" height="100%">
+	    <ms:PlayerAppearancePage id="playerAppearancePage" width="100%" height="100%"/>
+	    <ms:PlayerBorderPage id="playerBorderPage" width="100%" height="100%"/>
+	    <ms:PlayerBackgroundPage id="playerBackgroundPage" width="100%" height="100%"/>
+	    <ms:PlayerGlowPage id="playerGlowPage" width="100%" height="100%"/>
+	    <ms:PlayerBlurPage id="playerBlurPage" width="100%" height="100%"/>
+		<ms:PlayerShadowPage id="playerShadowPage" width="100%" height="100%"/>
+<!-- to be supported		
+		<ms:PlayerReflectPage id="playerReflectPage" width="100%" height="100%"/>
+		<ms:PlayerWindPage id="playerWindPage" width="100%" height="100%"/>
+		<ms:PlayerFirePage id="playerFirePage" width="100%" height="100%"/>
+-->		
+	</Accordion:SparkAccordion>
+	<!-- M??? </mx:Accordion> -->
+
+</s:NavigatorContent>	
+
